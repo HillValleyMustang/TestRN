@@ -11,9 +11,21 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+
+// React Native-compatible UUID generator
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
 import { AddGymNameDialog } from './AddGymNameDialog';
 import { SetupGymOptionsDialog } from './SetupGymOptionsDialog';
@@ -21,6 +33,9 @@ import { AnalyseGymPhotoDialog } from './AnalyseGymPhotoDialog';
 import { CopyGymSetupDialog } from './CopyGymSetupDialog';
 import { DeleteGymDialog } from './DeleteGymDialog';
 import { RenameGymDialog } from './RenameGymDialog';
+import { ExerciseSelectionDialog } from './ExerciseSelectionDialog';
+import { TPathSetupDialog } from './TPathSetupDialog';
+import { GymSetupSummaryModal } from './GymSetupSummaryModal';
 
 interface Gym {
   id: string;
@@ -35,9 +50,24 @@ interface MyGymsCardProps {
   onRefresh: () => Promise<void>;
   onManageGym: (gymId: string) => void;
   supabase: any;
+  deleteGym?: (gymId: string) => Promise<void>;
 }
 
-type FlowStep = 'name' | 'setup' | 'ai-upload' | 'copy';
+interface DetectedExercise {
+  name: string;
+  main_muscle: string;
+  type: string;
+  category?: string;
+  description?: string;
+  pro_tip?: string;
+  video_url?: string;
+  movement_type?: string;
+  movement_pattern?: string;
+  duplicate_status: 'none' | 'global' | 'my-exercises';
+  existing_id?: string | null;
+}
+
+type FlowStep = 'name' | 'setup' | 'ai-upload' | 'exercise-selection' | 'profile-setup' | 'generating-plan' | 'summary' | 'copy';
 
 export function MyGymsCardNew({
   userId,
@@ -45,19 +75,33 @@ export function MyGymsCardNew({
   activeGymId,
   onRefresh,
   onManageGym,
-  supabase
+  supabase,
+  deleteGym
 }: MyGymsCardProps) {
   const strings = useSettingsStrings();
-
+  const router = useRouter();
 
   const [isEditing, setIsEditing] = useState(false);
   const [flowStep, setFlowStep] = useState<FlowStep | null>(null);
   const [currentGymId, setCurrentGymId] = useState<string>('');
   const [currentGymName, setCurrentGymName] = useState<string>('');
+  const [setupCompleted, setSetupCompleted] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedGymId, setSelectedGymId] = useState<string>('');
   const [selectedGymName, setSelectedGymName] = useState<string>('');
+  
+  // New state for AI workout flow
+  const [detectedExercises, setDetectedExercises] = useState<DetectedExercise[]>([]);
+  const [base64Images, setBase64Images] = useState<string[]>([]);
+  const [confirmedExerciseNames, setConfirmedExerciseNames] = useState<Set<string>>(new Set());
+  const [totalEquipmentDetected, setTotalEquipmentDetected] = useState(0);
+  const [generatedTPath, setGeneratedTPath] = useState<any>(null);
+  const [generatedChildWorkouts, setGeneratedChildWorkouts] = useState<any[]>([]);
+  const [profileData, setProfileData] = useState<{
+    programmeType?: 'ulul' | 'ppl';
+    sessionLength?: string;
+  }>({});
 
   const handleStartAddGym = () => {
     setFlowStep('name');
@@ -66,6 +110,7 @@ export function MyGymsCardNew({
   const handleNameComplete = (gymId: string, gymName: string) => {
     setCurrentGymId(gymId);
     setCurrentGymName(gymName);
+    setSetupCompleted(false);
     setFlowStep('setup');
   };
 
@@ -123,13 +168,355 @@ export function MyGymsCardNew({
   };
 
   const finishSetup = async () => {
+    setSetupCompleted(true);
     setFlowStep(null);
+    
+    // Clear AI flow state
+    const clearedGymId = currentGymId;
+    const clearedGymName = currentGymName;
+    
     setCurrentGymId('');
     setCurrentGymName('');
+    setDetectedExercises([]);
+    setBase64Images([]);
+    setConfirmedExerciseNames(new Set());
+    setTotalEquipmentDetected(0);
+    setGeneratedTPath(null);
+    setGeneratedChildWorkouts([]);
+    setProfileData({});
+    
     await onRefresh();
   };
 
+  // Clean up incomplete gym if user exits during AI flow
+  const cleanupIncompleteGym = async () => {
+    if (currentGymId && !setupCompleted && (flowStep === 'exercise-selection' || flowStep === 'profile-setup' || flowStep === 'generating-plan')) {
+      console.log('[MyGymsCard] Cleaning up incomplete gym:', currentGymId);
+      try {
+        // Delete gym if incomplete (no exercises linked or no t-path generated)
+        await supabase
+          .from('gyms')
+          .delete()
+          .eq('id', currentGymId);
+        
+        console.log('[MyGymsCard] Incomplete gym deleted');
+      } catch (error) {
+        console.error('[MyGymsCard] Error cleaning up incomplete gym:', error);
+      }
+    }
+  };
+
+  // Handler when exercises are generated from equipment
+  const handleExercisesGenerated = (exercises: DetectedExercise[], images: string[]) => {
+    console.log('[MyGymsCard] Exercises generated:', exercises.length);
+    setDetectedExercises(exercises);
+    setBase64Images(images);
+    
+    // Count equipment from exercises (estimate based on exercise count)
+    setTotalEquipmentDetected(Math.ceil(exercises.length / 2));
+    
+    // Move to exercise selection step
+    setFlowStep('exercise-selection');
+  };
+
+  // Handler when exercises are confirmed
+  const handleExercisesConfirmed = async (confirmed: DetectedExercise[], confirmedNames: Set<string>) => {
+    console.log('[MyGymsCard] Exercises confirmed:', confirmed.length);
+    setConfirmedExerciseNames(confirmedNames);
+
+    // Show loading state
+    setFlowStep('generating-plan');
+
+    try {
+      // Step 1: Link exercises to gym
+      await linkExercisesToGym(confirmed);
+
+      // Step 2: Check profile data and prompt if missing
+      const missingFields = await checkProfileData();
+      
+      if (Object.keys(missingFields).length > 0) {
+        // Show profile setup dialog
+        setFlowStep('profile-setup');
+      } else {
+        // Profile data complete, generate t-path
+        await generateTPathForGym();
+      }
+    } catch (error) {
+      console.error('[MyGymsCard] Error in exercise confirmation flow:', error);
+      Alert.alert('Error', 'Failed to set up your gym. Please try again.');
+      setFlowStep('setup');
+    }
+  };
+
+  // Link confirmed exercises to gym
+  const linkExercisesToGym = async (confirmedExercises: DetectedExercise[]) => {
+    console.log('[MyGymsCard] Linking exercises to gym:', currentGymId);
+    
+    // Filter only new exercises (not duplicates)
+    const newExercises = confirmedExercises.filter(ex => ex.duplicate_status === 'none');
+    
+    // Insert new exercises into exercise_definitions
+    for (const exercise of newExercises) {
+      const exerciseId = generateUUID(); // Generate React Native-compatible UUID
+      
+      try {
+        const { error: insertError } = await supabase
+          .from('exercise_definitions')
+          .insert({
+            id: exerciseId,
+            name: exercise.name,
+            main_muscle: exercise.main_muscle,
+            type: exercise.type,
+            category: exercise.category,
+            movement_type: exercise.movement_type,
+            movement_pattern: exercise.movement_pattern,
+            description: exercise.description,
+            pro_tip: exercise.pro_tip,
+            video_url: exercise.video_url || null,
+            user_id: userId,
+            library_id: null,
+            created_at: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error('[MyGymsCard] Error inserting exercise:', insertError);
+          continue;
+        }
+
+        // Link exercise to gym
+        const { error: linkError } = await supabase
+          .from('gym_exercises')
+          .insert({
+            gym_id: currentGymId,
+            exercise_id: exerciseId,
+            created_at: new Date().toISOString(),
+          });
+
+        if (linkError) {
+          console.error('[MyGymsCard] Error linking exercise to gym:', linkError);
+        }
+      } catch (error) {
+        console.error('[MyGymsCard] Error processing exercise:', error);
+      }
+    }
+
+    // Link existing exercises (duplicates) to gym
+    const existingExercises = confirmedExercises.filter(ex => ex.duplicate_status !== 'none' && ex.existing_id);
+    
+    for (const exercise of existingExercises) {
+      if (!exercise.existing_id) continue;
+      
+      try {
+        const { error: linkError } = await supabase
+          .from('gym_exercises')
+          .insert({
+            gym_id: currentGymId,
+            exercise_id: exercise.existing_id,
+            created_at: new Date().toISOString(),
+          });
+
+        if (linkError) {
+          // Ignore duplicate link errors
+          if (!linkError.message?.includes('duplicate') && linkError.code !== '23505') {
+            console.error('[MyGymsCard] Error linking existing exercise to gym:', linkError);
+          }
+        }
+      } catch (error) {
+        console.error('[MyGymsCard] Error processing existing exercise:', error);
+      }
+    }
+
+    console.log('[MyGymsCard] Exercise linking complete');
+  };
+
+  // Check if profile has required data for t-path generation
+  const checkProfileData = async (): Promise<{ programmeType?: boolean; sessionLength?: boolean }> => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('programme_type, preferred_session_length')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      const missingFields: { programmeType?: boolean; sessionLength?: boolean } = {};
+      
+      if (!profile?.programme_type) {
+        missingFields.programmeType = true;
+      }
+      
+      if (!profile?.preferred_session_length) {
+        missingFields.sessionLength = true;
+      }
+
+      // Store existing profile data
+      if (profile?.programme_type) {
+        setProfileData(prev => ({ ...prev, programmeType: profile.programme_type as 'ulul' | 'ppl' }));
+      }
+      if (profile?.preferred_session_length) {
+        setProfileData(prev => ({ ...prev, sessionLength: profile.preferred_session_length as string }));
+      }
+
+      return missingFields;
+    } catch (error) {
+      console.error('[MyGymsCard] Error checking profile data:', error);
+      // Assume missing if error
+      return { programmeType: true, sessionLength: true };
+    }
+  };
+
+  // Handler when profile setup is complete
+  const handleProfileSetupComplete = async (data: { programmeType?: 'ulul' | 'ppl'; sessionLength?: string }) => {
+    console.log('[MyGymsCard] Profile setup complete:', data);
+    
+    // Update profile data state
+    setProfileData(prev => ({ ...prev, ...data }));
+
+    // Update profile in database
+    const updates: any = {};
+    if (data.programmeType) updates.programme_type = data.programmeType;
+    if (data.sessionLength) updates.preferred_session_length = data.sessionLength;
+
+    if (Object.keys(updates).length > 0) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId);
+
+        if (error) {
+          console.error('[MyGymsCard] Error updating profile:', error);
+          throw error;
+        }
+      } catch (error) {
+        console.error('[MyGymsCard] Failed to update profile:', error);
+        Alert.alert('Error', 'Failed to save your preferences. Please try again.');
+        setFlowStep('profile-setup');
+        return;
+      }
+    }
+
+    // Generate t-path
+    await generateTPathForGym();
+  };
+
+  // Generate t-path for the gym
+  const generateTPathForGym = async () => {
+    console.log('[MyGymsCard] Generating t-path for gym:', currentGymId);
+    setFlowStep('generating-plan');
+
+    try {
+      // Fetch profile data directly to ensure we have the latest values
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('programme_type, preferred_session_length')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+      if (!profile?.programme_type) {
+        throw new Error('Programme type is required. Please set your programme type in your profile.');
+      }
+
+      const programmeType = profile.programme_type as 'ulul' | 'ppl';
+      const sessionLength = profile.preferred_session_length || profileData.sessionLength || '45-60';
+
+      // Create main t-path first
+      const mainTPathId = generateUUID(); // Generate React Native-compatible UUID
+      const { error: mainTPathError } = await supabase
+        .from('t_paths')
+        .insert({
+          id: mainTPathId,
+          user_id: userId,
+          template_name: programmeType === 'ppl' ? 'Push/Pull/Legs' : 'Upper/Lower',
+          gym_id: currentGymId,
+          settings: {
+            tPathType: programmeType,
+            equipmentMethod: 'photo',
+          },
+          created_at: new Date().toISOString(),
+        });
+
+      if (mainTPathError) throw mainTPathError;
+
+      // Update profile to use this t-path as active
+      await supabase
+        .from('profiles')
+        .update({ 
+          active_t_path_id: mainTPathId,
+          active_gym_id: currentGymId,
+        })
+        .eq('id', userId);
+      
+      console.log('[MyGymsCard] Calling generate-t-path with:', {
+        tPathId: mainTPathId,
+        sessionLength,
+      });
+
+      // Call generate-t-path edge function to create child workouts
+      const response = await fetch(
+        `https://mgbfevrzrbjjiajkqpti.supabase.co/functions/v1/generate-t-path`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            tPathId: mainTPathId,
+            preferred_session_length: sessionLength,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate t-path');
+      }
+
+      // Fetch the generated t-path and child workouts
+      const { data: mainTPath } = await supabase
+        .from('t_paths')
+        .select('*')
+        .eq('id', mainTPathId)
+        .single();
+
+      const { data: childWorkouts } = await supabase
+        .from('t_paths')
+        .select('*, exercises:t_path_exercises(exercise_id, is_bonus_exercise, exercise:exercise_definitions(*))')
+        .eq('parent_t_path_id', mainTPathId);
+
+      // Transform child workouts to match expected format
+      const transformedChildWorkouts = (childWorkouts || []).map((workout: any) => ({
+        id: workout.id,
+        template_name: workout.template_name,
+        exercises: (workout.exercises || []).map((ex: any) => ({
+          ...ex.exercise,
+          is_bonus_exercise: ex.is_bonus_exercise,
+        })),
+      }));
+
+      setGeneratedTPath(mainTPath);
+      setGeneratedChildWorkouts(transformedChildWorkouts);
+
+      // Show summary modal
+      setFlowStep('summary');
+    } catch (error) {
+      console.error('[MyGymsCard] Error generating t-path:', error);
+      Alert.alert(
+        'Error',
+        'Failed to generate your workout plan. You can set it up later in T-Path Management.',
+        [
+          { text: 'OK', onPress: () => finishSetup() }
+        ]
+      );
+    }
+  };
+
   const handleDeleteGym = async () => {
+    if (!selectedGymId) return;
+    
     // If deleting active gym, switch to another gym first
     if (selectedGymId === activeGymId && gyms.length > 1) {
       const newActiveGym = gyms.find(g => g.id !== selectedGymId);
@@ -138,6 +525,17 @@ export function MyGymsCardNew({
           .from('profiles')
           .update({ active_gym_id: newActiveGym.id })
           .eq('id', userId);
+      }
+    }
+    
+    // Delete from local database if deleteGym function is provided
+    if (deleteGym) {
+      try {
+        await deleteGym(selectedGymId);
+        console.log('[MyGymsCardNew] Deleted gym from local database:', selectedGymId);
+      } catch (error) {
+        console.error('[MyGymsCardNew] Error deleting gym from local database:', error);
+        // Continue even if local deletion fails - Supabase deletion already succeeded
       }
     }
     
@@ -239,7 +637,22 @@ export function MyGymsCardNew({
       <SetupGymOptionsDialog
         visible={flowStep === 'setup'}
         gymName={currentGymName}
-        onClose={() => setFlowStep(null)}
+        onClose={async () => {
+          // User closed setup without completing - delete the incomplete gym
+          if (currentGymId && !setupCompleted) {
+            console.log('[MyGymsCard] Setup cancelled - deleting incomplete gym:', currentGymId);
+            try {
+              await supabase.from('gyms').delete().eq('id', currentGymId);
+              await onRefresh();
+            } catch (error) {
+              console.error('[MyGymsCard] Error deleting incomplete gym:', error);
+            }
+          }
+          setFlowStep(null);
+          setCurrentGymId('');
+          setCurrentGymName('');
+          setSetupCompleted(false);
+        }}
         onSelectOption={handleSetupOption}
       />
 
@@ -249,7 +662,60 @@ export function MyGymsCardNew({
         gymName={currentGymName}
         onBack={() => setFlowStep('setup')}
         onFinish={finishSetup}
+        onExercisesGenerated={handleExercisesGenerated}
       />
+
+      <ExerciseSelectionDialog
+        visible={flowStep === 'exercise-selection'}
+        gymName={currentGymName}
+        exercises={detectedExercises}
+        onConfirm={handleExercisesConfirmed}
+        // No onBack - prevent navigation back during critical flow
+      />
+
+      <TPathSetupDialog
+        visible={flowStep === 'profile-setup'}
+        gymName={currentGymName}
+        missingFields={{
+          programmeType: !profileData.programmeType,
+          sessionLength: !profileData.sessionLength,
+        }}
+        onBack={() => {}} // Prevent back navigation during critical flow
+        onComplete={handleProfileSetupComplete}
+      />
+
+      {/* Generating Plan Loading State */}
+      {flowStep === 'generating-plan' && (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color={Colors.success} />
+              <Text style={styles.loadingText}>Generating your workout plan...</Text>
+              <Text style={styles.loadingSubtext}>This may take a moment</Text>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {generatedTPath && (
+        <GymSetupSummaryModal
+          visible={flowStep === 'summary'}
+          onClose={() => {
+            finishSetup();
+            // Navigate to dashboard
+            router.push('/(tabs)/dashboard');
+          }}
+          gymName={currentGymName}
+          mainTPath={generatedTPath}
+          childWorkouts={generatedChildWorkouts}
+          confirmedExerciseNames={confirmedExerciseNames}
+          totalEquipmentDetected={totalEquipmentDetected}
+        />
+      )}
 
       <CopyGymSetupDialog
         visible={flowStep === 'copy'}
@@ -405,5 +871,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.gray900,
     fontFamily: 'Poppins_600SemiBold',
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    backgroundColor: Colors.card,
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    minWidth: 250,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.foreground,
+    marginTop: Spacing.md,
+  },
+  loadingSubtext: {
+    fontSize: 13,
+    color: Colors.mutedForeground,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
 });

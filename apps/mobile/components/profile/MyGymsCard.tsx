@@ -86,6 +86,15 @@ export function MyGymsCard({
     copyFromGymId?: string;
     setAsActive: boolean;
   }) => {
+    // Defense-in-depth: Check gym limit before creating
+    if (gyms.length >= 3) {
+      Alert.alert(
+        'Maximum Limit Reached',
+        'You can have a maximum of 3 gyms. Please delete an existing gym before adding a new one.'
+      );
+      return;
+    }
+
     setIsAdding(true);
     try {
       let detectedEquipment: any[] = [];
@@ -261,6 +270,18 @@ export function MyGymsCard({
   const handleDeleteGym = async () => {
     if (!deleteGymId) return;
 
+    // Prevent deletion of last gym
+    if (gyms.length === 1) {
+      Alert.alert(
+        'Cannot Delete',
+        'You must have at least one gym. Please add another gym before deleting this one.'
+      );
+      setShowDeleteModal(false);
+      setDeleteGymId(null);
+      setDeleteGymName('');
+      return;
+    }
+
     setIsDeleting(true);
     try {
       if (deleteGymId === activeGymId && gyms.length > 1) {
@@ -271,13 +292,6 @@ export function MyGymsCard({
             .update({ active_gym_id: newActiveGym.id })
             .eq('id', userId);
         }
-      }
-
-      if (gyms.length === 1) {
-        await supabase
-          .from('profiles')
-          .update({ active_gym_id: null })
-          .eq('id', userId);
       }
 
       const { error } = await supabase

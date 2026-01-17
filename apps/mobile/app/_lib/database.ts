@@ -772,6 +772,11 @@ class Database {
 
   getDB(): SQLite.SQLiteDatabase {
     if (!this.db) {
+      // If initialization is in progress, throw a helpful error
+      // Callers should await init() before accessing database
+      if (this.initPromise) {
+        throw new Error('Database initialization in progress. Ensure init() is awaited before accessing database.');
+      }
       throw new Error('Database not initialized. Call init() first.');
     }
     return this.db;
@@ -1923,12 +1928,46 @@ class Database {
   async deleteTPath(tPathId: string): Promise<void> {
     await this.waitForMigration(); // BLOCK until migration completes
     const db = this.getDB();
+    
+    // First, find and delete all child workouts (T-Paths with this as parent)
+    const childWorkouts = await db.getAllAsync<any>(
+      'SELECT id FROM t_paths WHERE parent_t_path_id = ?',
+      [tPathId]
+    );
+    
+    // Delete exercises and progress for child workouts first
+    if (childWorkouts.length > 0) {
+      const childIds = childWorkouts.map((w: any) => w.id);
+      const placeholders = childIds.map(() => '?').join(',');
+      
+      // Delete exercises for child workouts
+      await db.runAsync(
+        `DELETE FROM t_path_exercises WHERE template_id IN (${placeholders})`,
+        childIds
+      );
+      
+      // Delete progress for child workouts
+      await db.runAsync(
+        `DELETE FROM t_path_progress WHERE t_path_id IN (${placeholders})`,
+        childIds
+      );
+      
+      // Delete child workouts themselves
+      await db.runAsync(
+        `DELETE FROM t_paths WHERE id IN (${placeholders})`,
+        childIds
+      );
+    }
+    
+    // Now delete exercises and progress for the main T-Path
     await db.runAsync('DELETE FROM t_path_exercises WHERE template_id = ?', [
       tPathId,
     ]);
     await db.runAsync('DELETE FROM t_path_progress WHERE t_path_id = ?', [
       tPathId,
     ]);
+    
+    // Finally, delete the main T-Path
     await db.runAsync('DELETE FROM t_paths WHERE id = ?', [tPathId]);
   }
 
@@ -2183,6 +2222,10 @@ class Database {
 
   async deleteGym(gymId: string): Promise<void> {
     const db = this.getDB();
+    // Delete related data first (cascade delete)
+    await db.runAsync('DELETE FROM gym_exercises WHERE gym_id = ?', [gymId]);
+    await db.runAsync('DELETE FROM gym_equipment WHERE gym_id = ?', [gymId]);
+    // Then delete the gym
     await db.runAsync('DELETE FROM gyms WHERE id = ?', [gymId]);
   }
 

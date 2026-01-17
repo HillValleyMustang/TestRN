@@ -142,6 +142,10 @@ export default function DashboardScreen() {
   
   // ScrollView refs for scrolling to top
   const scrollViewRef = useRef<ScrollView | null>(null);
+  
+  // Track last known T-path to detect changes even if flag is reset
+  const lastKnownTPathIdRef = useRef<string | null>(null);
+  const lastKnownProgrammeTypeRef = useRef<string | null>(null);
 
   // Enhanced cache invalidation function - now calls data context's handleWorkoutCompletion
   const dashboardInvalidateAllCaches = useCallback(async () => {
@@ -203,14 +207,67 @@ export default function DashboardScreen() {
     const now = Date.now();
     const cacheDuration = 60000; // 60 seconds (increased from 30)
 
+    // CRITICAL: Check for T-path changes from fresh Supabase data BEFORE checking cache
+    // This prevents showing stale cached data when T-path has changed
+    let freshTPathId: string | null = null;
+    let freshProgrammeType: string | null = null;
+    if (userId && supabase) {
+      try {
+        const { data: freshProfile } = await supabase
+          .from('profiles')
+          .select('active_t_path_id, programme_type')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (freshProfile) {
+          freshTPathId = freshProfile.active_t_path_id || null;
+          freshProgrammeType = freshProfile.programme_type || null;
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error fetching fresh profile in fetchDashboardData:', error);
+      }
+    }
+    
+    // Check if T-path changed by comparing fresh data with last known values
+    const tPathChanged = freshTPathId !== null && freshTPathId !== lastKnownTPathIdRef.current;
+    const programmeTypeChanged = freshProgrammeType !== null && freshProgrammeType !== lastKnownProgrammeTypeRef.current;
+    const tPathOrTypeChanged = tPathChanged || programmeTypeChanged;
+    
+    // If T-path changed, immediately clear state and cache to prevent showing old data
+    if (tPathOrTypeChanged) {
+      console.log('[Dashboard] T-path change detected in fetchDashboardData - immediately clearing state:', {
+        oldTPathId: lastKnownTPathIdRef.current,
+        newTPathId: freshTPathId,
+        oldProgrammeType: lastKnownProgrammeTypeRef.current,
+        newProgrammeType: freshProgrammeType
+      });
+      lastKnownTPathIdRef.current = freshTPathId;
+      lastKnownProgrammeTypeRef.current = freshProgrammeType;
+      // Clear state immediately to prevent UI from showing old T-path data
+      setActiveTPath(null);
+      setTpathWorkouts([]);
+      setDataCache({ lastFetch: 0, data: null });
+      setModalDataCache({});
+      // Force refresh by bypassing cache
+    }
+    
     // Check cache first, but bypass if force refresh is needed
-    const hasValidCache = dataCache.data && (currentTimestamp - dataCache.lastFetch < cacheDuration);
+    const hasValidCache = dataCache.data && (currentTimestamp - dataCache.lastFetch < cacheDuration) && !tPathOrTypeChanged;
     
     if (hasValidCache) {
       // Enhanced force refresh conditions - include empty state and deletion scenarios
       const timeSinceLastCompletion = currentTimestamp - lastWorkoutCompletionTime;
       const timeSinceLastDeletion = currentTimestamp - lastDeletionTimeRef.current;
+      
+      // Check if T-path changed by comparing with last known values (backup check using state)
+      const currentTPathId = userProfile?.active_t_path_id || null;
+      const currentProgrammeType = userProfile?.programme_type || null;
+      const tPathChangedFromState = currentTPathId !== lastKnownTPathIdRef.current;
+      const programmeTypeChangedFromState = currentProgrammeType !== lastKnownProgrammeTypeRef.current;
+      const tPathOrTypeChangedFromState = tPathChangedFromState || programmeTypeChangedFromState;
+      
       const shouldForceRefresh = shouldRefreshDashboard ||
+                               tPathOrTypeChangedFromState || // CRITICAL: Detect T-path changes directly from state
                                timeSinceLastCompletion < 5 * 60 * 1000 ||
                                timeSinceLastDeletion < 10000 || // Force refresh for 10 seconds after deletion
                                recentWorkouts.length === 0 || // Empty state after deletion
@@ -225,6 +282,12 @@ export default function DashboardScreen() {
         hasValidCache,
         shouldForceRefresh,
         shouldRefreshDashboard,
+        tPathChanged,
+        programmeTypeChanged,
+        currentTPathId,
+        lastKnownTPathId: lastKnownTPathIdRef.current,
+        currentProgrammeType,
+        lastKnownProgrammeType: lastKnownProgrammeTypeRef.current,
         timeSinceLastCompletion,
         timeSinceLastDeletion,
         recentWorkoutsCount: recentWorkouts.length,
@@ -232,16 +295,50 @@ export default function DashboardScreen() {
         lastDeletionTime: lastDeletionTimeRef.current
       });
       
+      // Update refs if T-path changed (will trigger refresh below)
+      if (tPathOrTypeChangedFromState) {
+        console.log('[Dashboard] T-path or programme type changed detected from state:', {
+          oldTPathId: lastKnownTPathIdRef.current,
+          newTPathId: currentTPathId,
+          oldProgrammeType: lastKnownProgrammeTypeRef.current,
+          newProgrammeType: currentProgrammeType
+        });
+        lastKnownTPathIdRef.current = currentTPathId;
+        lastKnownProgrammeTypeRef.current = currentProgrammeType;
+      }
+      
       if (shouldForceRefresh) {
+        if (tPathOrTypeChangedFromState) {
+          console.log('[Dashboard] T-path change detected from state - immediately clearing cache and state to prevent showing old data');
+          // Clear cache immediately for T-path changes
+          setDataCache({ lastFetch: 0, data: null });
+          setModalDataCache({});
+          // CRITICAL: Clear state immediately to prevent UI from showing old T-path data
+          // This ensures the UI doesn't render stale data while fetching new snapshot
+          setActiveTPath(null);
+          setTpathWorkouts([]);
+          // Keep weeklySummary and nextWorkout as null temporarily to show loading state
+          // They will be updated from the fresh snapshot
+        }
         console.log('[Dashboard] Bypassing cache due to force refresh conditions');
-        // Bypass cache due to recent workout completion, refresh flag, or empty state
+        // Bypass cache due to recent workout completion, refresh flag, T-path change, or empty state
       } else {
         // Only update state if data has actually changed to prevent infinite loops
         if (JSON.stringify(dataCache.data.profile) !== JSON.stringify(userProfile)) {
           setUserProfile(dataCache.data.profile);
         }
         if (JSON.stringify(dataCache.data.gyms) !== JSON.stringify(gyms)) {
-          setGyms(dataCache.data.gyms);
+          // Deduplicate gyms by name - keep only one gym per unique name
+          const uniqueGymsMap = new Map<string, Gym>();
+          (dataCache.data.gyms || []).forEach((gym: Gym) => {
+            const existing = uniqueGymsMap.get(gym.name);
+            if (!existing) {
+              uniqueGymsMap.set(gym.name, gym);
+            } else if (gym.is_active && !existing.is_active) {
+              uniqueGymsMap.set(gym.name, gym);
+            }
+          });
+          setGyms(Array.from(uniqueGymsMap.values()));
         }
         if (JSON.stringify(dataCache.data.weeklySummary) !== JSON.stringify(weeklySummary)) {
           console.log('[Dashboard] Weekly summary changed, updating state:', {
@@ -288,12 +385,73 @@ export default function DashboardScreen() {
 
       const snapshot = await loadDashboardSnapshot();
 
+      // CRITICAL: Check for T-path changes from the fresh snapshot BEFORE updating state
+      // This ensures we detect changes even if userProfile state hasn't updated yet
+      const snapshotTPathId = snapshot.profile?.active_t_path_id || null;
+      const snapshotProgrammeType = snapshot.profile?.programme_type || null;
+      const tPathChangedFromSnapshot = snapshotTPathId !== null && snapshotTPathId !== lastKnownTPathIdRef.current;
+      const programmeTypeChangedFromSnapshot = snapshotProgrammeType !== null && snapshotProgrammeType !== lastKnownProgrammeTypeRef.current;
+      
+      if (tPathChangedFromSnapshot || programmeTypeChangedFromSnapshot) {
+        console.log('[Dashboard] T-path change detected from fresh snapshot - immediately updating state:', {
+          oldTPathId: lastKnownTPathIdRef.current,
+          newTPathId: snapshotTPathId,
+          oldProgrammeType: lastKnownProgrammeTypeRef.current,
+          newProgrammeType: snapshotProgrammeType
+        });
+        // Update refs immediately
+        lastKnownTPathIdRef.current = snapshotTPathId;
+        lastKnownProgrammeTypeRef.current = snapshotProgrammeType;
+        
+        // IMMEDIATELY update all state from snapshot to show new T-path right away
+        // Don't wait for the normal state update flow
+        if (snapshot.profile) {
+          setUserProfile(snapshot.profile);
+        }
+        if (snapshot.activeTPath) {
+          setActiveTPath(snapshot.activeTPath);
+        }
+        if (snapshot.tPathWorkouts) {
+          setTpathWorkouts(snapshot.tPathWorkouts);
+        }
+        if (snapshot.weeklySummary) {
+          setWeeklySummary(snapshot.weeklySummary);
+        }
+        if (snapshot.nextWorkout) {
+          setNextWorkout(snapshot.nextWorkout);
+        }
+      }
+
       // Only update state if data has actually changed to prevent infinite loops
       if (JSON.stringify(snapshot.profile) !== JSON.stringify(userProfile)) {
         setUserProfile(snapshot.profile);
+        
+        // Update T-path tracking refs when profile changes (backup check)
+        const newTPathId = snapshot.profile?.active_t_path_id || null;
+        const newProgrammeType = snapshot.profile?.programme_type || null;
+        if (newTPathId !== lastKnownTPathIdRef.current || newProgrammeType !== lastKnownProgrammeTypeRef.current) {
+          console.log('[Dashboard] Profile updated - T-path tracking:', {
+            oldTPathId: lastKnownTPathIdRef.current,
+            newTPathId,
+            oldProgrammeType: lastKnownProgrammeTypeRef.current,
+            newProgrammeType
+          });
+          lastKnownTPathIdRef.current = newTPathId;
+          lastKnownProgrammeTypeRef.current = newProgrammeType;
+        }
       }
       if (JSON.stringify(snapshot.gyms) !== JSON.stringify(gyms)) {
-        setGyms(snapshot.gyms);
+        // Deduplicate gyms by name - keep only one gym per unique name
+        const uniqueGymsMap = new Map<string, Gym>();
+        (snapshot.gyms || []).forEach((gym: Gym) => {
+          const existing = uniqueGymsMap.get(gym.name);
+          if (!existing) {
+            uniqueGymsMap.set(gym.name, gym);
+          } else if (gym.is_active && !existing.is_active) {
+            uniqueGymsMap.set(gym.name, gym);
+          }
+        });
+        setGyms(Array.from(uniqueGymsMap.values()));
       }
       if (JSON.stringify(snapshot.weeklySummary) !== JSON.stringify(weeklySummary)) {
         console.log('[Dashboard] Weekly summary changed, updating state:', {
@@ -308,6 +466,12 @@ export default function DashboardScreen() {
         setActiveGymState(snapshot.activeGym);
       }
       if (JSON.stringify(snapshot.activeTPath) !== JSON.stringify(activeTPath)) {
+        console.log('[Dashboard] Active T-path changed:', {
+          old: activeTPath?.id,
+          new: snapshot.activeTPath?.id,
+          oldName: activeTPath?.template_name,
+          newName: snapshot.activeTPath?.template_name
+        });
         setActiveTPath(snapshot.activeTPath);
       }
       if (JSON.stringify(snapshot.tPathWorkouts) !== JSON.stringify(tpathWorkouts)) {
@@ -340,6 +504,16 @@ export default function DashboardScreen() {
       if (snapshot.profile && !userProfile) {
         console.log('[Dashboard] Syncing userProfile from cached data');
         setUserProfile(snapshot.profile);
+        
+        // Initialize T-path tracking refs on first load
+        if (lastKnownTPathIdRef.current === null) {
+          lastKnownTPathIdRef.current = snapshot.profile?.active_t_path_id || null;
+          lastKnownProgrammeTypeRef.current = snapshot.profile?.programme_type || null;
+          console.log('[Dashboard] Initialized T-path tracking:', {
+            tPathId: lastKnownTPathIdRef.current,
+            programmeType: lastKnownProgrammeTypeRef.current
+          });
+        }
       }
 
       // Update rolling workout status periodically when dashboard data is refreshed
@@ -475,6 +649,18 @@ export default function DashboardScreen() {
       return;
     }
   }, [session, authLoading, router]);
+
+  // Initialize T-path tracking refs when profile is first loaded
+  useEffect(() => {
+    if (userProfile && lastKnownTPathIdRef.current === null) {
+      lastKnownTPathIdRef.current = userProfile.active_t_path_id || null;
+      lastKnownProgrammeTypeRef.current = userProfile.programme_type || null;
+      console.log('[Dashboard] Initialized T-path tracking from userProfile:', {
+        tPathId: lastKnownTPathIdRef.current,
+        programmeType: lastKnownProgrammeTypeRef.current
+      });
+    }
+  }, [userProfile?.active_t_path_id, userProfile?.programme_type]);
 
   // Initial data load effect - only run once
   useEffect(() => {
@@ -662,7 +848,35 @@ export default function DashboardScreen() {
 
           // Enhanced check for forced refresh - includes empty state detection
           const timeSinceLastDeletion = now - lastDeletionTimeRef.current;
+          
+          // CRITICAL: Fetch fresh profile data to check for T-path changes
+          // Don't rely on userProfile state which might be stale
+          let freshTPathId: string | null = null;
+          let freshProgrammeType: string | null = null;
+          if (userId && supabase) {
+            try {
+              const { data: freshProfile } = await supabase
+                .from('profiles')
+                .select('active_t_path_id, programme_type')
+                .eq('id', userId)
+                .maybeSingle();
+              
+              if (freshProfile) {
+                freshTPathId = freshProfile.active_t_path_id || null;
+                freshProgrammeType = freshProfile.programme_type || null;
+              }
+            } catch (error) {
+              console.error('[Dashboard] Error fetching fresh profile for T-path check:', error);
+            }
+          }
+          
+          // Check if T-path changed by comparing fresh data with last known values
+          const tPathChanged = freshTPathId !== null && freshTPathId !== lastKnownTPathIdRef.current;
+          const programmeTypeChanged = freshProgrammeType !== null && freshProgrammeType !== lastKnownProgrammeTypeRef.current;
+          const tPathOrTypeChanged = tPathChanged || programmeTypeChanged;
+          
           const shouldForceRefresh = shouldRefreshDashboard ||
+                                   tPathOrTypeChanged || // CRITICAL: Detect T-path changes directly from fresh data
                                    recentWorkouts.length === 0 || // Handle empty state after deletion
                                    (dataCache.data === null) || // Handle cache cleared state
                                    timeSinceLastDeletion < 10000; // Handle recent deletion (10 second window)
@@ -670,6 +884,24 @@ export default function DashboardScreen() {
           // Check time since last workout completion (5 minutes window)
           const timeSinceLastCompletion = now - lastWorkoutCompletionTime;
           const recentWorkoutCompletion = timeSinceLastCompletion < 5 * 60 * 1000;
+          
+          // Update refs if T-path changed
+          if (tPathOrTypeChanged && freshTPathId) {
+            console.log('[Dashboard] Focus effect - T-path change detected from fresh profile, immediately clearing state:', {
+              oldTPathId: lastKnownTPathIdRef.current,
+              newTPathId: freshTPathId,
+              oldProgrammeType: lastKnownProgrammeTypeRef.current,
+              newProgrammeType: freshProgrammeType
+            });
+            lastKnownTPathIdRef.current = freshTPathId;
+            lastKnownProgrammeTypeRef.current = freshProgrammeType;
+            // CRITICAL: Clear state immediately to prevent showing old T-path data
+            // This ensures UI doesn't render stale data while fetching new snapshot
+            setActiveTPath(null);
+            setTpathWorkouts([]);
+            setDataCache({ lastFetch: 0, data: null });
+            setModalDataCache({});
+          }
           
           // FIX: Fetch fresh recentWorkouts count from database to avoid stale state
           let freshRecentWorkoutsCount = recentWorkouts.length;
@@ -687,6 +919,13 @@ export default function DashboardScreen() {
           console.log('[Dashboard] Focus effect refresh check:', {
             shouldForceRefresh,
             recentWorkoutCompletion,
+            tPathOrTypeChanged,
+            tPathChanged,
+            programmeTypeChanged,
+            freshTPathId,
+            lastKnownTPathId: lastKnownTPathIdRef.current,
+            freshProgrammeType,
+            lastKnownProgrammeType: lastKnownProgrammeTypeRef.current,
             hasDataCache: !!dataCache.data,
             recentWorkoutsCount: freshRecentWorkoutsCount,
             isRefreshing,
@@ -697,15 +936,27 @@ export default function DashboardScreen() {
           // Prevent infinite loops by checking if we're already refreshing
           // Also check the mutex to prevent race conditions
           if ((shouldForceRefresh || recentWorkoutCompletion) && !isRefreshing && !refreshInProgressRef.current) {
-            // Set a minimum time between refreshes to prevent rapid successive calls
+            // For T-path changes (shouldRefreshDashboard or tPathOrTypeChanged), bypass the 2-second minimum to refresh immediately
             const timeSinceLastRefresh = now - lastRefreshRef.current;
-            if (timeSinceLastRefresh > 2000) { // Minimum 2 seconds between refreshes
+            const isTPathChange = (shouldRefreshDashboard || tPathOrTypeChanged) && !recentWorkoutCompletion;
+            const canRefresh = isTPathChange || timeSinceLastRefresh > 2000; // Immediate for T-path changes, 2s for others
+            
+            if (canRefresh) {
               console.log('[Dashboard] Focus effect triggering refresh due to:', {
                 shouldForceRefresh,
                 recentWorkoutCompletion,
+                isTPathChange,
+                tPathOrTypeChanged,
                 hasDataCache: !!dataCache.data,
                 recentWorkoutsCount: freshRecentWorkoutsCount
               });
+              
+              // If this is a T-path change, immediately clear cache and force refresh
+              if (isTPathChange || tPathOrTypeChanged) {
+                console.log('[Dashboard] T-path change detected, immediately clearing cache and refreshing');
+                setDataCache({ lastFetch: 0, data: null });
+                setModalDataCache({});
+              }
               
               // If this is a recent workout completion, use the enhanced refresh function
               if (recentWorkoutCompletion) {
@@ -1684,12 +1935,42 @@ export default function DashboardScreen() {
                   gyms={cachedData.gyms || []}
                   activeGym={cachedData.activeGym}
                   onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
+                    console.log('[Dashboard] onGymChange called with:', gymId, newActiveGym?.name);
                     if (userId) {
+                      console.log('[Dashboard] Updating active gym state...');
                       setActiveGymState(newActiveGym);
-                      await setActiveGym(userId, gymId);
-                      setTimeout(() => {
-                        fetchDashboardData();
-                      }, 100);
+                      
+                      // Update gyms array to reflect the new active gym
+                      setGyms(prev => prev.map(g => ({
+                        ...g,
+                        is_active: g.id === gymId
+                      })));
+                      
+                    console.log('[Dashboard] Setting active gym in database...');
+                    await setActiveGym(userId, gymId);
+                    console.log('[Dashboard] Active gym set in database');
+                    
+                    // Update cached data AFTER database update to ensure consistency
+                    setDataCache(prev => {
+                      if (prev.data) {
+                        return {
+                          ...prev,
+                          data: {
+                            ...prev.data,
+                            activeGym: newActiveGym,
+                            gyms: (prev.data.gyms || []).map((g: Gym) => ({
+                              ...g,
+                              is_active: g.id === gymId
+                            }))
+                          }
+                        };
+                      }
+                      return prev;
+                    });
+                    
+                    // Don't trigger immediate refresh - let the natural sync happen
+                    // The state is already updated above, so UI will reflect the change immediately
+                    // The next natural refresh will sync with Supabase
                     }
                   }}
                 />
@@ -1933,17 +2214,25 @@ export default function DashboardScreen() {
                 gyms={gyms}
                 activeGym={activeGym}
                 onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
+                  console.log('[Dashboard] onGymChange called with:', gymId, newActiveGym?.name);
                   if (userId) {
+                    console.log('[Dashboard] Updating active gym state...');
                     // Update dashboard state immediately for UI consistency
                     setActiveGymState(newActiveGym);
+                    
+                    // Update gyms array to reflect the new active gym
+                    setGyms(prev => prev.map(g => ({
+                      ...g,
+                      is_active: g.id === gymId
+                    })));
 
                     // Update the database
+                    console.log('[Dashboard] Setting active gym in database...');
                     await setActiveGym(userId, gymId);
-
-                    // Trigger a data refresh to sync all components
-                    setTimeout(() => {
-                      fetchDashboardData();
-                    }, 100);
+                    console.log('[Dashboard] Active gym set in database');
+                    
+                    // Don't trigger immediate refresh - state is already updated above
+                    // The next natural refresh will sync with Supabase
                   }
                 }}
               />

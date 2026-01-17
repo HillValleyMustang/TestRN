@@ -197,6 +197,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         const exerciseIds = exercises.map(ex => ex.exercise_id);
 
         if (exerciseIds.length > 0) {
+          // Show all exercises assigned to the workout
+          // Note: We don't filter by gym here because exercises are already assigned to workouts
+          // by the generate-t-path function based on gym availability. The gym filtering
+          // happens during workout generation, not during display.
           console.log('[WorkoutFlow] Fetching exercise definitions for:', exerciseIds.length, 'exercises');
           const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
           console.log('[WorkoutFlow] Fetched exercise definitions:', exerciseDefs.length);
@@ -205,15 +209,27 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           if (exerciseDefs && exerciseDefs.length > 0) {
             const exerciseDefMap = new Map(exerciseDefs.map((def: any) => [def.id, def]));
 
-            const workoutExercises: WorkoutExercise[] = exercises
+            // Deduplicate exercises by exercise_id - keep first occurrence based on order_index
+            const seenExerciseIds = new Set<string>();
+            const uniqueExercises = exercises
               .sort((a, b) => a.order_index - b.order_index)
+              .filter(ex => {
+                if (seenExerciseIds.has(ex.exercise_id)) {
+                  console.warn(`[WorkoutFlow] Duplicate exercise ID detected: ${ex.exercise_id}, skipping duplicate`);
+                  return false;
+                }
+                seenExerciseIds.add(ex.exercise_id);
+                return true;
+              });
+
+            const workoutExercises: WorkoutExercise[] = uniqueExercises
               .map(ex => {
                 const def = exerciseDefMap.get(ex.exercise_id);
                 return def ? { ...def, is_bonus_exercise: ex.is_bonus_exercise } : null;
               })
               .filter(Boolean) as WorkoutExercise[];
 
-            console.log('[WorkoutFlow] Setting exercises for session:', workoutExercises.length);
+            console.log('[WorkoutFlow] Setting exercises for session:', workoutExercises.length, '(deduplicated from', exercises.length, 'total entries)');
             setExercisesForSession(workoutExercises);
             setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
           } else {
@@ -314,6 +330,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         const exerciseIds = exercises.map(ex => ex.exercise_id);
 
         if (exerciseIds.length > 0) {
+          // Show all exercises assigned to the workout
+          // Note: We don't filter by gym here because exercises are already assigned to workouts
+          // by the generate-t-path function based on gym availability. The gym filtering
+          // happens during workout generation, not during display.
           console.log('[WorkoutFlow] Fetching exercise definitions for:', exerciseIds.length, 'exercises');
           const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
           console.log('[WorkoutFlow] Fetched exercise definitions:', exerciseDefs.length);

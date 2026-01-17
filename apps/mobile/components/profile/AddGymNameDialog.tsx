@@ -4,7 +4,7 @@
  * Reference: profile s7 design
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
@@ -35,6 +36,8 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
   const strings = useSettingsStrings();
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     if (visible) {
@@ -44,6 +47,9 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
   }, [visible]);
 
   const handleSaveAndContinue = async () => {
+    // Prevent double-triggering
+    if (isProcessingRef.current || isCreating) return;
+    
     if (!userId || !name.trim()) return;
     
     if (existingGymCount >= 3) {
@@ -51,6 +57,8 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
       return;
     }
 
+    isProcessingRef.current = true;
+    
     setIsCreating(true);
     try {
       const { data: newGym, error } = await supabase
@@ -69,8 +77,10 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
     } catch (error) {
       console.error('[AddGymNameDialog] Error creating gym:', error);
       alert('Failed to create gym. Please try again.');
+      isProcessingRef.current = false;
     } finally {
       setIsCreating(false);
+      isProcessingRef.current = false;
     }
   };
 
@@ -100,6 +110,7 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
 
           {/* Name Input */}
           <TextInput
+            ref={inputRef}
             style={styles.input}
             placeholder="e.g., Home Gym, Fitness First"
             placeholderTextColor={Colors.mutedForeground}
@@ -107,6 +118,7 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
             onChangeText={setName}
             editable={!isCreating}
             autoFocus
+            blurOnSubmit={false}
           />
 
           {/* Action Buttons */}
@@ -127,6 +139,7 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
               ]}
               onPress={handleSaveAndContinue}
               disabled={!name.trim() || isCreating}
+              activeOpacity={0.8}
             >
               {isCreating ? (
                 <ActivityIndicator color="#fff" size="small" />

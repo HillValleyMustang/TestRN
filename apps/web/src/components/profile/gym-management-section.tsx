@@ -33,7 +33,6 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving, setTe
   const [isAddGymDialogOpen, setIsAddGymDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isLastGymWarningOpen, setIsLastGymWarningOpen] = useState(false);
   const [isManageExercisesDialogOpen, setIsManageExercisesDialogOpen] = useState(false); // Renamed state
 
   const [selectedGym, setSelectedGym] = useState<Gym | null>(null);
@@ -82,12 +81,16 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving, setTe
       return;
     }
 
-    setIsDeleteDialogOpen(false);
-
-    if (userGyms.length === 1) { // Use userGyms from context
-      setIsLastGymWarningOpen(true);
+    // Hard-block deletion of last gym
+    if (userGyms.length === 1) {
+      setTempStatusMessage({ message: "You must have at least one gym. Please add another gym before deleting this one.", type: 'error' });
+      setTimeout(() => setTempStatusMessage(null), 5000);
+      setIsDeleteDialogOpen(false);
+      setSelectedGym(null);
       return;
     }
+
+    setIsDeleteDialogOpen(false);
 
     setIsSaving(true); // Set global saving state
     try {
@@ -107,43 +110,6 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving, setTe
       setTimeout(() => setTempStatusMessage(null), 3000);
     } catch (err: any) {
       console.error("Failed to delete gym:", err.message);
-      setTempStatusMessage({ message: "Error!", type: 'error' });
-      setTimeout(() => setTempStatusMessage(null), 3000);
-    } finally {
-      setIsSaving(false); // Clear global saving state
-      setSelectedGym(null);
-    }
-  };
-
-  const handleConfirmDeleteLastGym = async () => {
-    if (!memoizedSessionUserId || !selectedGym || !profile?.active_t_path_id) { // Use memoized ID
-      setTempStatusMessage({ message: "Error!", type: 'error' });
-      setTimeout(() => setTempStatusMessage(null), 3000);
-      return;
-    }
-    setIsLastGymWarningOpen(false);
-    setIsSaving(true); // Set global saving state
-    
-    try {
-      const response = await fetch(`/api/generate-t-path`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` }, // Use session?.access_token
-        body: JSON.stringify({ tPathId: profile.active_t_path_id })
-      });
-      if (!response.ok) throw new Error("Failed to reset workout plan.");
-
-      const { error: deleteError } = await supabase.from('gyms').delete().eq('id', selectedGym.id);
-      if (deleteError) throw deleteError;
-
-      const { error: profileError } = await supabase.from('profiles').update({ active_gym_id: null }).eq('id', memoizedSessionUserId); // Use memoized ID
-      if (profileError) throw profileError;
-
-      setTempStatusMessage({ message: "Updated!", type: 'success' });
-      onDataChange(); // Trigger parent refresh
-      refreshGyms(); // Refresh the gym context
-      setTimeout(() => setTempStatusMessage(null), 3000);
-    } catch (err: any) {
-      console.error("Failed to delete last gym:", err.message);
       setTempStatusMessage({ message: "Error!", type: 'error' });
       setTimeout(() => setTempStatusMessage(null), 3000);
     } finally {
@@ -254,21 +220,6 @@ export const GymManagementSection = ({ profile, onDataChange, setIsSaving, setTe
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteGym}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={isLastGymWarningOpen} onOpenChange={setIsLastGymWarningOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Warning: Deleting Last Gym</AlertDialogTitle>
-            <AlertDialogDescription>
-              This is your last gym. Deleting it will reset your current workout plan to use default "common gym" exercises. Your T-Path and session preferences will be kept. Are you sure you want to continue?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDeleteLastGym}>Continue and Reset Plan</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

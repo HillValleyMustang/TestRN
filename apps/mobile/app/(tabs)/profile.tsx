@@ -33,6 +33,7 @@ import { useLevelFromPoints } from '../../hooks/useLevelFromPoints';
 import { ScreenContainer } from '../../components/layout/ScreenContainer';
 import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { PointsExplanationModal } from '../../components/profile/PointsExplanationModal';
+import { StreakDetailsModal } from '../../components/profile/StreakDetailsModal';
 import { EditNameModal } from '../../components/profile/EditNameModal';
 import { BodyMetricsModal } from '../../components/profile/BodyMetricsModal';
 import { AvatarUploadModal } from '../../components/profile/AvatarUploadModal';
@@ -100,7 +101,7 @@ const TAB_COLORS: Record<Tab, string> = {
 
 export default function ProfileScreen() {
   const { session, userId, supabase } = useAuth();
-  const { forceRefresh, invalidateAllCaches, setShouldRefreshDashboard, getUserAchievements } = useData();
+  const { forceRefresh, invalidateAllCaches, setShouldRefreshDashboard, getUserAchievements, deleteGym } = useData();
 
   console.log('[Profile] Component rendered with forceRefresh:', forceRefresh, 'profile total_points:', profile?.total_points);
   const router = useRouter();
@@ -128,6 +129,7 @@ export default function ProfileScreen() {
   const [manageWorkoutsVisible, setManageWorkoutsVisible] = useState(false);
   const [selectedGymId, setSelectedGymId] = useState<string>('');
   const [selectedGymName, setSelectedGymName] = useState<string>('');
+  const [streakModalVisible, setStreakModalVisible] = useState(false);
 
   // Animation values for tab icons
   const tabScales = useRef<Record<Tab, Animated.Value>>(
@@ -162,31 +164,36 @@ export default function ProfileScreen() {
     console.log('[Profile] Profile state changed, total_points:', profile?.total_points);
   }, [profile?.total_points]);
 
+  // Track if this is the initial mount to prevent double loading
+  const isInitialMount = useRef(true);
+
   useEffect(() => {
     console.log('[Profile] useEffect triggered - loading profile, forceRefresh:', forceRefresh, 'userId:', userId);
     // Always fetch fresh profile data to ensure points are up to date
     loadProfile();
     loadAchievements();
     loadSavedTab();
+    
+    // Mark that initial mount is complete after first load
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+    }
   }, [userId, forceRefresh]);
 
-  // Refresh profile data when this tab comes into focus
+  // Refresh profile data when this tab comes into focus (but skip on initial mount)
   useFocusEffect(
     useCallback(() => {
+      // Skip loading on initial mount since useEffect already handles it
+      if (isInitialMount.current) {
+        console.log('[Profile] Tab focused - skipping load on initial mount');
+        return;
+      }
+      
       console.log('[Profile] Tab focused - refreshing profile data');
       loadProfile();
       loadAchievements();
     }, [userId])
   );
-
-  // Also refresh when the component becomes active (not just on focus)
-  useEffect(() => {
-    console.log('[Profile] Component active - ensuring fresh data');
-    const timer = setTimeout(() => {
-      loadProfile();
-    }, 500); // Small delay to ensure other updates complete
-    return () => clearTimeout(timer);
-  }, []);
 
   // Handle tab query parameter and scrolling
   useEffect(() => {
@@ -254,14 +261,15 @@ export default function ProfileScreen() {
             .eq('user_id', userId)
             .not('completed_at', 'is', null),
 
-          // Get workout dates for streak calculation - limit to recent
+          // Get workout dates for streak calculation - use session_date to get the actual day
+          // Get enough to cover potential long streaks (60 days should be sufficient)
           supabase
             .from('workout_sessions')
-            .select('completed_at')
+            .select('session_date')
             .eq('user_id', userId)
             .not('completed_at', 'is', null)
-            .order('completed_at', { ascending: false })
-            .limit(14), // Reduced from 30 to 14 for better performance
+            .order('session_date', { ascending: false })
+            .limit(60), // Increased to 60 to cover longer streaks
         ]);
 
       if (totalWorkoutsRes.error) {
@@ -279,36 +287,55 @@ export default function ProfileScreen() {
       // This prevents the RPC call that doesn't exist
       const uniqueExercisesCount = Math.min(totalWorkoutsRes.count || 0, 15); // Conservative estimate
 
-      // Calculate current streak - optimized
-      const workoutDates =
-        workoutDatesRes.data?.map(session =>
-          new Date(session.completed_at).toDateString()
-        ) || [];
+      // Calculate current streak - improved logic
+      // Get unique workout dates and convert to date strings (YYYY-MM-DD format)
+      const workoutDatesSet = new Set<string>();
+      workoutDatesRes.data?.forEach(session => {
+        if (session.session_date) {
+          // Convert to YYYY-MM-DD format for consistent comparison
+          const dateStr = new Date(session.session_date).toISOString().split('T')[0];
+          workoutDatesSet.add(dateStr);
+        }
+      });
 
+      const uniqueDates = Array.from(workoutDatesSet).sort((a, b) => 
+        new Date(b).getTime() - new Date(a).getTime()
+      );
+
+      // Calculate streak from today backwards
+      // Streak counts consecutive days with at least 1 workout up until today
+      // If there's a workout today, include today. Otherwise start from yesterday if there was a workout then.
       let currentStreak = 0;
-      const today = new Date().toDateString();
-      const yesterday = new Date(
-        Date.now() - 24 * 60 * 60 * 1000
-      ).toDateString();
-
-      // Check if worked out today or yesterday (to handle timezone issues)
-      const hasRecentWorkout =
-        workoutDates.includes(today) || workoutDates.includes(yesterday);
-
-      if (hasRecentWorkout) {
-        // Calculate consecutive days - optimized
-        const uniqueDates = [...new Set(workoutDates)].sort(
-          (a, b) => new Date(b).getTime() - new Date(a).getTime()
-        );
-
-        for (let i = 0; i < uniqueDates.length; i++) {
-          const expectedDate = new Date(
-            Date.now() - i * 24 * 60 * 60 * 1000
-          ).toDateString();
-          if (uniqueDates[i] === expectedDate) {
+      let streakStartDate: string | null = null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // Check if there's a workout today or yesterday to start the streak
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      const hasWorkoutToday = workoutDatesSet.has(todayStr);
+      const hasWorkoutYesterday = workoutDatesSet.has(yesterdayStr);
+      
+      // Only count streak if there's a workout today or yesterday
+      if (hasWorkoutToday || hasWorkoutYesterday) {
+        // Start counting from today if there's a workout today, otherwise from yesterday
+        let checkDate = hasWorkoutToday ? new Date(today) : new Date(yesterday);
+        let continueStreak = true;
+        
+        while (continueStreak && currentStreak < 365) { // Safety limit of 365 days
+          const dateStr = checkDate.toISOString().split('T')[0];
+          
+          if (workoutDatesSet.has(dateStr)) {
             currentStreak++;
+            streakStartDate = dateStr; // Keep updating with the earliest date in streak
+            // Move back one day to check previous day
+            checkDate.setDate(checkDate.getDate() - 1);
           } else {
-            break;
+            // Found a gap - streak ends
+            continueStreak = false;
           }
         }
       }
@@ -319,6 +346,7 @@ export default function ProfileScreen() {
         total_workouts: totalWorkoutsRes.count || 0,
         unique_exercises: uniqueExercisesCount,
         current_streak: currentStreak,
+        streak_start_date: streakStartDate, // Store for modal display
       };
 
       console.log('[Profile] Final profile data:', {
@@ -491,9 +519,10 @@ export default function ProfileScreen() {
         session_length: aiResponse.mainTPath.session_length,
         created_at: aiResponse.mainTPath.created_at,
         updated_at: aiResponse.mainTPath.created_at,
-        parent_id: null,
+        parent_t_path_id: null, // Main T-Path has no parent
         gym_id: activeGymId,
         is_active: true,
+        is_main_program: true, // Mark as main program
       });
 
       // Save child workouts
@@ -509,9 +538,10 @@ export default function ProfileScreen() {
           session_length: aiResponse.mainTPath.session_length,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          parent_id: aiResponse.mainTPath.id,
+          parent_t_path_id: aiResponse.mainTPath.id, // Link to parent T-Path
           gym_id: activeGymId,
           is_active: true,
+          is_main_program: false, // Child workouts are not main programs
         });
 
         // Save exercises for each workout
@@ -542,6 +572,12 @@ export default function ProfileScreen() {
         }
       }
 
+      // Clear all caches and trigger refresh BEFORE updating Supabase
+      // This ensures dashboard/workout page don't load stale data
+      console.log('[Profile] Invalidating caches before profile update');
+      invalidateAllCaches();
+      setShouldRefreshDashboard(true);
+
       // Update profile with new active_t_path_id AND programme_type to ensure it's persisted
       console.log('[Profile] Updating profile with new T-Path ID and programme type:', newProgrammeType);
       const { error: updateError } = await supabase
@@ -564,30 +600,50 @@ export default function ProfileScreen() {
         active_t_path_id: aiResponse.mainTPath.id,
         programme_type: newProgrammeType
       });
-
-      // Clear all caches and trigger refresh
-      invalidateAllCaches();
-      setShouldRefreshDashboard(true);
       
-      // Small delay before reloading
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for Supabase to propagate the update (increased delay for reliability)
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Reload profile to verify
-      await loadProfile();
-
-      // Verify the programme type was saved correctly
-      const { data: verifyData } = await supabase
-        .from('profiles')
-        .select('programme_type, active_t_path_id')
-        .eq('id', userId)
-        .single();
+      // Verify the update was saved correctly before proceeding
+      let verifyData = null;
+      let retries = 0;
+      const maxRetries = 3;
+      
+      while (retries < maxRetries && (!verifyData || verifyData.programme_type !== newProgrammeType)) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('programme_type, active_t_path_id')
+          .eq('id', userId)
+          .single();
+        
+        if (error) {
+          console.warn('[Profile] Verification query error:', error);
+        } else {
+          verifyData = data;
+        }
+        
+        if (verifyData && verifyData.programme_type === newProgrammeType && verifyData.active_t_path_id === aiResponse.mainTPath.id) {
+          console.log('[Profile] Verification successful on attempt', retries + 1);
+          break;
+        }
+        
+        retries++;
+        if (retries < maxRetries) {
+          console.log('[Profile] Verification failed, retrying...', retries);
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
       
       console.log('[Profile] Verification - Database values:', {
         programme_type: verifyData?.programme_type,
         active_t_path_id: verifyData?.active_t_path_id,
         expected_programme_type: newProgrammeType,
-        expected_t_path_id: aiResponse.mainTPath.id
+        expected_t_path_id: aiResponse.mainTPath.id,
+        verified: verifyData?.programme_type === newProgrammeType
       });
+      
+      // Reload profile to ensure local state is in sync
+      await loadProfile();
 
       console.log('[Profile] T-Path regeneration complete');
       
@@ -623,6 +679,10 @@ export default function ProfileScreen() {
 
     // Also refresh profile to get updated active_gym_id
     await loadProfile();
+    
+    // Invalidate caches so dashboard and other components refresh
+    invalidateAllCaches();
+    setShouldRefreshDashboard(true);
   };
 
   const loadComplexAchievementProgress = async () => {
@@ -1011,7 +1071,11 @@ export default function ProfileScreen() {
       <View style={styles.tabContent}>
         {/* Stat Cards Grid - 2x2 */}
         <View style={styles.statGrid}>
-          <View style={[styles.statCard, styles.statCardOrange]}>
+          <TouchableOpacity 
+            style={[styles.statCard, styles.statCardOrange]}
+            onPress={() => setStreakModalVisible(true)}
+            activeOpacity={0.8}
+          >
             <View style={styles.statCardContent}>
               <Ionicons name="flame" size={20} color="#FFFFFF" />
               <Text style={styles.statCardLabel}>Current Streak</Text>
@@ -1019,7 +1083,7 @@ export default function ProfileScreen() {
                 {profile?.current_streak || 0} Days
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={[styles.statCard, styles.statCardBlue]}>
             <View style={styles.statCardContent}>
               <Ionicons name="fitness" size={20} color="#FFFFFF" />
@@ -1468,6 +1532,7 @@ export default function ProfileScreen() {
         onRefresh={handleRefreshGyms}
         onManageGym={handleManageGym}
         supabase={supabase}
+        deleteGym={deleteGym}
       />
 
       {/* AI Coach Usage */}
@@ -1687,6 +1752,12 @@ export default function ProfileScreen() {
       <PointsExplanationModal
         visible={pointsModalVisible}
         onClose={() => setPointsModalVisible(false)}
+      />
+      <StreakDetailsModal
+        visible={streakModalVisible}
+        onClose={() => setStreakModalVisible(false)}
+        streakDays={profile?.current_streak || 0}
+        streakStartDate={profile?.streak_start_date || null}
       />
       <EditNameModal
         visible={editNameModalVisible}

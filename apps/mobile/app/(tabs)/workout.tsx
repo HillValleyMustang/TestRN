@@ -113,7 +113,36 @@ export default function WorkoutLauncherScreen() {
     confirmLeave,
   } = useWorkoutFlow();
   const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, error, refresh } = useWorkoutLauncherData();
-  const { getGyms, setActiveGym } = useData();
+  
+  // Track last known T-path to detect changes and reset workout state
+  const lastTPathIdRef = useRef<string | null>(null);
+  
+  // Reset workout when T-path changes
+  useEffect(() => {
+    const currentTPathId = activeTPath?.id || profile?.active_t_path_id || null;
+    if (currentTPathId && currentTPathId !== lastTPathIdRef.current && lastTPathIdRef.current !== null) {
+      console.log('[Workout] T-path changed detected, resetting workout state and clearing selection:', {
+        oldTPathId: lastTPathIdRef.current,
+        newTPathId: currentTPathId,
+        selectedWorkout,
+        childWorkoutIds: childWorkouts.map(w => w.id),
+        childWorkoutNames: childWorkouts.map(w => w.template_name)
+      });
+      // CRITICAL: Always clear selected workout when T-path changes
+      // The selected workout belongs to the old T-path, so it must be cleared
+      setSelectedWorkout(null);
+      setIsWorkoutActiveInline(false);
+      resetWorkoutSession();
+      // Clear ALL flags so auto-select can run for new T-path
+      setUserHasSelectedWorkout(false);
+      setHasJustReset(false);
+      console.log('[Workout] T-path changed - cleared all flags to allow auto-select for new T-path');
+    }
+    if (currentTPathId) {
+      lastTPathIdRef.current = currentTPathId;
+    }
+  }, [activeTPath?.id, profile?.active_t_path_id, resetWorkoutSession, selectedWorkout, childWorkouts]);
+  const { getGyms, setActiveGym, shouldRefreshDashboard, setShouldRefreshDashboard } = useData();
   const { userId } = useAuth();
   const [userGyms, setUserGyms] = useState<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -142,32 +171,109 @@ export default function WorkoutLauncherScreen() {
   const [hasJustReset, setHasJustReset] = useState(false);
   const [userHasSelectedWorkout, setUserHasSelectedWorkout] = useState(false);
 
-  // Auto-select the first Push workout on component mount for better UX
+  // Auto-select the first Push workout (PPL) or Upper Body A (ULUL) on component mount for better UX
   useEffect(() => {
+    // Wait for childWorkouts to be loaded and ensure all conditions are met
     if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !activeWorkout && !hasJustReset && !userHasSelectedWorkout) {
-      console.log('[WorkoutScreen] Auto-selecting workout on mount - conditions met');
-      const pushWorkout = childWorkouts.find(workout =>
-        workout.template_name.toLowerCase().includes('push')
-      );
-      if (pushWorkout) {
-        console.log('[WorkoutScreen] Auto-selecting Push workout:', pushWorkout.id);
-        setSelectedWorkout(pushWorkout.id);
-        selectWorkout(pushWorkout.id).then(() => {
+      console.log('[WorkoutScreen] Auto-selecting workout - conditions met:', {
+        childWorkoutsCount: childWorkouts.length,
+        selectedWorkout,
+        profileId: profile?.id,
+        isWorkoutActiveInline,
+        activeWorkout: !!activeWorkout,
+        hasJustReset,
+        userHasSelectedWorkout,
+        programmeType: profile?.programme_type
+      });
+      
+      // Determine if this is a ULUL program
+      const isULUL = profile?.programme_type === 'ulul' || activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+      
+      let defaultWorkout;
+      if (isULUL) {
+        // For ULUL, find Upper Body A or Upper A
+        defaultWorkout = childWorkouts.find(workout => {
+          const lowerName = workout.template_name.toLowerCase();
+          return (lowerName.includes('upper') && lowerName.includes('a')) || 
+                 lowerName === 'upper a' || 
+                 lowerName === 'upper body a';
+        });
+        if (defaultWorkout) {
+          console.log('[WorkoutScreen] Auto-selecting Upper Body A workout (ULUL):', defaultWorkout.id, defaultWorkout.template_name);
+        } else {
+          console.warn('[WorkoutScreen] ULUL program detected but Upper Body A workout not found in childWorkouts:', childWorkouts.map(w => w.template_name));
+        }
+      } else {
+        // For PPL, find Push workout
+        defaultWorkout = childWorkouts.find(workout =>
+          workout.template_name.toLowerCase().includes('push')
+        );
+        if (defaultWorkout) {
+          console.log('[WorkoutScreen] Auto-selecting Push workout (PPL):', defaultWorkout.id, defaultWorkout.template_name);
+        } else {
+          console.warn('[WorkoutScreen] PPL program detected but Push workout not found in childWorkouts:', childWorkouts.map(w => w.template_name));
+        }
+      }
+      
+      if (defaultWorkout) {
+        // Verify workout exists in childWorkouts before selecting
+        const workoutExists = childWorkouts.some(w => w.id === defaultWorkout.id);
+        if (!workoutExists) {
+          console.error('[WorkoutScreen] Default workout not found in childWorkouts:', defaultWorkout.id);
+          return;
+        }
+        
+        console.log('[WorkoutScreen] Setting selected workout and calling selectWorkout:', defaultWorkout.id);
+        setSelectedWorkout(defaultWorkout.id);
+        selectWorkout(defaultWorkout.id).then(() => {
+          console.log('[WorkoutScreen] Workout selected successfully, setting inline state');
           setIsWorkoutActiveInline(true);
           setTimeout(() => {
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
           }, 100);
         }).catch((error) => {
-          console.error('Failed to select workout:', error);
+          console.error('[WorkoutScreen] Failed to select workout:', error);
+          // Reset state on error to allow retry
+          setSelectedWorkout(null);
+          setIsWorkoutActiveInline(false);
         });
+      } else {
+        console.warn('[WorkoutScreen] No default workout found to auto-select. childWorkouts:', childWorkouts.map(w => w.template_name));
+      }
+    } else {
+      // Log why auto-select is not running
+      if (childWorkouts.length === 0) {
+        console.log('[WorkoutScreen] Auto-select skipped - no childWorkouts available');
+      } else if (selectedWorkout) {
+        console.log('[WorkoutScreen] Auto-select skipped - workout already selected:', selectedWorkout);
+      } else if (!profile?.id) {
+        console.log('[WorkoutScreen] Auto-select skipped - no profile ID');
+      } else if (isWorkoutActiveInline) {
+        console.log('[WorkoutScreen] Auto-select skipped - workout is active inline');
+      } else if (activeWorkout) {
+        console.log('[WorkoutScreen] Auto-select skipped - activeWorkout exists');
+      } else if (hasJustReset) {
+        console.log('[WorkoutScreen] Auto-select skipped - hasJustReset flag is true');
+      } else if (userHasSelectedWorkout) {
+        console.log('[WorkoutScreen] Auto-select skipped - userHasSelectedWorkout flag is true');
       }
     }
-  }, [childWorkouts, selectedWorkout, profile?.id, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
+  }, [childWorkouts, selectedWorkout, profile?.id, profile?.programme_type, activeTPath?.template_name, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
 
-  // Reset workout UI state when context is reset
+  // Reset workout UI state when context is reset (but don't interfere with T-path change auto-select)
+  // Only reset if there was previously an active workout/session, not on initial load or T-path change
+  const hadActiveWorkoutRef = useRef<boolean>(false);
   useEffect(() => {
-    if (!activeWorkout && !currentSessionId) {
-      console.log('[WorkoutScreen] Resetting workout UI state');
+    if (activeWorkout || currentSessionId) {
+      hadActiveWorkoutRef.current = true;
+    }
+  }, [activeWorkout, currentSessionId]);
+
+  useEffect(() => {
+    // Only reset if we previously had an active workout/session and now we don't
+    // This prevents interference with auto-select after T-path changes
+    if (!activeWorkout && !currentSessionId && hadActiveWorkoutRef.current) {
+      console.log('[WorkoutScreen] Resetting workout UI state after active workout/session ended');
       setIsWorkoutActiveInline(false);
       setSelectedWorkout(null);
       setHasJustReset(true);
@@ -175,18 +281,49 @@ export default function WorkoutLauncherScreen() {
       setTimeout(() => {
         console.log('[WorkoutScreen] Clearing hasJustReset flag');
         setHasJustReset(false);
+        hadActiveWorkoutRef.current = false;
       }, 100);
     }
   }, [activeWorkout, currentSessionId]);
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused or when T-Path was regenerated
   useFocusEffect(
     useCallback(() => {
-      if (!profile) {
+      // Always refresh when shouldRefreshDashboard is true (T-path change)
+      // Also refresh if profile is missing
+      if (shouldRefreshDashboard || !profile) {
+        console.log('[Workout] Refreshing workout data - profile:', !!profile, 'shouldRefresh:', shouldRefreshDashboard);
         refresh();
+        // Reset the flag after refreshing workout data
+        if (shouldRefreshDashboard) {
+          // Small delay to ensure the refresh completes before clearing the flag
+          setTimeout(() => {
+            setShouldRefreshDashboard(false);
+          }, 500);
+        }
       }
-    }, [refresh, profile])
+    }, [refresh, profile, shouldRefreshDashboard, setShouldRefreshDashboard])
   );
+  
+  // Also watch for shouldRefreshDashboard changes even when not focused
+  // This ensures immediate refresh when T-path changes from profile page
+  useEffect(() => {
+    if (shouldRefreshDashboard) {
+      console.log('[Workout] shouldRefreshDashboard flag detected, immediately refreshing workout data and clearing workout state');
+      // Clear selected workout and reset workout flow to prevent showing old exercises
+      setSelectedWorkout(null);
+      setIsWorkoutActiveInline(false);
+      resetWorkoutSession();
+      // Clear flags so auto-select can run after refresh completes
+      setUserHasSelectedWorkout(false);
+      setHasJustReset(false);
+      refresh();
+      // Reset the flag after a delay
+      setTimeout(() => {
+        setShouldRefreshDashboard(false);
+      }, 500);
+    }
+  }, [shouldRefreshDashboard, refresh, setShouldRefreshDashboard, resetWorkoutSession]);
 
   // Handle keyboard show to scroll focused input into view
   useEffect(() => {
@@ -218,13 +355,45 @@ export default function WorkoutLauncherScreen() {
   // Load gyms for toggle
   useEffect(() => {
     const loadGyms = async () => {
+      console.log('[Workout] Loading gyms with profile:', { profileId: profile?.id, activeGymId: profile?.active_gym_id });
       if (profile?.id) {
         try {
-          const gyms = await getGyms(profile.id);
-          setUserGyms(gyms);
+          const allGyms = await getGyms(profile.id);
+          console.log('[Workout] Loaded gyms from DB:', allGyms.length, allGyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+          
+          // Deduplicate gyms by name - keep only one gym per unique name
+          // Prefer the active gym, or the first one if none are active
+          const uniqueGymsMap = new Map<string, Gym>();
+          allGyms.forEach(gym => {
+            const existing = uniqueGymsMap.get(gym.name);
+            if (!existing) {
+              // No gym with this name yet, add it
+              uniqueGymsMap.set(gym.name, gym);
+            } else if (gym.is_active && !existing.is_active) {
+              // Replace with active gym if current one isn't active
+              uniqueGymsMap.set(gym.name, gym);
+            }
+            // Otherwise keep the existing gym (already added first)
+          });
+          
+          // Sort to ensure consistent order: active first, then alphabetical by name
+          const uniqueGyms = Array.from(uniqueGymsMap.values());
+          uniqueGyms.sort((a, b) => {
+            if (a.is_active && !b.is_active) return -1;
+            if (!a.is_active && b.is_active) return 1;
+            return a.name.localeCompare(b.name);
+          });
+          
+          console.log('[Workout] Deduplicated gyms:', uniqueGyms.length, uniqueGyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+          
+          // Use the is_active flag from the database - it's already correct
+          // The database sets is_active based on the profiles.active_gym_id
+          setUserGyms(uniqueGyms);
         } catch (error) {
-          console.error('Error loading gyms:', error);
+          console.error('[Workout] Error loading gyms:', error);
         }
+      } else {
+        console.log('[Workout] No profile available, skipping gym load');
       }
     };
     loadGyms();
@@ -244,6 +413,17 @@ export default function WorkoutLauncherScreen() {
 
   const handleSelectWorkout = async (workoutId: string) => {
     console.log('[WorkoutScreen] handleSelectWorkout called with:', workoutId, 'current selected:', selectedWorkout);
+
+    // For ad-hoc, skip validation
+    if (workoutId !== 'ad-hoc') {
+      // Validate workout exists in childWorkouts before selecting
+      const workoutExists = childWorkouts.some(w => w.id === workoutId);
+      if (!workoutExists) {
+        console.error('[WorkoutScreen] Workout not found in childWorkouts:', workoutId, 'Available workouts:', childWorkouts.map(w => w.id));
+        Alert.alert('Error', 'Selected workout not found. Please try again.');
+        return;
+      }
+    }
 
     if (selectedWorkout && selectedWorkout !== workoutId) {
       console.log('[WorkoutScreen] Switching workouts, resetting current session first');
@@ -265,6 +445,7 @@ export default function WorkoutLauncherScreen() {
         console.error('Failed to select workout:', error);
         Alert.alert('Error', 'Failed to load workout. Please try again.');
         setSelectedWorkout(null);
+        setIsWorkoutActiveInline(false);
       } finally {
         setLoadingExercises(false);
       }
@@ -869,16 +1050,62 @@ export default function WorkoutLauncherScreen() {
                     gyms={userGyms}
                     activeGym={userGyms.find(g => g.is_active) || null}
                     onGymChange={async (gymId, newActiveGym) => {
+                      console.log('[Workout] onGymChange called with:', gymId, newActiveGym?.name);
                       try {
                         if (profile?.id) {
+                          console.log('[Workout] Setting active gym in database...');
                           await setActiveGym(profile.id, gymId);
-                          setUserGyms(prev => prev.map(g => ({
-                            ...g,
-                            is_active: g.id === gymId
-                          })));
+                          console.log('[Workout] Active gym set in database');
+                          
+                          // Update local state to reflect the change immediately
+                          setUserGyms(prev => {
+                            const updated = prev.map(g => ({
+                              ...g,
+                              is_active: g.id === gymId
+                            }));
+                            console.log('[Workout] Updated local gym state:', updated.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+                            return updated;
+                          });
+                          
+                          // Reload gyms to ensure we have the latest data
+                          console.log('[Workout] Reloading gyms from database...');
+                          const allUpdatedGyms = await getGyms(profile.id);
+                          
+                          // Deduplicate gyms by name - same logic as loadGyms
+                          const uniqueGymsMap = new Map<string, Gym>();
+                          allUpdatedGyms.forEach(gym => {
+                            const existing = uniqueGymsMap.get(gym.name);
+                            if (!existing) {
+                              uniqueGymsMap.set(gym.name, gym);
+                            } else if (gym.is_active && !existing.is_active) {
+                              uniqueGymsMap.set(gym.name, gym);
+                            }
+                          });
+                          
+                          // Sort to ensure consistent order: active first, then alphabetical
+                          const uniqueGyms = Array.from(uniqueGymsMap.values());
+                          const gymsWithActive = uniqueGyms.map(gym => ({
+                            ...gym,
+                            is_active: gym.id === gymId
+                          }));
+                          
+                          // Sort to ensure consistent order: active first, then alphabetical by name
+                          gymsWithActive.sort((a, b) => {
+                            if (a.is_active && !b.is_active) return -1;
+                            if (!a.is_active && b.is_active) return 1;
+                            return a.name.localeCompare(b.name);
+                          });
+                          
+                          console.log('[Workout] Reloaded gyms:', gymsWithActive.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+                          setUserGyms(gymsWithActive);
+                          console.log('[Workout] onGymChange complete');
+                          // Note: No need to re-select workout since exercises aren't filtered by gym
+                          // All exercises assigned to workouts are shown regardless of gym
+                        } else {
+                          console.log('[Workout] No profile ID available');
                         }
                       } catch (error) {
-                        console.error('Error changing active gym:', error);
+                        console.error('[Workout] Error changing active gym:', error);
                       }
                     }}
                   />
@@ -1028,6 +1255,7 @@ export default function WorkoutLauncherScreen() {
                                 }}
                                 sets={exerciseSets}
                                 exerciseNumber={index + 1}
+                                templateName={activeWorkout?.template_name || null}
                                 accentColor={(() => {
                                   const workout = childWorkouts.find(w => w.id === selectedWorkout);
                                   if (workout) {

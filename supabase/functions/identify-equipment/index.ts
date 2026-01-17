@@ -30,6 +30,40 @@ const getYouTubeEmbedUrl = (url: string | null | undefined): string | null => {
   return (match && match[1]) ? `https://www.youtube.com/embed/${match[1]}` : url;
 };
 
+// Helper function to map movement pattern based on muscle group and target programme type
+const mapMovementPattern = (mainMuscle: string, targetProgramme: 'ulul' | 'ppl'): string => {
+  const upperBodyPushMuscles = ['Pectorals', 'Deltoids', 'Triceps'];
+  const upperBodyPullMuscles = ['Lats', 'Traps', 'Biceps'];
+  const lowerBodyMuscles = ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'];
+  const coreMuscles = ['Abdominals', 'Core'];
+
+  if (targetProgramme === 'ulul') {
+    // For ULUL: Upper (Push/Pull combined) or Lower or Core
+    if (upperBodyPushMuscles.includes(mainMuscle) || upperBodyPullMuscles.includes(mainMuscle)) {
+      return 'Upper';
+    } else if (lowerBodyMuscles.includes(mainMuscle)) {
+      return 'Lower';
+    } else if (coreMuscles.includes(mainMuscle)) {
+      return 'Core';
+    } else {
+      return 'Upper'; // Default upper for unknown
+    }
+  } else {
+    // For PPL: Push, Pull, or Legs
+    if (upperBodyPushMuscles.includes(mainMuscle)) {
+      return 'Push';
+    } else if (upperBodyPullMuscles.includes(mainMuscle)) {
+      return 'Pull';
+    } else if (lowerBodyMuscles.includes(mainMuscle)) {
+      return 'Legs';
+    } else if (coreMuscles.includes(mainMuscle)) {
+      return 'Core';
+    } else {
+      return 'Push'; // Default push for unknown
+    }
+  }
+};
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -46,21 +80,31 @@ serve(async (req: Request) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.split(' ')[1]);
     if (userError || !user) throw new Error('Unauthorized');
 
-    const { base64Images } = await req.json();
+    const { base64Images, programmeType } = await req.json();
     if (!base64Images || !Array.isArray(base64Images) || base64Images.length === 0) {
       throw new Error('No images provided.');
     }
 
+    const tPathType = programmeType || 'ppl'; // Default to PPL if not specified
+    console.log('[identify-equipment] Programme type:', tPathType);
+
     const { data: allDbExercises, error: fetchAllError } = await supabase.from('exercise_definitions').select('*');
     if (fetchAllError) throw fetchAllError;
+
+    // Customize prompt based on programme type
+    const programmeContext = tPathType === 'ulul' 
+      ? 'The user follows an Upper/Lower split (ULUL). Prioritize exercises that fit into upper body or lower body days. Movement patterns should be labeled as "Upper" (for all upper body exercises including chest, shoulders, back, arms), "Lower" (for all lower body exercises including quads, hamstrings, glutes, calves), or "Core".'
+      : 'The user follows a Push/Pull/Legs split (PPL). Prioritize exercises that fit into push, pull, or legs days. Label movement patterns accordingly: "Push" (chest, shoulders, triceps), "Pull" (back, biceps), "Legs" (quads, hamstrings, glutes, calves), or "Core".';
 
     const prompt = `
       You are an expert fitness coach. Analyze the gym equipment in the following image(s).
       Your task is to identify all possible exercises and provide their details.
       
+      PROGRAMME CONTEXT: ${programmeContext}
+      
       IMPORTANT INSTRUCTIONS:
       1. Identify all pieces of equipment shown across all images.
-      2. For each piece of equipment, provide a comprehensive list of possible exercises, including common variations (e.g., incline, decline, single-arm, wide grip, narrow grip). Be creative and thorough.
+      2. For each piece of equipment, provide a comprehensive list of possible exercises that fit the user's ${tPathType === 'ulul' ? 'Upper/Lower' : 'Push/Pull/Legs'} programme, including common variations (e.g., incline, decline, single-arm, wide grip, narrow grip). Be creative and thorough.
       3. Aim to provide between 5 to 15 exercises in total, depending on the equipment identified. The goal is a thorough list, not just the top 3-4 most common ones.
       4. Consolidate all exercises into a single list, removing duplicates.
       5. Your entire response MUST be a single, clean JSON object with a key "exercises" which contains an array of exercise objects. Do not include any other text, markdown, or explanations outside the JSON object.
@@ -71,7 +115,7 @@ serve(async (req: Request) => {
            "type": "weight" | "timed" | "bodyweight",
            "category": "Bilateral" | "Unilateral" | null,
            "movement_type": "compound" | "isolation",
-           "movement_pattern": "Push" | "Pull" | "Legs" | "Core",
+           "movement_pattern": ${tPathType === 'ulul' ? '"Upper" | "Lower" | "Core"' : '"Push" | "Pull" | "Legs" | "Core"'} (IMPORTANT: Match this to the ${tPathType === 'ulul' ? 'Upper/Lower' : 'Push/Pull/Legs'} programme),
            "description": "A brief description of the exercise.",
            "pro_tip": "A short, actionable pro tip for performing the exercise.",
            "video_url": "Optional YouTube or instructional video URL (can be empty string if none)"
@@ -127,9 +171,22 @@ serve(async (req: Request) => {
       }
 
       if (foundExercise) {
-        finalResults.push({ ...foundExercise, duplicate_status, existing_id: foundExercise.id });
+        // Map the movement pattern to match the user's programme type
+        const mappedMovementPattern = mapMovementPattern(foundExercise.main_muscle, tPathType);
+        finalResults.push({ 
+          ...foundExercise, 
+          movement_pattern: mappedMovementPattern, // Override with mapped pattern
+          duplicate_status, 
+          existing_id: foundExercise.id 
+        });
       } else {
-        finalResults.push({ ...aiExercise, video_url: getYouTubeEmbedUrl(aiExercise.video_url), duplicate_status: 'none', existing_id: null });
+        // For new exercises, use AI's suggested movement pattern (already matches programme type from prompt)
+        finalResults.push({ 
+          ...aiExercise, 
+          video_url: getYouTubeEmbedUrl(aiExercise.video_url), 
+          duplicate_status: 'none', 
+          existing_id: null 
+        });
       }
       seenNormalizedNames.add(normalizedAiName);
     }

@@ -69,15 +69,18 @@ export function ProgrammeTypeCard({
     try {
       console.log('[ProgrammeTypeCard] Changing programme type to:', programmeType);
       
-      const updates = {
-        programme_type: programmeType,
-      };
-
-      await onUpdate(updates);
-
+      // IMPORTANT: Don't update programme_type separately - let handleRegenerateTPath
+      // do it atomically after the T-Path is regenerated. This prevents the dashboard
+      // from showing stale data (new programme_type but old T-Path workouts).
       if (profile.active_t_path_id && onRegenerateTPath) {
         console.log('[ProgrammeTypeCard] Calling onRegenerateTPath with new type:', programmeType);
         await onRegenerateTPath(programmeType as 'ppl' | 'ulul');
+      } else {
+        // No active T-Path, just update the programme_type directly
+        const updates = {
+          programme_type: programmeType,
+        };
+        await onUpdate(updates);
       }
 
       setRollingStatus(strings.programme_type.status_updated);

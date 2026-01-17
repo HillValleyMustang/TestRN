@@ -4,7 +4,7 @@
  * Reference: apps/web/src/components/dashboard/gym-toggle.tsx
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
@@ -28,22 +28,8 @@ export function GymToggle({ gyms = [], activeGym = null, onGymChange }: GymToggl
   const [activeGymId, setActiveGymId] = useState<string | null>(activeGym?.id || null);
   const [loading, setLoading] = useState(gyms.length === 0);
   const [dataLoaded, setDataLoaded] = useState(false);
-
-  useEffect(() => {
-    // If gyms are provided via props, use them
-    if (gyms.length > 0) {
-      setLocalGyms(gyms);
-      const gymId = activeGym?.id || gyms[0]?.id || null;
-      if (gymId !== activeGymId) {
-        setActiveGymId(gymId);
-      }
-      setLoading(false);
-      setDataLoaded(true);
-    } else if (!dataLoaded && !loading) {
-      // Fall back to loading from database - load gyms when no props provided
-      loadGyms();
-    }
-  }, [gyms, activeGym, activeGymId, dataLoaded, loading]);
+  // Ref to track if we're in the middle of a user-initiated gym change
+  const isChangingGymRef = useRef(false);
 
   const loadGyms = useCallback(async () => {
     if (!userId || loading) return;
@@ -80,58 +66,158 @@ export function GymToggle({ gyms = [], activeGym = null, onGymChange }: GymToggl
     }
   }, [userId, getGyms, getActiveGym, setActiveGym, activeGymId, loading]);
 
-  const handlePrevious = useCallback(async () => {
-    const gymsToUse = gyms.length > 0 ? gyms : localGyms;
-    if (!userId || gymsToUse.length === 0 || !activeGymId) return;
-    
-    const currentIndex = gymsToUse.findIndex(g => g.id === activeGymId);
-    if (currentIndex === -1) return;
-    
-    const previousIndex = currentIndex === 0 ? gymsToUse.length - 1 : currentIndex - 1;
-    const newGymId = gymsToUse[previousIndex].id;
-    const newActiveGym = gymsToUse[previousIndex];
-    
-    if (onGymChange) {
-      await onGymChange(newGymId, newActiveGym);
-    } else {
-      try {
-        await setActiveGym(userId, newGymId);
-      } catch (error) {
-        console.error('Error setting active gym:', error);
+  useEffect(() => {
+    // If gyms are provided via props, use them
+    if (gyms.length > 0) {
+      setLocalGyms(gyms);
+      const gymId = activeGym?.id || gyms.find(g => g.is_active)?.id || gyms[0]?.id || null;
+      
+      // Don't reset activeGymId if we're in the middle of a user-initiated change
+      // This prevents the useEffect from undoing the user's selection
+      if (!isChangingGymRef.current && gymId && gymId !== activeGymId) {
+        console.log('[GymToggle] useEffect: Setting activeGymId to:', gymId, 'from activeGym prop:', activeGym?.id);
+        setActiveGymId(gymId);
       }
+      setLoading(false);
+      setDataLoaded(true);
+    } else if (!dataLoaded && !loading) {
+      // Fall back to loading from database - load gyms when no props provided
+      loadGyms();
     }
+  }, [gyms, activeGym, loadGyms, dataLoaded, loading, activeGymId]);
+
+  const handlePrevious = useCallback(async () => {
+    console.log('[GymToggle] handlePrevious called');
+    const gymsToUse = gyms.length > 0 ? gyms : localGyms;
+    console.log('[GymToggle] gymsToUse:', gymsToUse.length, gymsToUse.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+    console.log('[GymToggle] activeGym prop:', activeGym?.id, activeGym?.name);
+    console.log('[GymToggle] activeGymId state:', activeGymId);
+    
+    if (!userId || gymsToUse.length === 0) {
+      console.log('[GymToggle] Early return - no userId or gyms');
+      return;
+    }
+    
+    // Use activeGym prop if available, otherwise use internal state
+    const currentGymId = activeGym?.id || activeGymId || gymsToUse.find(g => g.is_active)?.id || gymsToUse[0]?.id;
+    console.log('[GymToggle] currentGymId determined:', currentGymId);
+    
+    if (!currentGymId) {
+      console.log('[GymToggle] Early return - no currentGymId');
+      return;
+    }
+    
+    // Sort gyms alphabetically for consistent cycling order (independent of active status)
+    const sortedGyms = [...gymsToUse].sort((a, b) => a.name.localeCompare(b.name));
+    const currentIndex = sortedGyms.findIndex(g => g.id === currentGymId);
+    console.log('[GymToggle] currentIndex (alphabetical):', currentIndex, 'in sorted gyms:', sortedGyms.map(g => g.name));
+    
+    if (currentIndex === -1) {
+      console.log('[GymToggle] Early return - currentIndex not found');
+      return;
+    }
+    
+    const previousIndex = currentIndex === 0 ? sortedGyms.length - 1 : currentIndex - 1;
+    const newGymId = sortedGyms[previousIndex].id;
+    const newActiveGym = sortedGyms[previousIndex];
+    console.log('[GymToggle] Switching to gym:', newGymId, newActiveGym.name);
+    
+    // Set flag to prevent useEffect from resetting state during change
+    isChangingGymRef.current = true;
     setActiveGymId(newGymId);
-  }, [gyms, localGyms, userId, activeGymId, onGymChange, setActiveGym]);
+    
+    try {
+      if (onGymChange) {
+        console.log('[GymToggle] Calling onGymChange callback');
+        await onGymChange(newGymId, newActiveGym);
+      } else {
+        console.log('[GymToggle] Using setActiveGym from context');
+        await setActiveGym(userId, newGymId);
+      }
+    } catch (error) {
+      console.error('[GymToggle] Error setting active gym:', error);
+      // Revert state on error
+      setActiveGymId(currentGymId);
+    } finally {
+      // Reset flag after a delay to allow prop updates and data refresh to sync
+      // Use a longer delay (500ms) to ensure dashboard refresh completes before allowing useEffect to run
+      setTimeout(() => {
+        isChangingGymRef.current = false;
+      }, 500);
+    }
+    console.log('[GymToggle] handlePrevious complete');
+  }, [gyms, localGyms, userId, activeGym, activeGymId, onGymChange, setActiveGym]);
 
   const handleNext = useCallback(async () => {
+    console.log('[GymToggle] handleNext called');
     const gymsToUse = gyms.length > 0 ? gyms : localGyms;
-    if (!userId || gymsToUse.length === 0 || !activeGymId) return;
+    console.log('[GymToggle] gymsToUse:', gymsToUse.length, gymsToUse.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+    console.log('[GymToggle] activeGym prop:', activeGym?.id, activeGym?.name);
+    console.log('[GymToggle] activeGymId state:', activeGymId);
     
-    const currentIndex = gymsToUse.findIndex(g => g.id === activeGymId);
-    if (currentIndex === -1) return;
-    
-    const nextIndex = currentIndex === gymsToUse.length - 1 ? 0 : currentIndex + 1;
-    const newGymId = gymsToUse[nextIndex].id;
-    const newActiveGym = gymsToUse[nextIndex];
-    
-    if (onGymChange) {
-      await onGymChange(newGymId, newActiveGym);
-    } else {
-      try {
-        await setActiveGym(userId, newGymId);
-      } catch (error) {
-        console.error('Error setting active gym:', error);
-      }
+    if (!userId || gymsToUse.length === 0) {
+      console.log('[GymToggle] Early return - no userId or gyms');
+      return;
     }
+    
+    // Use activeGym prop if available, otherwise use internal state
+    const currentGymId = activeGym?.id || activeGymId || gymsToUse.find(g => g.is_active)?.id || gymsToUse[0]?.id;
+    console.log('[GymToggle] currentGymId determined:', currentGymId);
+    
+    if (!currentGymId) {
+      console.log('[GymToggle] Early return - no currentGymId');
+      return;
+    }
+    
+    // Sort gyms alphabetically for consistent cycling order (independent of active status)
+    const sortedGyms = [...gymsToUse].sort((a, b) => a.name.localeCompare(b.name));
+    const currentIndex = sortedGyms.findIndex(g => g.id === currentGymId);
+    console.log('[GymToggle] currentIndex (alphabetical):', currentIndex, 'in sorted gyms:', sortedGyms.map(g => g.name));
+    
+    if (currentIndex === -1) {
+      console.log('[GymToggle] Early return - currentIndex not found');
+      return;
+    }
+    
+    const nextIndex = currentIndex === sortedGyms.length - 1 ? 0 : currentIndex + 1;
+    const newGymId = sortedGyms[nextIndex].id;
+    const newActiveGym = sortedGyms[nextIndex];
+    console.log('[GymToggle] Switching to gym:', newGymId, newActiveGym.name);
+    
+    // Set flag to prevent useEffect from resetting state during change
+    isChangingGymRef.current = true;
     setActiveGymId(newGymId);
-  }, [gyms, localGyms, userId, activeGymId, onGymChange, setActiveGym]);
+    
+    try {
+      if (onGymChange) {
+        console.log('[GymToggle] Calling onGymChange callback');
+        await onGymChange(newGymId, newActiveGym);
+      } else {
+        console.log('[GymToggle] Using setActiveGym from context');
+        await setActiveGym(userId, newGymId);
+      }
+    } catch (error) {
+      console.error('[GymToggle] Error setting active gym:', error);
+      // Revert state on error
+      setActiveGymId(currentGymId);
+    } finally {
+      // Reset flag after a delay to allow prop updates and data refresh to sync
+      // Use a longer delay (500ms) to ensure dashboard refresh completes before allowing useEffect to run
+      setTimeout(() => {
+        isChangingGymRef.current = false;
+      }, 500);
+    }
+    console.log('[GymToggle] handleNext complete');
+  }, [gyms, localGyms, userId, activeGym, activeGymId, onGymChange, setActiveGym]);
 
   const gymsToUse = gyms.length > 0 ? gyms : localGyms;
   if (loading || gymsToUse.length <= 1) {
     return null;
   }
 
-  const activeGymObj = gymsToUse.find(g => g.id === activeGymId);
+  // Use activeGym prop if available, otherwise use internal state
+  const currentGymId = activeGym?.id || activeGymId || gymsToUse.find(g => g.is_active)?.id || gymsToUse[0]?.id;
+  const activeGymObj = activeGym || gymsToUse.find(g => g.id === currentGymId);
   const gymName = activeGymObj?.name || 'Select Gym';
 
   return (

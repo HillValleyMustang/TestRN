@@ -52,7 +52,7 @@ interface Step4Data {
 export default function OnboardingScreen() {
   const { session, userId, supabase } = useAuth();
   const router = useRouter();
-  const { forceRefreshProfile, addGym, setIsGeneratingPlan } = useData();
+  const { forceRefreshProfile, addGym, getGyms, setIsGeneratingPlan } = useData();
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Setting up your profile...');
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -203,21 +203,38 @@ export default function OnboardingScreen() {
             )
           : [];
 
-      // 1. Create Gym record
-      const newGym = {
-        id: uuidv4(), // Generate a unique ID for the new gym
-        user_id: userId,
-        name: step4Data.gymName,
-        description: `Gym created during onboarding for ${step4Data.gymName}`,
-        equipment: [], // This will be updated by AI later if photo method is used
-        is_active: true, // Set as active by default
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // 1. Check for existing gyms before creating
+      let gymIdToUse: string;
+      const existingGyms = userId ? await getGyms(userId) : [];
+      
+      if (existingGyms && existingGyms.length > 0) {
+        // User already has gyms - use existing gym instead of creating duplicate
+        // Prefer active gym, otherwise use most recent
+        const activeGym = existingGyms.find(g => g.is_active);
+        const gymToUse = activeGym || existingGyms.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
+        
+        gymIdToUse = gymToUse.id;
+        console.log(`[Onboarding] Found ${existingGyms.length} existing gym(s) - reusing gym: ${gymToUse.name} (ID: ${gymIdToUse})`);
+      } else {
+        // No existing gyms - create new one (true first-time onboarding)
+        const newGym = {
+          id: uuidv4(), // Generate a unique ID for the new gym
+          user_id: userId,
+          name: step4Data.gymName,
+          description: `Gym created during onboarding for ${step4Data.gymName}`,
+          equipment: [], // This will be updated by AI later if photo method is used
+          is_active: true, // Set as active by default
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
 
-      // Add the new gym to the database
-      await addGym(newGym);
-      console.log(`[Onboarding] Created new gym: ${newGym.name} with ID: ${newGym.id}`);
+        // Add the new gym to the database
+        await addGym(newGym);
+        gymIdToUse = newGym.id;
+        console.log(`[Onboarding] Created new gym: ${newGym.name} with ID: ${gymIdToUse}`);
+      }
 
       const payload: OnboardingPayload = {
         fullName: step1Data.fullName,
@@ -230,7 +247,7 @@ export default function OnboardingScreen() {
         preferredMuscles: step3Data.preferredMuscles,
         constraints: step3Data.constraints,
         sessionLength: step3Data.sessionLength,
-        gymId: newGym.id, // Pass the newly created gym's ID
+        gymId: gymIdToUse, // Use existing or newly created gym ID
         equipmentMethod: step4Data.equipmentMethod!,
         confirmedExercises,
         unitSystem: step1Data.unitSystem,

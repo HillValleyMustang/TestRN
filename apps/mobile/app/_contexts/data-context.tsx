@@ -82,6 +82,7 @@ type ProgrammeType = 'ppl' | 'ulul';
 export interface DashboardProfile {
   id: string;
   active_t_path_id: string | null;
+  active_gym_id: string | null;
   programme_type: ProgrammeType;
   preferred_session_length: string | null;
   full_name: string | null;
@@ -587,7 +588,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     setIsLoading(true);
 
-    let latestProfile = profileCache;
+    // If shouldRefreshDashboard is true, don't use cached profile - force fresh fetch
+    // This ensures we get the latest programme_type after T-Path regeneration
+    let latestProfile = shouldRefreshDashboard ? null : profileCache;
     let remoteActiveTPath: DashboardProgram | null = null;
     let remoteChildWorkouts: DashboardProgram[] = [];
 
@@ -607,12 +610,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // }
 
     // Always load remote profile data to ensure we have the latest onboarding status
-    if (isOnline && supabase) {
+    // If shouldRefreshDashboard is true, always fetch even if we have cached profile
+    if (isOnline && supabase && (shouldRefreshDashboard || !latestProfile)) {
       try {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select(
-            'id, active_t_path_id, programme_type, preferred_session_length, full_name, first_name, last_name, onboarding_completed'
+            'id, active_t_path_id, active_gym_id, programme_type, preferred_session_length, full_name, first_name, last_name, onboarding_completed'
           )
           .eq('id', userId)
           .maybeSingle();
@@ -625,6 +629,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           latestProfile = {
             id: profileData.id,
             active_t_path_id: profileData.active_t_path_id,
+            active_gym_id: profileData.active_gym_id || null,
             programme_type: mapProgrammeType(profileData.programme_type),
             preferred_session_length: profileData.preferred_session_length,
             full_name: profileData.full_name,
@@ -657,7 +662,25 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         if (gymsError) {
           console.warn('[DataContext] Failed to load gyms', gymsError);
         } else if (gymsData) {
+          // Get existing local gyms BEFORE syncing to identify what needs cleanup
+          const localGyms = await database.getGyms(userId);
+          const remoteGymIds = new Set(gymsData.map(g => g.id));
+          
+          // Get active_gym_id from profile (Supabase doesn't store is_active in gyms table)
+          const activeGymIdFromProfile = latestProfile?.active_gym_id || null;
+          
+          // Check sync queue for pending gym operations to avoid deleting gyms that are pending sync
+          const syncQueueItems = await database.syncQueue.getAll();
+          const pendingGymOperations = new Set(
+            syncQueueItems
+              .filter(item => item.table === 'gyms' && (item.operation === 'insert' || item.operation === 'update'))
+              .map(item => item.payload.id)
+          );
+          
+          // Sync gyms from Supabase (insert/update)
+          // IMPORTANT: Set is_active based on profiles.active_gym_id, not gyms.is_active (which doesn't exist in Supabase)
           for (const gymRow of gymsData) {
+            const isActive = activeGymIdFromProfile === gymRow.id;
             const gym: Gym = {
               id: gymRow.id,
               user_id: gymRow.user_id,
@@ -666,13 +689,26 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               equipment: Array.isArray(gymRow.equipment)
                 ? gymRow.equipment
                 : [],
-              is_active: Boolean(gymRow.is_active),
+              is_active: isActive, // Use active_gym_id from profile, not from gyms table
               created_at: ensureIsoString(gymRow.created_at),
               updated_at: ensureIsoString(
                 gymRow.updated_at ?? gymRow.created_at
               ),
             };
             await database.addGym(gym);
+          }
+          
+          // CLEANUP: Delete local gyms that no longer exist in Supabase
+          // Only delete if not pending in sync queue (user might have created it offline)
+          const gymsToDelete = localGyms.filter(
+            localGym => !remoteGymIds.has(localGym.id) && !pendingGymOperations.has(localGym.id)
+          );
+          
+          if (gymsToDelete.length > 0) {
+            console.log(`[DataContext] Cleaning up ${gymsToDelete.length} stale local gym(s) not found in Supabase`);
+            for (const gymToDelete of gymsToDelete) {
+              await database.deleteGym(gymToDelete.id);
+            }
           }
         }
 
@@ -849,6 +885,45 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               const existingChildTPath = await database.getTPath(child.id);
               if (!existingChildTPath) {
                 await database.addTPath(childRecord);
+              }
+            }
+          }
+
+          // SYNC T_PATH_EXERCISES: Load exercises for all workouts (active + children)
+          // This ensures exercises created by AI gym analysis are available in the local database
+          // Note: This runs regardless of whether childWorkoutsData exists, so active t_path exercises always sync
+          const allWorkoutIds: string[] = [];
+          if (activeTPathData) {
+            allWorkoutIds.push(activeTPathData.id);
+          }
+          if (childWorkoutsData) {
+            allWorkoutIds.push(...childWorkoutsData.map(w => w.id));
+          }
+
+          for (const workoutId of allWorkoutIds) {
+            const { data: tPathExercisesData, error: tPathExercisesError } = await supabase
+              .from('t_path_exercises')
+              .select('id, template_id, exercise_id, order_index, is_bonus_exercise, created_at')
+              .eq('template_id', workoutId)
+              .order('order_index', { ascending: true });
+
+            if (tPathExercisesError) {
+              console.warn(`[DataContext] Failed to load exercises for workout ${workoutId}:`, tPathExercisesError);
+            } else if (tPathExercisesData && tPathExercisesData.length > 0) {
+              console.log(`[DataContext] Syncing ${tPathExercisesData.length} exercises for workout ${workoutId}`);
+              
+              // Sync each exercise link to local database
+              for (const exerciseRow of tPathExercisesData) {
+                const tPathExercise: TPathExercise = {
+                  id: exerciseRow.id,
+                  template_id: exerciseRow.template_id || workoutId,
+                  t_path_id: exerciseRow.template_id || workoutId, // For backwards compatibility
+                  exercise_id: exerciseRow.exercise_id,
+                  order_index: exerciseRow.order_index,
+                  is_bonus_exercise: Boolean(exerciseRow.is_bonus_exercise),
+                  created_at: ensureIsoString(exerciseRow.created_at || new Date().toISOString()),
+                };
+                await database.addTPathExercise(tPathExercise);
               }
             }
           }

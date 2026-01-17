@@ -9,6 +9,7 @@ import { TextStyles } from '../../constants/Typography';
 import { supabase } from '../../app/_lib/supabase';
 import { database, addToSyncQueue } from '../../app/_lib/database';
 import Toast from 'react-native-toast-message';
+import { WorkoutBadge } from '../ui/WorkoutBadge';
 
 const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -93,6 +94,7 @@ interface ExerciseCardProps {
   onSubstituteExercise?: () => void;
   onExerciseSaved?: (exerciseName: string, setCount: number) => void;
   accentColor?: string | undefined;
+  templateName?: string | null;
 }
 
 export const ExerciseCard: React.FC<ExerciseCardProps> = ({
@@ -104,6 +106,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     onSubstituteExercise,
     onExerciseSaved,
     accentColor,
+    templateName,
 }) => {
     const { updateSet, currentSessionId, markExerciseAsCompleted, startWorkout, activeWorkout } = useWorkoutFlow();
     const { userId } = useAuth();
@@ -260,12 +263,20 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             const db = database.getDB();
 
             // First, find the most recent workout session for this exercise (excluding current session)
+            // Join with workout_sessions to filter by template_name when provided
             let sessionQuery = `
                 SELECT DISTINCT sl.session_id
                 FROM set_logs sl
+                JOIN workout_sessions ws ON sl.session_id = ws.id
                 WHERE sl.exercise_id = ?
             `;
             const sessionParams: any[] = [exercise.id];
+
+            // Filter by template name if provided to only show data from same workout type
+            if (templateName) {
+                sessionQuery += ' AND ws.template_name = ?';
+                sessionParams.push(templateName);
+            }
 
             if (currentSessionId && currentSessionId !== '') {
                 sessionQuery += ' AND sl.session_id != ?';
@@ -330,7 +341,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 lastReps: null,
             })));
         }
-    }, [exercise.id, currentSessionId]);
+    }, [exercise.id, currentSessionId, templateName]);
 
     const fetchExerciseHistory = useCallback(async () => {
         try {
@@ -466,7 +477,12 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         <View style={[styles.container, accentColor && { borderWidth: 2, borderColor: accentColor }, showMenu && { zIndex: 999999, elevation: 100 }]}>
             <Pressable style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
                 <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>{exerciseNumber ? `${exerciseNumber}. ` : ''}{exercise.name}</Text>
+                    <View style={styles.exerciseNameRow}>
+                        <Text style={styles.exerciseName}>{exerciseNumber ? `${exerciseNumber}. ` : ''}{exercise.name}</Text>
+                        {exercise.is_bonus_exercise && (
+                            <WorkoutBadge workoutName="Bonus" size="sm" style={styles.bonusBadge} />
+                        )}
+                    </View>
                     <Text style={styles.muscleGroup}>{exercise.main_muscle}</Text>
                 </View>
             </Pressable>
@@ -883,10 +899,19 @@ const styles = StyleSheet.create({
   exerciseInfo: {
     flex: 1,
   },
+  exerciseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
+    marginBottom: 2,
+  },
   exerciseName: {
     ...TextStyles.h4,
     color: Colors.foreground,
-    marginBottom: 2,
+  },
+  bonusBadge: {
+    flexShrink: 0,
   },
   muscleGroup: {
     ...TextStyles.caption,

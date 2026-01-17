@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -51,6 +51,15 @@ export default function GymsScreen() {
   };
 
   const handleDelete = (gym: Gym) => {
+    // Prevent deletion of last gym
+    if (gyms.length === 1) {
+      Alert.alert(
+        'Cannot Delete',
+        'You must have at least one gym. Please add another gym before deleting this one.'
+      );
+      return;
+    }
+
     Alert.alert(
       'Delete Gym',
       `Are you sure you want to delete "${gym.name}"? This action cannot be undone.`,

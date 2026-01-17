@@ -369,11 +369,11 @@ serve(async (req: Request) => {
       t_path_generation_error: null
     }).eq('id', userId);
     
-    const { tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, gymName, confirmedExercises, fullName, heightCm, weightKg, bodyFatPct } = await req.json();
+    const { tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, gymName, confirmedExercises, fullName, heightCm, weightKg, bodyFatPct, gymId: providedGymId } = await req.json();
     
     console.log(`[DEBUG] 🚀 ONBOARDING STARTED`);
     console.log(`[DEBUG] 📋 User selected tPathType: ${tPathType}`);
-    console.log(`[DEBUG] 📋 Full request data:`, { tPathType, experience, goalFocus, sessionLength, equipmentMethod, fullName });
+    console.log(`[DEBUG] 📋 Full request data:`, { tPathType, experience, goalFocus, sessionLength, equipmentMethod, fullName, providedGymId });
     
     if (!tPathType || !experience || !sessionLength || !fullName || !heightCm || !weightKg) {
       throw new Error("Missing required onboarding data.");
@@ -404,15 +404,92 @@ serve(async (req: Request) => {
       console.log(`[DEBUG] ✅ No existing T-Paths found - clean start`);
     }
     
-    // Create gym
-    console.log(`[DEBUG] 🏢 Creating gym: ${gymName || "My Gym"}`);
-    const { data: insertedGym, error: insertGymError } = await supabaseServiceRoleClient.from('gyms').insert({
-      user_id: user.id,
-      name: gymName || "My Gym"
-    }).select('id').single();
-    if (insertGymError) throw insertGymError;
-    const newGymId = insertedGym.id;
-    console.log(`[DEBUG] ✅ Gym created with ID: ${newGymId}`);
+    // Determine which gym to use
+    let newGymId: string;
+    
+    // If a specific gymId was provided (e.g., during T-Path regeneration), use it directly
+    if (providedGymId) {
+      console.log(`[DEBUG] 🏢 Using provided gym ID: ${providedGymId}`);
+      
+      // Verify the gym exists and belongs to this user
+      const { data: verifyGym, error: verifyError } = await supabaseServiceRoleClient
+        .from('gyms')
+        .select('id, name')
+        .eq('id', providedGymId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (verifyError || !verifyGym) {
+        console.warn(`[DEBUG] ⚠️ Provided gym ${providedGymId} not found or doesn't belong to user, falling back to existing gym lookup`);
+        // Fall through to existing gym lookup
+      } else {
+        newGymId = verifyGym.id;
+        console.log(`[DEBUG] ✅ Verified provided gym: ${verifyGym.name} (${verifyGym.id})`);
+      }
+    }
+    
+    // If no valid gymId yet, check for existing gyms
+    if (!newGymId) {
+      console.log(`[DEBUG] 🏢 Checking for existing gyms for user ${userId}`);
+      const { data: existingGyms, error: fetchGymsError } = await supabaseServiceRoleClient
+        .from('gyms')
+        .select('id, name, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (fetchGymsError) throw fetchGymsError;
+      
+      if (existingGyms && existingGyms.length > 0) {
+        // User already has gyms - use existing gym instead of creating duplicate
+        console.log(`[DEBUG] 🏢 Found ${existingGyms.length} existing gym(s) - reusing existing gym`);
+        
+        // If user has >3 gyms, clean up excess (keep 3 most recent)
+        if (existingGyms.length > 3) {
+          const gymsToDelete = existingGyms.slice(3);
+          console.log(`[DEBUG] 🧹 Cleaning up ${gymsToDelete.length} excess gym(s)`);
+          
+          for (const gym of gymsToDelete) {
+            // Delete gym_exercises first (foreign key constraint)
+            await supabaseServiceRoleClient
+              .from('gym_exercises')
+              .delete()
+              .eq('gym_id', gym.id);
+            
+            // Delete gym_equipment
+            await supabaseServiceRoleClient
+              .from('gym_equipment')
+              .delete()
+              .eq('gym_id', gym.id);
+            
+            // Delete the gym
+            const { error: deleteError } = await supabaseServiceRoleClient
+              .from('gyms')
+              .delete()
+              .eq('id', gym.id);
+            
+            if (deleteError) {
+              console.error(`[DEBUG] ⚠️ Failed to delete excess gym ${gym.id}:`, deleteError);
+            } else {
+              console.log(`[DEBUG] ✅ Deleted excess gym: ${gym.name} (${gym.id})`);
+            }
+          }
+        }
+        
+        // Use the most recent existing gym
+        newGymId = existingGyms[0].id;
+        console.log(`[DEBUG] ✅ Using existing gym ID: ${newGymId} (${existingGyms[0].name})`);
+      } else {
+        // No existing gyms - create new one (true first-time onboarding)
+        console.log(`[DEBUG] 🏢 No existing gyms found - creating new gym: ${gymName || "My Gym"}`);
+        const { data: insertedGym, error: insertGymError } = await supabaseServiceRoleClient.from('gyms').insert({
+          user_id: user.id,
+          name: gymName || "My Gym"
+        }).select('id').single();
+        if (insertGymError) throw insertGymError;
+        newGymId = insertedGym.id;
+        console.log(`[DEBUG] ✅ Gym created with ID: ${newGymId}`);
+      }
+    }
     
     // Create only the selected T-Path based on user choice
     let templateName: string;
