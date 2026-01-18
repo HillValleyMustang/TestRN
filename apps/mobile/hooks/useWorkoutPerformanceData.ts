@@ -121,7 +121,9 @@ const normalizeMuscleGroup = (muscleGroup: string, canonicalGroups: string[]): s
   }
 
   // If no match found, return a reasonable default based on common patterns
-  console.warn(`[normalizeMuscleGroup] No mapping found for "${muscleGroup}", canonical groups:`, canonicalGroups);
+  if (__DEV__) {
+    console.warn(`[normalizeMuscleGroup] No mapping found for "${muscleGroup}", canonical groups:`, canonicalGroups);
+  }
 
   // Try to find a reasonable fallback based on keywords
   if (normalized.includes('chest') || normalized.includes('pec')) return 'Chest';
@@ -164,21 +166,37 @@ export const useWorkoutPerformanceData = (): WorkoutPerformanceData => {
           .not('main_muscle', 'is', null)
           .neq('main_muscle', '');
 
+        // Load canonical groups into a local variable that will be used during transformation
+        let loadedCanonicalGroups: string[] = [];
         if (exercisesError) {
-          console.warn('[useWorkoutPerformanceData] Could not fetch muscle groups:', exercisesError);
+          if (__DEV__) {
+            console.warn('[useWorkoutPerformanceData] Could not fetch muscle groups:', exercisesError);
+          }
+          // Use fallback if fetch fails
+          loadedCanonicalGroups = [
+            'Chest', 'Shoulders', 'Biceps', 'Triceps', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Abs', 'Lats'
+          ];
         } else {
           // Filter out compound muscle groups (those containing commas) to match Exercise Library behavior
-          const canonicalGroups = [...new Set(
+          loadedCanonicalGroups = [...new Set(
             exercises
               ?.filter(ex => !ex.main_muscle.includes(','))
               ?.map(ex => ex.main_muscle.trim())
               .sort() || []
           )];
-          console.log('[useWorkoutPerformanceData] Loaded canonical muscle groups:', canonicalGroups);
-          setCanonicalMuscleGroups(canonicalGroups.length > 0 ? canonicalGroups : [
-            'Chest', 'Shoulders', 'Biceps', 'Triceps', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Abs', 'Lats'
-          ]);
+          // Use fallback if no groups found
+          if (loadedCanonicalGroups.length === 0) {
+            loadedCanonicalGroups = [
+              'Chest', 'Shoulders', 'Biceps', 'Triceps', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Abs', 'Lats'
+            ];
+          }
+          if (__DEV__) {
+            console.log('[useWorkoutPerformanceData] Loaded canonical muscle groups:', loadedCanonicalGroups);
+          }
         }
+        
+        // Update state for later use (but use local variable during transformation)
+        setCanonicalMuscleGroups(loadedCanonicalGroups);
 
         // Get recent workout sessions with complete exercise data (last 30 days)
         const thirtyDaysAgo = new Date();
@@ -223,6 +241,8 @@ export const useWorkoutPerformanceData = (): WorkoutPerformanceData => {
         }
 
         // Transform the data to match the expected structure
+        // Use loadedCanonicalGroups (local variable) instead of canonicalMuscleGroups (state) 
+        // to avoid warnings when state is still empty
         const transformedSessions: WorkoutSession[] = (workoutSessions || []).map(session => {
           // Group sets by exercise
           const exerciseMap = new Map();
@@ -235,7 +255,7 @@ export const useWorkoutPerformanceData = (): WorkoutPerformanceData => {
               exerciseMap.set(exerciseId, {
                 exerciseId,
                 exerciseName: exercise?.name || 'Unknown Exercise',
-                muscleGroup: normalizeMuscleGroup(exercise?.main_muscle || 'other', canonicalMuscleGroups),
+                muscleGroup: normalizeMuscleGroup(exercise?.main_muscle || 'other', loadedCanonicalGroups),
                 sets: []
               });
             }

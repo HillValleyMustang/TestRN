@@ -15,14 +15,20 @@ export default function Index() {
   const USE_NEW_ONBOARDING = false; // Set to true when ready to use new flow
 
   useEffect(() => {
-    console.log('[Index] useEffect triggered - session:', !!session, 'userId:', userId, 'authLoading:', authLoading);
+    if (__DEV__) {
+      console.log('[Index] useEffect triggered - session:', !!session, 'userId:', userId, 'authLoading:', authLoading);
+    }
     const handleNavigation = async () => {
       if (!authLoading) {
         if (session === null) {
-          console.log('[Index] No session, redirecting to login');
+          if (__DEV__) {
+            console.log('[Index] No session, redirecting to login');
+          }
           router.replace('/login');
         } else if (userId) {
-          console.log('[Index] User authenticated, forcing profile refresh and checking onboarding status...');
+          if (__DEV__) {
+            console.log('[Index] User authenticated, forcing profile refresh and checking onboarding status...');
+          }
 
           // Force refresh the profile data to ensure we get the latest from database
           forceRefreshProfile();
@@ -39,7 +45,9 @@ export default function Index() {
 
             if (profile) {
               if (profile.onboarding_completed) {
-                console.log('[Index] User has completed onboarding, redirecting to dashboard');
+                if (__DEV__) {
+                  console.log('[Index] User has completed onboarding, redirecting to dashboard');
+                }
                 if (!navigatedRef.current) {
                   navigatedRef.current = true;
                   router.replace('/(tabs)/dashboard');

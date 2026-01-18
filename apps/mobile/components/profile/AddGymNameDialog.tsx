@@ -12,17 +12,15 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
-  Keyboard,
 } from 'react-native';
-import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
+import { TextStyles, FontFamily } from '../../constants/Typography';
 
 interface AddGymNameDialogProps {
   visible: boolean;
   onClose: () => void;
-  onContinue: (gymId: string, gymName: string) => void;
+  onContinue: (gymName: string) => void;
   existingGymCount: number;
 }
 
@@ -32,56 +30,25 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
   onContinue,
   existingGymCount,
 }) => {
-  const { userId, supabase } = useAuth();
-  const strings = useSettingsStrings();
   const [name, setName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     if (visible) {
       setName('');
-      setIsCreating(false);
     }
   }, [visible]);
 
-  const handleSaveAndContinue = async () => {
-    // Prevent double-triggering
-    if (isProcessingRef.current || isCreating) return;
-    
-    if (!userId || !name.trim()) return;
+  const handleSaveAndContinue = () => {
+    if (!name.trim()) return;
     
     if (existingGymCount >= 3) {
       alert('You can have a maximum of 3 gyms');
       return;
     }
 
-    isProcessingRef.current = true;
-    
-    setIsCreating(true);
-    try {
-      const { data: newGym, error } = await supabase
-        .from('gyms')
-        .insert({
-          name: name.trim(),
-          user_id: userId,
-        })
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      // Move to Step 2 (Setup Options)
-      onContinue(newGym.id, newGym.name);
-    } catch (error) {
-      console.error('[AddGymNameDialog] Error creating gym:', error);
-      alert('Failed to create gym. Please try again.');
-      isProcessingRef.current = false;
-    } finally {
-      setIsCreating(false);
-      isProcessingRef.current = false;
-    }
+    // Just pass the name - gym will be created when entering setup step
+    onContinue(name.trim());
   };
 
   return (
@@ -97,7 +64,6 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
           <TouchableOpacity 
             style={styles.closeButton} 
             onPress={onClose}
-            disabled={isCreating}
           >
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
@@ -116,7 +82,6 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
             placeholderTextColor={Colors.mutedForeground}
             value={name}
             onChangeText={setName}
-            editable={!isCreating}
             autoFocus
             blurOnSubmit={false}
           />
@@ -126,7 +91,6 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
               onPress={onClose}
-              disabled={isCreating}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -135,17 +99,13 @@ export const AddGymNameDialog: React.FC<AddGymNameDialogProps> = ({
               style={[
                 styles.button,
                 styles.saveButton,
-                (!name.trim() || isCreating) && styles.saveButtonDisabled,
+                !name.trim() && styles.saveButtonDisabled,
               ]}
               onPress={handleSaveAndContinue}
-              disabled={!name.trim() || isCreating}
+              disabled={!name.trim()}
               activeOpacity={0.8}
             >
-              {isCreating ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save & Continue</Text>
-              )}
+              <Text style={styles.saveButtonText}>Save & Continue</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -183,18 +143,19 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 24,
     color: Colors.mutedForeground,
+    fontFamily: FontFamily.regular,
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: Colors.foreground,
     marginBottom: Spacing.sm,
+    lineHeight: 28,
   },
   description: {
-    fontSize: 14,
+    ...TextStyles.bodySmall,
     color: Colors.mutedForeground,
     marginBottom: Spacing.lg,
-    lineHeight: 20,
   },
   input: {
     borderWidth: 1,
@@ -204,6 +165,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.foreground,
     marginBottom: Spacing.lg,
+    fontFamily: FontFamily.regular,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -221,8 +183,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.muted,
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...TextStyles.button,
     color: Colors.foreground,
   },
   saveButton: {
@@ -232,8 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray400,
   },
   saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...TextStyles.button,
     color: '#fff',
   },
 });

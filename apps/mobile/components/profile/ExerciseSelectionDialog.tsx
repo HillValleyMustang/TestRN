@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { FontFamily } from '../../constants/Typography';
 
 interface DetectedExercise {
   name: string;
@@ -247,12 +248,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.foreground,
     marginBottom: Spacing.sm,
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     lineHeight: 20,
   },
@@ -310,7 +312,7 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
     marginBottom: Spacing.xs,
   },
@@ -321,15 +323,17 @@ const styles = StyleSheet.create({
   },
   exerciseMuscle: {
     fontSize: 13,
+    fontFamily: FontFamily.medium,
     color: Colors.success,
-    fontWeight: '500',
   },
   exercisePattern: {
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
   },
   exerciseDescription: {
     fontSize: 12,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     lineHeight: 16,
   },
@@ -376,6 +380,7 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     lineHeight: 18,
   },
@@ -421,7 +426,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: '#fff',
   },
   emptyState: {
@@ -432,12 +437,13 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
     marginTop: Spacing.md,
   },
   emptyStateSubtext: {
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     marginTop: Spacing.xs,
     textAlign: 'center',

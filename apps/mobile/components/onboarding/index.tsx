@@ -177,14 +177,15 @@ export default function OnboardingScreen() {
 
     if (!validation.isValid) {
       setIsCompleting(false);
-      console.log('[DEBUG] ❌ Validation failed:', validation.errors);
+      if (__DEV__) {
+        console.warn('[Onboarding] Validation failed:', validation.errors);
+      }
       return;
     }
 
     // Show warnings if any
-    if (Object.keys(validation.warnings).length > 0) {
-      console.log('[DEBUG] ⚠️  Validation warnings:', validation.warnings);
-      // Continue with submission despite warnings
+    if (Object.keys(validation.warnings).length > 0 && __DEV__) {
+      console.warn('[Onboarding] Validation warnings:', validation.warnings);
     }
 
     const finalHeightCm = step1Data.heightCm;
@@ -193,20 +194,12 @@ export default function OnboardingScreen() {
     setLoading(true);
     setLoadingMessage('Creating your personalized workout plan...');
     try {
-      console.log(`[DEBUG] 🎯 Starting onboarding completion for user: ${userId}`);
-      console.log(`[DEBUG] 📊 Step 1 data:`, JSON.stringify(step1Data, null, 2));
-      console.log(`[DEBUG] 🏋️  Step 2 data:`, JSON.stringify(step2Data, null, 2));
-      console.log(`[DEBUG] 🎯 Step 3 data:`, JSON.stringify(step3Data, null, 2));
-      console.log(`[DEBUG] 🏢 Step 4 data:`, JSON.stringify(step4Data, null, 2));
-      
       const confirmedExercises =
         step4Data.equipmentMethod === 'photo'
           ? identifiedExercises.filter(ex =>
               confirmedExerciseNames.has(ex.name)
             )
           : [];
-          
-      console.log(`[DEBUG] ✅ Confirmed exercises:`, confirmedExercises.length);
 
       const payload: OnboardingPayload = {
         fullName: step1Data.fullName,
@@ -225,9 +218,6 @@ export default function OnboardingScreen() {
         unitSystem: step1Data.unitSystem,
       };
 
-      console.log(`[DEBUG] 📋 Final payload constructed:`, JSON.stringify(payload, null, 2));
-      console.log(`[DEBUG] 🚀 Calling AIWorkoutService.completeOnboardingWithAI...`);
-
       // Use AI service to complete onboarding
       const aiResponse = await AIWorkoutService.completeOnboardingWithAI(
         payload,
@@ -235,52 +225,15 @@ export default function OnboardingScreen() {
         userId
       );
 
-      console.log(`[DEBUG] ✅ AI response received successfully`);
-      console.log(`[DEBUG] 📊 Main T-Path:`, aiResponse.mainTPath?.template_name);
-      console.log(`[DEBUG] 🏋️  Child workouts:`, aiResponse.childWorkouts?.length);
-      
-      // CRITICAL: Detailed workout analysis
-      console.log(`[DEBUG] 🔍 WORKOUT DATA ANALYSIS:`);
-      console.log(`[DEBUG] 🔍 Selected tPathType: ${step2Data.tPathType}`);
-      console.log(`[DEBUG] 🔍 Expected workouts: ${step2Data.tPathType === 'ppl' ? 3 : 4}`);
-      console.log(`[DEBUG] 🔍 Actual workouts received: ${aiResponse.childWorkouts?.length || 0}`);
-      
-      if (aiResponse.childWorkouts && aiResponse.childWorkouts.length > 0) {
-        console.log(`[DEBUG] 📋 ALL WORKOUT NAMES RECEIVED:`);
-        aiResponse.childWorkouts.forEach((workout: any, index: number) => {
-          console.log(`[DEBUG]   ${index + 1}. ${workout.workout_name || workout.template_name || 'UNKNOWN'}`);
-        });
-        
-        // Final verdict
-        const expected = step2Data.tPathType === 'ppl' ? 3 : 4;
-        const actual = aiResponse.childWorkouts.length;
-        const isCorrect = expected === actual;
-        
-        console.log(`[DEBUG] 🎯 FINAL VERDICT:`);
-        console.log(`[DEBUG] 🎯 Expected: ${expected}, Actual: ${actual}, Correct: ${isCorrect ? '✅ YES' : '❌ NO'}`);
-        
-        if (!isCorrect) {
-          console.error(`[DEBUG] 🚨 WORKOUT COUNT MISMATCH! This indicates the edge function bug is still present.`);
-        }
-      }
-
       // Store onboarding result for summary modal
       setOnboardingResult(aiResponse);
       setShowSummaryModal(true);
       
-      console.log(`[DEBUG] 🎉 Onboarding completion successful - showing summary modal`);
     } catch (error: any) {
-      console.error(`[DEBUG] ❌ ONBOARDING ERROR OCCURRED:`);
-      console.error(`[DEBUG] 📊 Error message:`, error.message);
-      console.error(`[DEBUG] 🔍 Error code:`, error.code);
-      console.error(`[DEBUG] 📋 Error details:`, error);
-      console.error(`[DEBUG] 🔧 User ID: ${userId}`);
-      console.error(`[DEBUG] 📍 Step data at time of error:`, {
-        step1: { fullName: step1Data.fullName, heightCm: step1Data.heightCm, weight: step1Data.weight },
-        step2: { tPathType: step2Data.tPathType, experience: step2Data.experience },
-        step3: { goalFocus: step3Data.goalFocus, sessionLength: step3Data.sessionLength },
-        step4: { gymName: step4Data.gymName, equipmentMethod: step4Data.equipmentMethod }
-      });
+      console.error(`[Onboarding] Error occurred:`, error.message);
+      if (__DEV__) {
+        console.error(`[Onboarding] Error details:`, error);
+      }
       
       // Temporarily comment out alert to see debug logs in terminal
       // Alert.alert(
@@ -290,7 +243,6 @@ export default function OnboardingScreen() {
     } finally {
       setLoading(false);
       setIsCompleting(false);
-      console.log(`[DEBUG] 🏁 Onboarding flow completed (success or failure)`);
     }
   };
 

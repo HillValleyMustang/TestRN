@@ -21,6 +21,7 @@ interface WorkoutSession {
   exercise_count?: number;
   duration_string?: string | undefined;
   sync_status?: 'local_only' | 'syncing' | 'synced' | 'sync_failed';
+  gym_name?: string | null;
 }
 
 interface PreviousWorkoutsWidgetProps {
@@ -191,6 +192,12 @@ export function PreviousWorkoutsWidget({
                   <View style={styles.stat}>
                     <Ionicons name="timer-outline" size={12} color={Colors.mutedForeground} />
                     <Text style={styles.statText}>{workout.duration_string}</Text>
+                  </View>
+                )}
+                {workout.gym_name && (
+                  <View style={styles.stat}>
+                    <Ionicons name="location" size={12} color={Colors.mutedForeground} />
+                    <Text style={styles.statText}>{workout.gym_name}</Text>
                   </View>
                 )}
               </View>

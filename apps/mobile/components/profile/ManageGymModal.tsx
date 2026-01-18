@@ -47,7 +47,9 @@ interface WorkoutWithExercises {
 }
 
 export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
-  console.log('🏠 ManageGymModal RENDERED with:', { visible, gym });
+  if (__DEV__) {
+    console.log('[ManageGymModal] Rendered with:', { visible, gym: gym?.name });
+  }
 
   const { userId } = useAuth();
   const { getTPaths, getTPathExercises } = useData();
@@ -60,25 +62,25 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
 
   const loadGymWorkouts = useCallback(async () => {
     if (!gym || !userId) {
-      console.log('ManageGymModal: Missing gym or userId', { gym: !!gym, userId });
+      if (__DEV__) {
+        console.warn('[ManageGymModal] Missing gym or userId', { gym: !!gym, userId });
+      }
       return;
     }
 
-    console.log('ManageGymModal: Starting loadGymWorkouts for gym:', gym.name);
+    if (__DEV__) {
+      console.log('[ManageGymModal] Starting loadGymWorkouts for gym:', gym.name);
+    }
     setLoading(true);
 
     try {
       // Get T-Paths for this user
-      console.log('ManageGymModal: Fetching T-Paths...');
       const tPaths = await getTPaths(userId);
-      console.log('ManageGymModal: T-Paths data:', tPaths);
 
       // For now, show all T-Paths (we'll enhance gym association later)
       const gymTPaths = tPaths.filter(tp => tp.is_main_program);
-      console.log('ManageGymModal: Main program T-Paths:', gymTPaths);
 
       if (gymTPaths.length === 0) {
-        console.log('ManageGymModal: No main program T-Paths found');
         setWorkouts([]);
         setLoading(false);
         return;
@@ -86,20 +88,15 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
 
       // Load exercises for each T-Path
       const workoutsWithExercises: WorkoutWithExercises[] = [];
-      console.log('ManageGymModal: Loading exercises for', gymTPaths.length, 'T-Paths');
 
       for (const tPath of gymTPaths) {
-        console.log('ManageGymModal: Loading exercises for T-Path:', tPath.template_name);
         const exercises = await getTPathExercises(tPath.id);
-        console.log('ManageGymModal: Exercises for', tPath.template_name, ':', exercises);
 
         // Collect all exercise IDs to fetch from Supabase
         const exerciseIds = exercises.map(ex => ex.exercise_id);
-        console.log('ManageGymModal: Fetching exercise definitions for IDs:', exerciseIds);
 
         // Fetch exercise definitions from Supabase
         const exerciseDefinitions = await fetchExerciseDefinitions(exerciseIds);
-        console.log('ManageGymModal: Fetched exercise definitions:', exerciseDefinitions);
 
         // Create a map for quick lookup
         const exerciseDefMap = new Map(exerciseDefinitions.map(def => [def.id, def]));
@@ -115,7 +112,6 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
             muscle_group: exerciseDef?.main_muscle || undefined,
             exerciseDefinition: exerciseDef || undefined,
           };
-          console.log('ManageGymModal: Processed exercise:', result);
           return result;
         });
 
@@ -126,12 +122,10 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
         });
       }
 
-      console.log('ManageGymModal: Final workouts with exercises:', workoutsWithExercises);
       setWorkouts(workoutsWithExercises);
 
       // Auto-select first workout if available
       if (workoutsWithExercises.length > 0 && !selectedWorkoutId) {
-        console.log('ManageGymModal: Auto-selecting first workout:', workoutsWithExercises[0].template_name);
         setSelectedWorkoutId(workoutsWithExercises[0].id);
       }
     } catch (error) {
@@ -217,21 +211,12 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
   };
 
   const renderExerciseList = () => {
-    console.log('ManageGymModal: renderExerciseList called');
-    console.log('ManageGymModal: selectedWorkout:', selectedWorkout);
-
     if (!selectedWorkout) {
-      console.log('ManageGymModal: No selectedWorkout');
       return null;
     }
 
     const coreExercises = selectedWorkout.exercises.filter(ex => !ex.is_bonus_exercise);
     const bonusExercises = selectedWorkout.exercises.filter(ex => ex.is_bonus_exercise);
-
-    console.log('ManageGymModal: Core exercises count:', coreExercises.length);
-    console.log('ManageGymModal: Bonus exercises count:', bonusExercises.length);
-    console.log('ManageGymModal: Core exercises:', coreExercises);
-    console.log('ManageGymModal: Bonus exercises:', bonusExercises);
 
     return (
       <View style={styles.exerciseContainer}>
@@ -245,7 +230,6 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
           ) : (
             <View style={styles.exerciseList}>
               {coreExercises.map((exercise, index) => {
-                console.log('ManageGymModal: Rendering core exercise:', exercise.exercise_name);
                 return (
                   <View key={exercise.id} style={styles.exerciseItem}>
                     <View style={styles.exerciseInfo}>
@@ -282,7 +266,6 @@ export function ManageGymModal({ visible, onClose, gym }: ManageGymModalProps) {
           ) : (
             <View style={styles.exerciseList}>
               {bonusExercises.map((exercise, index) => {
-                console.log('ManageGymModal: Rendering bonus exercise:', exercise.exercise_name);
                 return (
                   <View key={exercise.id} style={styles.exerciseItem}>
                     <View style={styles.exerciseInfo}>

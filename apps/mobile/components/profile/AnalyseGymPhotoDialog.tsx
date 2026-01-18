@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { FontFamily } from '../../constants/Typography';
 import { imageUriToBase64, uploadImageToSupabase, validateImageSize } from '../../lib/imageUtils';
 
 interface DetectedEquipment {
@@ -372,7 +373,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
 
       // Step 2: Analyze all gym photos with Gemini Edge Function (single batch request)
       if (isMountedRef.current) {
-        setAnalysisProgress(`Analyzing images... (${base64Images.length} image${base64Images.length > 1 ? 's' : ''})`);
+        setAnalysisProgress(`Analysing images... (${base64Images.length} image${base64Images.length > 1 ? 's' : ''})`);
       }
 
       const allEquipment = new Set<string>();
@@ -487,7 +488,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
       if (totalEquipment > 0 && onExercisesGenerated) {
         try {
           if (isMountedRef.current) {
-            setAnalysisProgress('AI is analyzing your equipment and generating exercises...');
+            setAnalysisProgress('AI is analysing your equipment and generating exercises...');
           }
 
           // Update progress every 5 seconds to give feedback
@@ -495,10 +496,10 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
             if (isMountedRef.current) {
               setAnalysisProgress(prev => {
                 const messages = [
-                  'AI is analyzing your equipment...',
+                  'AI is analysing your equipment...',
                   'Identifying exercises from detected equipment...',
                   'Matching equipment to exercise library...',
-                  'Almost done, finalizing exercise list...',
+                  'Almost done, finalising exercise list...',
                 ];
                 const currentIndex = messages.indexOf(prev);
                 return messages[(currentIndex + 1) % messages.length];
@@ -886,7 +887,9 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
                     ) : (
                       <>
                         <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                        <Text style={styles.finishButtonText}>Finish Setup</Text>
+                        <Text style={styles.finishButtonText}>
+                          {imageUris.length > 0 ? 'Continue' : 'Finish Setup'}
+                        </Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -933,15 +936,17 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 24,
     color: Colors.mutedForeground,
+    fontFamily: FontFamily.regular,
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.foreground,
     marginBottom: Spacing.sm,
   },
   description: {
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     marginBottom: Spacing.lg,
     lineHeight: 20,
@@ -962,6 +967,7 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     textAlign: 'center',
     marginTop: Spacing.md,
@@ -982,12 +988,13 @@ const styles = StyleSheet.create({
   },
   selectionCounterText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.foreground,
     marginBottom: Spacing.xs,
   },
   selectionCounterSubtext: {
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
   },
   thumbnailWrapper: {
@@ -1023,7 +1030,7 @@ const styles = StyleSheet.create({
   },
   uploadButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: '#fff',
   },
   uploadButtonDisabled: {
@@ -1047,7 +1054,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
   },
   finishButton: {
@@ -1060,7 +1067,7 @@ const styles = StyleSheet.create({
   },
   finishButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: '#fff',
   },
   progressContainer: {
@@ -1075,8 +1082,8 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
+    fontFamily: FontFamily.medium,
     color: Colors.foreground,
-    fontWeight: '500',
   },
   feedbackContainer: {
     flexDirection: 'row',
@@ -1105,6 +1112,7 @@ const styles = StyleSheet.create({
   feedbackText: {
     flex: 1,
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: Colors.foreground,
     lineHeight: 20,
   },

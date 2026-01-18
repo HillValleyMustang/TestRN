@@ -9,6 +9,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { Dumbbell } from 'lucide-react-native';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { getWorkoutColor } from '../../lib/workout-colors';
 
 interface WorkoutProgressBarProps {
   exercisesForSession: any[];
@@ -37,18 +38,9 @@ export const WorkoutProgressBar: React.FC<WorkoutProgressBarProps> = ({
 
   const workoutName = activeWorkout?.template_name || 'Ad Hoc Workout';
 
-  // Get workout color based on name (similar to web logic)
-  const getWorkoutColor = (name: string) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes('push')) return '#3B82F6'; // Blue
-    if (lowerName.includes('pull')) return '#10B981'; // Green
-    if (lowerName.includes('legs')) return '#F59E0B'; // Amber
-    if (lowerName.includes('upper')) return '#8B5CF6'; // Purple
-    if (lowerName.includes('lower')) return '#EF4444'; // Red
-    return Colors.primary; // Default
-  };
-
-  const progressColor = getWorkoutColor(workoutName);
+  // Get workout color using the centralized color system
+  const workoutColors = getWorkoutColor(workoutName);
+  const progressColor = workoutColors.main;
 
   return (
     <View style={styles.container}>

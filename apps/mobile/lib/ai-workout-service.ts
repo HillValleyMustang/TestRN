@@ -236,17 +236,6 @@ export class AIWorkoutService {
     accessToken: string
   ): Promise<AIWorkoutResponse> {
     try {
-      console.log('[DEBUG] 🚀 generateWorkoutPlan called');
-      console.log('[DEBUG] 📋 Original onboarding payload:', {
-        fullName: payload.fullName,
-        tPathType: payload.tPathType,
-        experience: payload.experience,
-        sessionLength: payload.sessionLength,
-        equipmentMethod: payload.equipmentMethod
-      });
-
-      console.log('[DEBUG] 📡 Sending request to edge function:', this.EDGE_FUNCTION_URL);
-
       const response = await fetch(this.EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -256,43 +245,13 @@ export class AIWorkoutService {
         body: JSON.stringify(payload),
       });
 
-      console.log('[DEBUG] 📡 Edge function response status:', response.status, response.statusText);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[DEBUG] ❌ Edge function error:', errorData);
+        console.error('[AIWorkoutService] Edge function error:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const responseData = await response.json();
-      console.log('[DEBUG] 📥 Raw edge function response received');
-
-      // COMPREHENSIVE WORKOUT DATA DEBUGGING
-      console.log('[DEBUG] 🔍 EDGE FUNCTION RESPONSE ANALYSIS:');
-      console.log('[DEBUG] 📊 Main T-Path data:', {
-        id: responseData.mainTPath?.id,
-        template_name: responseData.mainTPath?.template_name,
-        settings_tPathType: responseData.mainTPath?.settings?.tPathType
-      });
-      
-      console.log('[DEBUG] 📊 Child Workouts Analysis:');
-      console.log('[DEBUG] 📊 Total childWorkouts count:', responseData.childWorkouts?.length || 0);
-      
-      if (responseData.childWorkouts && responseData.childWorkouts.length > 0) {
-        console.log('[DEBUG] 📋 Individual workout breakdown:');
-        responseData.childWorkouts.forEach((workout: any, index: number) => {
-          console.log(`[DEBUG]   Workout ${index + 1}:`, {
-            id: workout.id,
-            template_name: workout.template_name || workout.workout_name,
-            exercise_count: workout.t_path_exercises?.length || workout.exercises?.length || 0,
-            parent_t_path_id: workout.parent_t_path_id
-          });
-        });
-
-        console.log('[DEBUG] 🎯 ALL WORKOUT NAMES:', responseData.childWorkouts.map((w: any) =>
-          w.template_name || w.workout_name
-        ));
-      }
 
       // Map the edge function response to the expected format
       const data: AIWorkoutResponse = {
@@ -308,27 +267,13 @@ export class AIWorkoutService {
 
       // Validate response structure
       if (!data.mainTPath || !data.childWorkouts) {
-        console.error('[DEBUG] ❌ Invalid response structure:', responseData);
+        console.error('[AIWorkoutService] Invalid response structure:', responseData);
         throw new Error('Invalid response structure from AI service');
       }
 
-      // FINAL DEBUG SUMMARY
-      console.log('[DEBUG] 🎉 SUCCESS: Edge function processed successfully');
-      console.log('[DEBUG] 📋 FINAL WORKOUT SUMMARY:');
-      console.log('[DEBUG] 📋 Selected program type:', payload.tPathType);
-      console.log('[DEBUG] 📋 Expected workouts:', payload.tPathType === 'ppl' ? 3 : 4);
-      console.log('[DEBUG] 📋 Actual workouts received:', data.childWorkouts.length);
-      console.log('[DEBUG] 📋 Workout names:', data.childWorkouts.map(w => w.workout_name || w.template_name));
-      
-      console.log('[DEBUG] ✅ Successfully generated workout plan:', {
-        tPathId: data.mainTPath.id,
-        workoutCount: data.childWorkouts.length,
-        totalExercises: data.childWorkouts.reduce((sum, w) => sum + (w.exercises?.length || 0), 0),
-      });
-
       return data;
     } catch (error) {
-      console.error('[DEBUG] ❌ Workout generation failed:', error);
+      console.error('[AIWorkoutService] Workout generation failed:', error);
 
       if (error instanceof Error) {
         // Re-throw with more context
@@ -348,58 +293,27 @@ export class AIWorkoutService {
     userId: string
   ): Promise<AIWorkoutResponse> {
     try {
-      console.log('[DEBUG] 🎯 completeOnboardingWithAI started');
-      console.log('[DEBUG] 📋 User selection details:', {
-        userId,
-        tPathType: payload.tPathType,
-        experience: payload.experience,
-        sessionLength: payload.sessionLength
-      });
-
-      console.log('[DEBUG] 🔄 Step 1: Calling edge function to generate workout plan');
-      
       // Use the edge function to generate the workout plan
       const aiResponse = await this.generateWorkoutPlan(payload, accessToken);
-
-      console.log('[DEBUG] 🎉 Step 2: Edge function completed successfully');
-      console.log('[DEBUG] 📊 RESPONSE ANALYSIS:');
-      console.log('[DEBUG] 📊 Main T-Path:', {
-        id: aiResponse.mainTPath?.id,
-        template_name: aiResponse.mainTPath?.template_name
-      });
-      console.log('[DEBUG] 📊 Child Workouts Count:', aiResponse.childWorkouts?.length);
-      console.log('[DEBUG] 📊 Workout Names:', aiResponse.childWorkouts?.map(w => w.workout_name));
       
-      // CRITICAL: Check if we got the right number of workouts
+      // Check if we got the right number of workouts
       const expectedWorkouts = payload.tPathType === 'ppl' ? 3 : 4;
       const actualWorkouts = aiResponse.childWorkouts?.length || 0;
-      
-      console.log('[DEBUG] 🔍 WORKOUT COUNT VALIDATION:');
-      console.log('[DEBUG] 🔍 Expected:', expectedWorkouts, 'workouts for', payload.tPathType);
-      console.log('[DEBUG] 🔍 Actual:', actualWorkouts, 'workouts received');
-      console.log('[DEBUG] 🔍 Match:', expectedWorkouts === actualWorkouts ? '✅ YES' : '❌ NO');
 
       if (expectedWorkouts !== actualWorkouts) {
-        console.error('[DEBUG] 🚨 WORKOUT COUNT MISMATCH DETECTED!');
-        console.error('[DEBUG] 🚨 Expected:', expectedWorkouts, 'but got:', actualWorkouts);
-        console.error('[DEBUG] 🚨 Workout details:', aiResponse.childWorkouts);
+        console.warn(`[AIWorkoutService] Workout count mismatch: expected ${expectedWorkouts}, got ${actualWorkouts}`);
       }
 
-      // Use the T-Path ID from the edge function (it already handles everything)
+      // Use the T-Path ID from the edge function
       const mainTPathId = aiResponse.mainTPath.id;
-      console.log('[DEBUG] 🏗️ Using T-Path ID from edge function:', mainTPathId);
 
       // Use gym name as fallback for gym ID in local storage
       const gymId = payload.gymName;
-
-      console.log('[DEBUG] 💾 Step 3: Saving data to local database');
-      console.log('[DEBUG] 💾 Saving profile, T-Path, workouts, and exercises');
       
       // Save profile to local database
       await this.saveProfileLocally(payload, userId, mainTPathId, gymId);
       
       // Save T-Path and workout data locally to SQLite for the workout launcher to access
-      console.log('[DEBUG] 💾 Saving T-Path and workouts to local database');
       await this.saveTPathLocally(aiResponse.mainTPath, userId);
       await this.saveWorkoutsLocally(aiResponse.childWorkouts, mainTPathId, userId);
       
@@ -414,17 +328,10 @@ export class AIWorkoutService {
           id: mainTPathId
         }
       };
-
-      console.log('[DEBUG] ✅ Step 4: Onboarding completion successful');
-      console.log('[DEBUG] ✅ FINAL SUMMARY:');
-      console.log('[DEBUG] ✅ User:', payload.fullName);
-      console.log('[DEBUG] ✅ Selected:', payload.tPathType);
-      console.log('[DEBUG] ✅ Received workouts:', actualWorkouts);
-      console.log('[DEBUG] ✅ Workout names:', finalResponse.childWorkouts?.map(w => w.workout_name));
       
       return finalResponse;
     } catch (error) {
-      console.error('[DEBUG] ❌ Onboarding completion failed:', error);
+      console.error('[AIWorkoutService] Onboarding completion failed:', error);
       throw error;
     }
   }
@@ -438,18 +345,10 @@ export class AIWorkoutService {
     tPathId: string,
     gymId: string
   ): Promise<void> {
-    console.log(`[DEBUG] 🚀 saveProfileLocally called for userId: ${userId}`);
-    console.log(`[DEBUG] 📋 Original payload:`, JSON.stringify(payload, null, 2));
-    console.log(`[DEBUG] 🎯 T-Path ID: ${tPathId}, Gym ID: ${gymId}`);
-    
     try {
-      console.log(`[DEBUG] 🔧 Constructing profile data...`);
-
       const nameParts = payload.fullName.split(' ');
       const firstName = nameParts.shift() || '';
       const lastName = nameParts.join(' ') || '';
-      
-      console.log(`[DEBUG] 👤 Name split - First: "${firstName}", Last: "${lastName}"`);
 
       const profileData = {
         id: userId,
@@ -474,51 +373,14 @@ export class AIWorkoutService {
         created_at: new Date().toISOString()
       };
       
-      console.log(`[DEBUG] 📊 Constructed profile data:`, JSON.stringify(profileData, null, 2));
-      console.log(`[DEBUG] 💾 About to call database.saveProfile...`);
-      
-      // Add pre-flight check
-      console.log(`[DEBUG] 🔍 Performing pre-flight database check...`);
       await database.init(); // Ensure database is initialized
-      console.log(`[DEBUG] ✅ Database initialized successfully`);
-      
-      // Call saveProfile with comprehensive logging
       await database.saveProfile(profileData);
       
-      console.log(`[DEBUG] ✅ Profile saved to local database successfully`);
-      
-      // Post-save verification
-      console.log(`[DEBUG] 🔍 Verifying profile was saved...`);
-      try {
-        const savedProfile = await database.getProfile(userId);
-        console.log(`[DEBUG] ✅ Verification successful - profile found:`, savedProfile ? 'YES' : 'NO');
-        if (savedProfile) {
-          console.log(`[DEBUG] 📋 Saved profile data:`, JSON.stringify(savedProfile, null, 2));
-        }
-      } catch (verifyError: any) {
-        console.warn(`[DEBUG] ⚠️  Profile verification failed:`, verifyError.message);
-      }
-      
     } catch (error: any) {
-      console.error(`[DEBUG] ❌ FAILED to save profile locally`);
-      console.error(`[DEBUG] 🚨 Error message:`, error.message);
-      console.error(`[DEBUG] 📊 Error code:`, error.code);
-      console.error(`[DEBUG] 🔍 Error stack:`, error.stack);
-      console.error(`[DEBUG] 📋 Profile data that failed:`, JSON.stringify({
-        id: userId,
-        full_name: payload.fullName,
-        height_cm: payload.heightCm,
-        weight_kg: payload.weightKg,
-        // Intentionally not logging all fields to avoid sensitive data in logs
-      }, null, 2));
-      
-      // Enhanced error analysis
+      console.error(`[AIWorkoutService] Failed to save profile locally:`, error.message);
       if (error.message.includes('no column named target_date')) {
-        console.error(`[DEBUG] 🎯 SPECIFIC ERROR IDENTIFIED: target_date column missing`);
-        console.error(`[DEBUG] 💡 Root cause: Database schema mismatch - profiles table missing target_date column`);
-        console.error(`[DEBUG] 🛠️  This should be fixed by the migration system in database.ts`);
+        console.error(`[AIWorkoutService] Database schema mismatch - missing target_date column`);
       }
-      
       throw error;
     }
   }
@@ -531,7 +393,9 @@ export class AIWorkoutService {
     userId: string
   ): Promise<void> {
     try {
-      console.log('[AIWorkoutService] Saving T-Path to local database:', tPathData.template_name);
+      if (__DEV__) {
+        console.log('[AIWorkoutService] Saving T-Path to local database:', tPathData.template_name);
+      }
 
       await database.addTPath({
         id: tPathData.id,
@@ -547,7 +411,6 @@ export class AIWorkoutService {
         updated_at: tPathData.created_at,
       });
 
-      console.log('[AIWorkoutService] T-Path saved to local database');
     } catch (error) {
       console.error('[AIWorkoutService] Failed to save T-Path locally:', error);
       throw error;
@@ -563,7 +426,6 @@ export class AIWorkoutService {
     userId: string
   ): Promise<void> {
     try {
-      console.log('[AIWorkoutService] Saving workouts to local database');
 
       for (let i = 0; i < workouts.length; i++) {
         const workout = workouts[i];
@@ -621,10 +483,8 @@ export class AIWorkoutService {
           }
         }
 
-        console.log(`[AIWorkoutService] Saved workout ${workout.workout_name} with ${workout.exercises?.length || 0} exercises`);
       }
 
-      console.log('[AIWorkoutService] All workouts saved to local database');
     } catch (error) {
       console.error('[AIWorkoutService] Failed to save workouts locally:', error);
       throw error;
@@ -639,7 +499,6 @@ export class AIWorkoutService {
     _userId: string
   ): Promise<void> {
     try {
-      console.log('[AIWorkoutService] Saving exercise definitions to local database');
 
       // Extract unique exercises from all workouts
       const exerciseMap = new Map<string, any>();
@@ -674,7 +533,6 @@ export class AIWorkoutService {
         await database.addExerciseDefinition(exercise);
       }
 
-      console.log(`[AIWorkoutService] Saved ${exerciseMap.size} exercise definitions to local database`);
     } catch (error) {
       console.error('[AIWorkoutService] Failed to save exercises locally:', error);
       throw error;
@@ -698,7 +556,6 @@ export class AIWorkoutService {
       // Always augment for "skip" users since they have no confirmed exercises
       // Also augment for photo users if they have fewer than 8 exercises
       if (payload.equipmentMethod === 'skip' || totalExercises < 8) {
-        console.log('[AIWorkoutService] Augmenting exercises - only', totalExercises, 'found');
 
         // Extract equipment types from confirmed exercises
         // For 'skip' method, use default equipment types to get a good variety

@@ -37,11 +37,11 @@ class Database {
     }
 
     this.initPromise = (async () => {
-      debugLog('Starting database initialization with MIGRATION BLOCKING');
+      console.log('[Database] Starting database initialization with MIGRATION BLOCKING');
 
       try {
         this.db = await SQLite.openDatabaseAsync(DB_NAME);
-        debugLog('Database connection opened');
+        console.log('[Database] Database connection opened');
       } catch (error: any) {
         const message = typeof error?.message === 'string' ? error.message : '';
         if (
@@ -57,10 +57,10 @@ class Database {
       }
 
       // CRITICAL: Run migration BEFORE creating any other tables
-      debugLog('Starting MIGRATION BLOCKING SYSTEM...');
+      console.log('[Database] Starting MIGRATION BLOCKING SYSTEM...');
       await this.runMigrations();
       this.migrationComplete = true;
-      debugLog('MIGRATION COMPLETE - Creating standard tables...');
+      console.log('[Database] MIGRATION COMPLETE - Creating standard tables...');
 
       // Only create standard tables AFTER migration is complete
       await this.db!.execAsync(`
@@ -275,8 +275,8 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_gyms_user ON gyms(user_id);
     `);
 
-      debugLog('✓ All tables created successfully');
-      debugLog('✓ DATABASE INITIALIZATION COMPLETED');
+      console.log('[Database] ✓ All tables created successfully');
+      console.log('[Database] ✓ DATABASE INITIALIZATION COMPLETED');
     })();
 
     await this.initPromise;
@@ -290,8 +290,10 @@ class Database {
     this.migrationPromise = (async () => {
       const db = this.getDB();
       
-      debugLog('🔄 MIGRATION BLOCKING: Starting comprehensive migrations');
-      debugLog(`📅 Migration start time: ${new Date().toISOString()}`);
+      if (__DEV__) {
+        console.log(`[DEBUG] 🔄 MIGRATION BLOCKING: Starting comprehensive migrations`);
+        console.log(`[DEBUG] 📅 Migration start time: ${new Date().toISOString()}`);
+      }
       
       // CRITICAL: This migration must block ALL other database operations
       let migrationSuccessful = false;
@@ -331,7 +333,7 @@ class Database {
           }
           
           // PHASE 2: Migration t_path_exercises table
-          debugLog('🔧 PHASE 2: Migrating t_path_exercises table...');
+          console.log(`[DEBUG] 🔧 PHASE 2: Migrating t_path_exercises table...`);
           
           // Check if table needs migration first (safer approach)
           const tPathExercisesTableInfo = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
@@ -339,15 +341,15 @@ class Database {
           
           // Only drop and recreate if template_id column is missing
           if (!tPathExercisesColumns.includes('template_id')) {
-            debugLog('🔄 template_id column missing, performing table migration...');
+            console.log(`[DEBUG] 🔄 template_id column missing, performing table migration...`);
             
             // Backup existing data if any (before dropping)
             const existingData = await db.getAllAsync<any>('SELECT * FROM t_path_exercises');
-            debugLog(`💾 Backing up ${existingData.length} existing t_path_exercises records`);
+            console.log(`[DEBUG] 💾 Backing up ${existingData.length} existing t_path_exercises records`);
             
             // Drop and recreate with proper schema
             await db.execAsync('DROP TABLE IF EXISTS t_path_exercises');
-            debugLog('✅ Dropped existing t_path_exercises table');
+            console.log(`[DEBUG] ✅ Dropped existing t_path_exercises table`);
             
             await db.execAsync(`CREATE TABLE t_path_exercises (
               id TEXT PRIMARY KEY NOT NULL,
@@ -357,11 +359,11 @@ class Database {
               created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
               is_bonus_exercise INTEGER DEFAULT 0
             )`);
-            debugLog('✅ Created fresh t_path_exercises table with template_id');
+            console.log(`[DEBUG] ✅ Created fresh t_path_exercises table with template_id`);
             
             // Restore data if any existed (using t_path_id -> template_id mapping)
             if (existingData.length > 0) {
-              debugLog(`🔄 Restoring ${existingData.length} t_path_exercises records...`);
+              console.log(`[DEBUG] 🔄 Restoring ${existingData.length} t_path_exercises records...`);
               
               for (const record of existingData) {
                 try {
@@ -381,125 +383,121 @@ class Database {
                     ]
                   );
                 } catch (restoreError: any) {
-                  if (__DEV__) {
-                    console.warn('⚠️  Failed to restore t_path_exercises record:', restoreError.message);
-                  }
+                  console.warn(`[DEBUG] ⚠️  Failed to restore t_path_exercises record:`, restoreError.message);
                 }
               }
               
-              debugLog('✅ Completed t_path_exercises data restoration');
+              console.log(`[DEBUG] ✅ Completed t_path_exercises data restoration`);
             }
           } else {
-            debugLog('✅ t_path_exercises table already has template_id column - no migration needed');
+            console.log(`[DEBUG] ✅ t_path_exercises table already has template_id column - no migration needed`);
           }
           
           // Verify t_path_exercises table structure
           const tPathExercisesFinalCheck = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
           const tPathExercisesFinalColumns = tPathExercisesFinalCheck.map((col: any) => col.name);
-          debugLog('✅ t_path_exercises final columns:', tPathExercisesFinalColumns);
+          console.log(`[DEBUG] ✅ t_path_exercises final columns:`, tPathExercisesFinalColumns);
           
           if (!tPathExercisesFinalColumns.includes('template_id')) {
             throw new Error('CRITICAL: template_id column missing after t_path_exercises table creation');
           }
 
           // PHASE 2.5: Migration t_paths table (add missing columns)
-          debugLog('🔧 PHASE 2.5: Migrating t_paths table...');
+          console.log(`[DEBUG] 🔧 PHASE 2.5: Migrating t_paths table...`);
           try {
             // Check current t_paths table structure
             const tPathsTableInfo = await db.getAllAsync<any>("PRAGMA table_info(t_paths);");
             const tPathsColumns = tPathsTableInfo.map((col: any) => col.name);
-            debugLog('📋 Current t_paths columns:', tPathsColumns);
+            console.log(`[DEBUG] 📋 Current t_paths columns:`, tPathsColumns);
             
             // Add missing columns to t_paths table
             const tPathsMissingColumns = ['is_main_program', 'is_ai_generated', 'description', 'order_index'].filter(col => !tPathsColumns.includes(col));
             
             if (tPathsMissingColumns.length > 0) {
-              debugLog('➕ Adding missing t_paths columns via ALTER TABLE:', tPathsMissingColumns);
+              console.log(`[DEBUG] ➕ Adding missing t_paths columns via ALTER TABLE:`, tPathsMissingColumns);
               
               for (const column of tPathsMissingColumns) {
                 try {
-                  debugLog(`🔧 Adding t_paths column: ${column}`);
+                  console.log(`[DEBUG] 🔧 Adding t_paths column: ${column}`);
                   
                   if (column === 'is_main_program') {
                     await db.execAsync('ALTER TABLE t_paths ADD COLUMN is_main_program INTEGER DEFAULT 0');
-                    debugLog('✅ Successfully added is_main_program column');
+                    console.log(`[DEBUG] ✅ Successfully added is_main_program column`);
                   } else if (column === 'is_ai_generated') {
                     await db.execAsync('ALTER TABLE t_paths ADD COLUMN is_ai_generated INTEGER DEFAULT 0');
-                    debugLog('✅ Successfully added is_ai_generated column');
+                    console.log(`[DEBUG] ✅ Successfully added is_ai_generated column`);
                   } else if (column === 'description') {
                     await db.execAsync('ALTER TABLE t_paths ADD COLUMN description TEXT');
-                    debugLog('✅ Successfully added description column');
+                    console.log(`[DEBUG] ✅ Successfully added description column`);
                   } else if (column === 'order_index') {
                     await db.execAsync('ALTER TABLE t_paths ADD COLUMN order_index INTEGER');
-                    debugLog('✅ Successfully added order_index column');
+                    console.log(`[DEBUG] ✅ Successfully added order_index column`);
                   }
                 } catch (alterError: any) {
-                  if (__DEV__) {
-                    console.error(`❌ Failed to add ${column} column:`, alterError.message);
-                  }
+                  console.error(`[DEBUG] ❌ Failed to add ${column} column:`, alterError.message);
                   // Continue with other columns
                 }
               }
             } else {
-              debugLog('✅ No missing t_paths columns - table already complete');
+              console.log(`[DEBUG] ✅ No missing t_paths columns - table already complete`);
             }
             
             // Verify t_paths table after migration
             const afterTPathsMigrationInfo = await db.getAllAsync<any>("PRAGMA table_info(t_paths);");
             const afterTPathsColumns = afterTPathsMigrationInfo.map((col: any) => col.name);
-            debugLog('✅ Final t_paths columns:', afterTPathsColumns);
+            console.log(`[DEBUG] ✅ Final t_paths columns:`, afterTPathsColumns);
             
           } catch (tPathsError: any) {
-            console.error('❌ t_paths table migration failed:', tPathsError.message);
+            console.error(`[DEBUG] ❌ t_paths table migration failed:`, tPathsError.message);
             // Continue without failing - t_paths errors are less critical
           }
           
           // PHASE 2.6: Migration workout_sessions table - add sync_status column
-          debugLog('🔧 PHASE 2.6: Migrating workout_sessions table...');
+          console.log(`[DEBUG] 🔧 PHASE 2.6: Migrating workout_sessions table...`);
           try {
             // Check current workout_sessions table structure
             const workoutSessionsTableInfo = await db.getAllAsync<any>("PRAGMA table_info(workout_sessions);");
             const workoutSessionsColumns = workoutSessionsTableInfo.map((col: any) => col.name);
-            debugLog('📋 Current workout_sessions columns:', workoutSessionsColumns);
+            console.log(`[DEBUG] 📋 Current workout_sessions columns:`, workoutSessionsColumns);
 
             // Add sync_status column if missing
             if (!workoutSessionsColumns.includes('sync_status')) {
-              debugLog('➕ Adding sync_status column to workout_sessions table');
+              console.log(`[DEBUG] ➕ Adding sync_status column to workout_sessions table`);
               await db.execAsync('ALTER TABLE workout_sessions ADD COLUMN sync_status TEXT DEFAULT "local_only"');
-              debugLog('✅ Successfully added sync_status column to workout_sessions');
+              console.log(`[DEBUG] ✅ Successfully added sync_status column to workout_sessions`);
             } else {
-              debugLog('✅ sync_status column already exists in workout_sessions table');
+              console.log(`[DEBUG] ✅ sync_status column already exists in workout_sessions table`);
             }
 
             // Add gym_id column if missing (for ad-hoc workouts to store active gym)
             if (!workoutSessionsColumns.includes('gym_id')) {
-              debugLog('➕ Adding gym_id column to workout_sessions table');
+              console.log(`[DEBUG] ➕ Adding gym_id column to workout_sessions table`);
               await db.execAsync('ALTER TABLE workout_sessions ADD COLUMN gym_id TEXT');
-              debugLog('✅ Successfully added gym_id column to workout_sessions');
+              console.log(`[DEBUG] ✅ Successfully added gym_id column to workout_sessions`);
             } else {
-              debugLog('✅ gym_id column already exists in workout_sessions table');
+              console.log(`[DEBUG] ✅ gym_id column already exists in workout_sessions table`);
             }
 
             // Verify workout_sessions table after migration
             const afterWorkoutSessionsMigrationInfo = await db.getAllAsync<any>("PRAGMA table_info(workout_sessions);");
             const afterWorkoutSessionsColumns = afterWorkoutSessionsMigrationInfo.map((col: any) => col.name);
             
-            debugLog('✅ Final workout_sessions columns:', afterWorkoutSessionsColumns);
+            console.log(`[DEBUG] ✅ Final workout_sessions columns:`, afterWorkoutSessionsColumns);
 
           } catch (workoutSessionsError: any) {
-            console.error('❌ workout_sessions table migration failed:', workoutSessionsError.message);
+            console.error(`[DEBUG] ❌ workout_sessions table migration failed:`, workoutSessionsError.message);
             // Continue without failing - workout_sessions errors are less critical
           }
 
           // PHASE 3: Migration profiles table - add missing columns
-          debugLog('🔧 PHASE 3: Migrating profiles table...');
+          console.log(`[DEBUG] 🔧 PHASE 3: Migrating profiles table...`);
           try {
             // First, try ALTER TABLE approach
-            debugLog('🔄 Attempting ALTER TABLE approach for profiles...');
+            console.log(`[DEBUG] 🔄 Attempting ALTER TABLE approach for profiles...`);
             
             const profilesTableInfo = await db.getAllAsync<any>("PRAGMA table_info(profiles);");
             const profileColumns = profilesTableInfo.map((col: any) => col.name);
-            debugLog('📋 Profiles columns before ALTER:', profileColumns);
+            console.log(`[DEBUG] 📋 Profiles columns before ALTER:`, profileColumns);
             
             // Add missing columns to profiles table - include ALL expected columns
             const allExpectedColumns = [
@@ -511,87 +509,85 @@ class Database {
             const missingColumns = allExpectedColumns.filter(col => !profileColumns.includes(col));
             
             if (missingColumns.length > 0) {
-              debugLog('➕ Adding ALL missing columns via ALTER TABLE:', missingColumns);
+              console.log(`[DEBUG] ➕ Adding ALL missing columns via ALTER TABLE:`, missingColumns);
               
               for (const column of missingColumns) {
                 try {
-                  debugLog(`🔧 Adding column: ${column}`);
+                  console.log(`[DEBUG] 🔧 Adding column: ${column}`);
                   
                   if (column === 'user_id') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN user_id TEXT');
-                    debugLog('✅ Successfully added user_id column');
+                    console.log(`[DEBUG] ✅ Successfully added user_id column`);
                   } else if (column === 'target_date') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN target_date DATE');
-                    debugLog('✅ Successfully added target_date column');
+                    console.log(`[DEBUG] ✅ Successfully added target_date column`);
                   } else if (column === 'preferred_weight_unit') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN preferred_weight_unit TEXT DEFAULT "kg"');
-                    debugLog('✅ Successfully added preferred_weight_unit column');
+                    console.log(`[DEBUG] ✅ Successfully added preferred_weight_unit column`);
                   } else if (column === 'preferred_distance_unit') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN preferred_distance_unit TEXT DEFAULT "km"');
-                    debugLog('✅ Successfully added preferred_distance_unit column');
+                    console.log(`[DEBUG] ✅ Successfully added preferred_distance_unit column`);
                   } else if (column === 'last_ai_coach_use_at') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN last_ai_coach_use_at TEXT');
-                    debugLog('✅ Successfully added last_ai_coach_use_at column');
+                    console.log(`[DEBUG] ✅ Successfully added last_ai_coach_use_at column`);
                   } else if (column === 'total_points') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN total_points INTEGER DEFAULT 0');
-                    debugLog('✅ Successfully added total_points column');
+                    console.log(`[DEBUG] ✅ Successfully added total_points column`);
                   } else if (column === 'current_streak') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN current_streak INTEGER DEFAULT 0');
-                    debugLog('✅ Successfully added current_streak column');
+                    console.log(`[DEBUG] ✅ Successfully added current_streak column`);
                   } else if (column === 'longest_streak') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN longest_streak INTEGER DEFAULT 0');
-                    debugLog('✅ Successfully added longest_streak column');
+                    console.log(`[DEBUG] ✅ Successfully added longest_streak column`);
                   } else if (column === 'last_workout_date') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN last_workout_date DATE');
-                    debugLog('✅ Successfully added last_workout_date column');
+                    console.log(`[DEBUG] ✅ Successfully added last_workout_date column`);
                   } else if (column === 'rolling_workout_status') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN rolling_workout_status TEXT DEFAULT "Ready to Start"');
-                    debugLog('✅ Successfully added rolling_workout_status column');
+                    console.log(`[DEBUG] ✅ Successfully added rolling_workout_status column`);
                   } else if (column === 'active_location_tag') {
                     await db.execAsync('ALTER TABLE profiles ADD COLUMN active_location_tag TEXT');
-                    debugLog('✅ Successfully added active_location_tag column');
+                    console.log(`[DEBUG] ✅ Successfully added active_location_tag column`);
                   }
                 } catch (alterError: any) {
-                  if (__DEV__) {
-                    console.error(`❌ Failed to add ${column} column:`, alterError.message);
-                  }
+                  console.error(`[DEBUG] ❌ Failed to add ${column} column:`, alterError.message);
                   // Continue with other columns
                 }
               }
             } else {
-              debugLog('✅ No missing columns - profiles table already complete');
+              console.log(`[DEBUG] ✅ No missing columns - profiles table already complete`);
             }
             
             // Verification: Check columns again after ALTER TABLE migration
             const afterAlterMigrationInfo = await db.getAllAsync<any>("PRAGMA table_info(profiles);");
             const afterAlterColumns = afterAlterMigrationInfo.map((col: any) => col.name);
-            debugLog('📋 Profiles columns after ALTER:', afterAlterColumns);
+            console.log(`[DEBUG] 📋 Profiles columns after ALTER:`, afterAlterColumns);
             
             // If still missing critical columns, recreate the table
             const criticalMissing = ['user_id', 'target_date'].filter(col => !afterAlterColumns.includes(col));
             if (criticalMissing.length > 0) {
-              debugLog('⚠️  CRITICAL: Still missing columns after ALTER TABLE:', criticalMissing);
-              debugLog('🔄 Falling back to table recreation method...');
+              console.log(`[DEBUG] ⚠️  CRITICAL: Still missing columns after ALTER TABLE:`, criticalMissing);
+              console.log(`[DEBUG] 🔄 Falling back to table recreation method...`);
               
               await this.recreateProfilesTable(db);
             } else {
-              debugLog('✅ ALTER TABLE migration successful - all critical columns present');
+              console.log(`[DEBUG] ✅ ALTER TABLE migration successful - all critical columns present`);
             }
             
           } catch (profilesError: any) {
-            console.error('❌ Profiles ALTER TABLE migration failed:', profilesError.message);
-            debugLog('🔄 Falling back to table recreation method...');
+            console.error(`[DEBUG] ❌ Profiles ALTER TABLE migration failed:`, profilesError.message);
+            console.log(`[DEBUG] 🔄 Falling back to table recreation method...`);
             
             await this.recreateProfilesTable(db);
           }
           
           // PHASE 4: Final verification and testing
-          debugLog('🔍 PHASE 4: Final migration verification...');
+          console.log(`[DEBUG] 🔍 PHASE 4: Final migration verification...`);
           
           // Verify t_path_exercises table
           const finalTPathExercisesCheck = await db.getAllAsync<any>("PRAGMA table_info(t_path_exercises);");
           const finalTPathExercisesColumns = finalTPathExercisesCheck.map((col: any) => col.name);
-          debugLog('✅ Final t_path_exercises columns:', finalTPathExercisesColumns);
+          console.log(`[DEBUG] ✅ Final t_path_exercises columns:`, finalTPathExercisesColumns);
           
           if (!finalTPathExercisesColumns.includes('template_id')) {
             throw new Error('CRITICAL: template_id column missing after final verification');
@@ -599,44 +595,42 @@ class Database {
           
           // Test basic operations
           const tPathExercisesTest = await db.getAllAsync<any>('SELECT COUNT(*) as count FROM t_path_exercises');
-          debugLog(`✅ t_path_exercises table operational (${tPathExercisesTest[0]?.count || 0} records)`);
+          console.log(`[DEBUG] ✅ t_path_exercises table operational (${tPathExercisesTest[0]?.count || 0} records)`);
           
           // Verify profiles table with comprehensive test
           try {
             const profilesTest = await db.getAllAsync<any>('SELECT COUNT(*) as count FROM profiles');
-            debugLog(`✅ Profiles table operational (${profilesTest[0]?.count || 0} records)`);
+            console.log(`[DEBUG] ✅ Profiles table operational (${profilesTest[0]?.count || 0} records)`);
             
             // Test the specific columns that were causing issues
             const columnTest = await db.getFirstAsync<any>("SELECT user_id, target_date FROM profiles LIMIT 1");
-            debugLog('✅ Column test result:', columnTest);
+            console.log(`[DEBUG] ✅ Column test result:`, columnTest);
             
           } catch (profilesTestError: any) {
-            console.error('❌ Profiles table test failed:', profilesTestError.message);
+            console.error(`[DEBUG] ❌ Profiles table test failed:`, profilesTestError.message);
           }
           
-          debugLog('🎉 MIGRATION SUCCESS: All migrations completed successfully');
+          console.log(`[DEBUG] 🎉 MIGRATION SUCCESS: All migrations completed successfully`);
           migrationSuccessful = true;
           
         } catch (error: any) {
           retryCount++;
-          console.error(`❌ MIGRATION ATTEMPT ${retryCount} FAILED:`, error.message);
-          if (__DEV__) {
-            console.error('📊 Error stack:', error.stack);
-          }
+          console.error(`[DEBUG] ❌ MIGRATION ATTEMPT ${retryCount} FAILED:`, error.message);
+          console.error(`[DEBUG] 📊 Error stack:`, error.stack);
           
           if (retryCount >= maxRetries) {
-            console.error('🚨 CRITICAL: ALL MIGRATION ATTEMPTS FAILED');
+            console.error(`[DEBUG] 🚨 CRITICAL: ALL MIGRATION ATTEMPTS FAILED`);
             throw new Error(`MIGRATION BLOCKING failed after ${maxRetries} attempts: ${error.message}`);
           }
           
           // Longer wait before retry for critical operations
-          debugLog('⏳ Waiting 500ms before retry...');
+          console.log(`[DEBUG] ⏳ Waiting 500ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       
-      debugLog('🏁 MIGRATION BLOCKING COMPLETED - All database schema mismatches resolved');
-      debugLog(`📅 Migration completion time: ${new Date().toISOString()}`);
+      console.log(`[DEBUG] 🏁 MIGRATION BLOCKING COMPLETED - All database schema mismatches resolved`);
+      console.log(`[DEBUG] 📅 Migration completion time: ${new Date().toISOString()}`);
     })();
 
     return this.migrationPromise;
@@ -821,7 +815,7 @@ class Database {
         session.t_path_id,
         session.created_at,
         (session as any).sync_status || 'local_only',
-        session.gym_id || null,
+        (session as any).gym_id || null,
       ]
     );
     console.log('[Database] addWorkoutSession completed');
@@ -959,15 +953,14 @@ class Database {
     }
     
     const db = this.getDB();
-    if (__DEV__) {
-      console.log('[Database] getWorkoutSessions called for user:', userId);
-    }
+    console.log('[Database] getWorkoutSessions called for user:', userId);
     const result = await db.getAllAsync<WorkoutSession>(
       'SELECT * FROM workout_sessions WHERE user_id = ? ORDER BY session_date DESC',
       [userId]
     );
-    if (__DEV__) {
-      console.log('[Database] getWorkoutSessions returned', result.length, 'sessions');
+    console.log('[Database] getWorkoutSessions returned', result.length, 'sessions');
+    if (result.length > 0) {
+      console.log('[Database] Sample session rating:', result[0].rating);
     }
     
     // Cache the result with timestamp
@@ -975,9 +968,7 @@ class Database {
       data: result,
       timestamp: Date.now()
     };
-    if (__DEV__) {
-      console.log('[Database] Cached workout sessions for user:', userId, 'count:', result.length);
-    }
+    console.log('[Database] Cached workout sessions for user:', userId, 'count:', result.length);
     
     return result;
   }
@@ -1331,9 +1322,7 @@ class Database {
       timestamp: Date.now()
     };
 
-    if (__DEV__) {
-      console.log('[Database] Cached volume history for user:', userId);
-    }
+    console.log('[Database] Cached volume history for user:', userId);
     return result;
   }
 

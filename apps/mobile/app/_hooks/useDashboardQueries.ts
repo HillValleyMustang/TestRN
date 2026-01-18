@@ -221,7 +221,13 @@ const processTPathData = async (
   recentWorkouts: any[],
   completedWorkoutsThisWeek: CompletedWorkout[]
 ) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDashboardQueries.ts:224',message:'processTPathData called',data:{hasProfile:!!profile,activeTPathId:profile?.active_t_path_id,programmeType},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   if (!profile?.active_t_path_id) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDashboardQueries.ts:225',message:'No active_t_path_id in profile',data:{hasProfile:!!profile},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     return {
       activeTPath: null,
       tPathWorkouts: [],
@@ -230,8 +236,17 @@ const processTPathData = async (
   }
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDashboardQueries.ts:233',message:'Looking up t-path in local database',data:{activeTPathId:profile.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const activeTPath = await database.getTPath(profile.active_t_path_id);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDashboardQueries.ts:234',message:'getTPath result',data:{activeTPathId:profile.active_t_path_id,found:!!activeTPath,tPathName:activeTPath?.template_name},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const tPathWorkouts = await database.getTPathsByParent(profile.active_t_path_id);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDashboardQueries.ts:235',message:'getTPathsByParent result',data:{activeTPathId:profile.active_t_path_id,workoutsCount:tPathWorkouts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     
     const nextWorkout = WeeklyWorkoutAnalyzer.determineNextWorkoutWeeklyAware(
       programmeType,
@@ -257,6 +272,9 @@ const processTPathData = async (
     };
   } catch (error) {
     console.warn('[DashboardQuery] Failed to process T-Path data:', error);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDashboardQueries.ts:259',message:'Error processing T-Path data',data:{activeTPathId:profile?.active_t_path_id,error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     return {
       activeTPath: null,
       tPathWorkouts: [],

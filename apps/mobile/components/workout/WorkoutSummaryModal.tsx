@@ -224,14 +224,29 @@ const getStartOfWeek = (date: Date): Date => {
 // ===== CUSTOM HOOKS =====
 const useImageErrorHandling = () => {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const imageErrorsRef = useRef<Set<string>>(new Set());
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    imageErrorsRef.current = imageErrors;
+  }, [imageErrors]);
 
   const handleImageError = useCallback((exerciseId: string) => {
-    setImageErrors(prev => new Set([...prev, exerciseId]));
+    setImageErrors(prev => {
+      // Only update if this is a new error to prevent unnecessary re-renders
+      if (prev.has(exerciseId)) {
+        return prev;
+      }
+      const newSet = new Set([...prev, exerciseId]);
+      imageErrorsRef.current = newSet;
+      return newSet;
+    });
   }, []);
 
+  // CRITICAL FIX: Use ref-based check to prevent re-renders
   const hasImageError = useCallback((exerciseId: string) => {
-    return imageErrors.has(exerciseId);
-  }, [imageErrors]);
+    return imageErrorsRef.current.has(exerciseId);
+  }, []); // Empty deps - uses ref so never changes
 
   return { handleImageError, hasImageError };
 };
@@ -245,6 +260,10 @@ const useWorkoutMetrics = (exercises: WorkoutExercise[], providedDuration?: stri
       return total + (weight * reps);
     }, 0);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:241',message:'PB count calculation - checking completedSets',data:{totalCompletedSets:completedSets.length,exercisesCount:exercises.length,completedSetsWithIsPR:completedSets.filter(s=>s.isPR).length,allSetsDetails:completedSets.map(s=>({isPR:s.isPR,isCompleted:s.isCompleted,hasIsPRProp:Object.hasOwnProperty.call(s,'isPR')}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'2B'})}).catch(()=>{});
+    // #endregion
+
     const prCount = completedSets.filter(set => set.isPR).length;
     const exerciseCount = exercises.length;
     const totalSets = completedSets.length;
@@ -254,7 +273,6 @@ const useWorkoutMetrics = (exercises: WorkoutExercise[], providedDuration?: stri
 
     const intensityScore = (() => {
       if (totalDurationSeconds <= 0) {
-        console.log('[DEBUG] IntensityScore: duration is 0 or negative', { totalDurationSeconds });
         return 0;
       }
       const minutes = totalDurationSeconds / 60;
@@ -262,16 +280,18 @@ const useWorkoutMetrics = (exercises: WorkoutExercise[], providedDuration?: stri
       const prRatio = totalSets > 0 ? prCount / totalSets : 0;
       const score = Math.round((volumePerMinute / 100) * 70 + prRatio * 30);
       
-      console.log('[DEBUG] IntensityScore calculation:', {
-        totalDurationSeconds,
-        minutes: minutes.toFixed(2),
-        totalVolume,
-        volumePerMinute: volumePerMinute.toFixed(2),
-        prRatio: prRatio.toFixed(2),
-        prCount,
-        totalSets,
-        score
-      });
+      if (__DEV__) {
+        console.log('[WorkoutSummaryModal] IntensityScore calculation:', {
+          totalDurationSeconds,
+          minutes: minutes.toFixed(2),
+          totalVolume,
+          volumePerMinute: volumePerMinute.toFixed(2),
+          prRatio: prRatio.toFixed(2),
+          prCount,
+          totalSets,
+          score
+        });
+      }
       return score;
     })();
 
@@ -389,51 +409,102 @@ interface ExerciseSummaryProps {
   readOnly?: boolean;
 }
 
-const ExerciseSummary: React.FC<ExerciseSummaryProps> = ({ exercises, readOnly = false }) => {
-  const { handleImageError, hasImageError } = useImageErrorHandling();
-
-  const renderExerciseIcon = useCallback((exercise: WorkoutExercise) => {
-    if (!exercise.iconUrl) return null;
+// CRITICAL FIX: Memoize icon component to prevent re-rendering
+const ExerciseIcon = React.memo<{ exerciseId: string; iconUrl: string | number; exerciseName: string; onError: () => void; hasError: boolean }>(
+  ({ exerciseId, iconUrl, exerciseName, onError, hasError }) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:413',message:'ExerciseIcon rendering',data:{exerciseId,iconUrlType:typeof iconUrl,hasError,iconUrlValue:typeof iconUrl==='string'?iconUrl.substring(0,50):iconUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'icon'})}).catch(()=>{});
+    // #endregion
     
-    const exerciseId = exercise.exerciseId;
-    if (hasImageError(exerciseId)) {
+    if (hasError) {
       return <Ionicons name="fitness" size={24} color={Colors.foreground} />;
     }
-
-    if (typeof exercise.iconUrl === 'string' && exercise.iconUrl.startsWith('http')) {
+    
+    if (typeof iconUrl === 'string' && iconUrl.startsWith('http')) {
       return (
         <Image
-          source={{ uri: exercise.iconUrl }}
+          source={{ uri: iconUrl }}
           style={styles.exerciseIcon}
-          onError={() => handleImageError(exerciseId)}
+          onError={onError}
           accessible={true}
-          accessibilityLabel={`${exercise.exerciseName} icon`}
+          accessibilityLabel={`${exerciseName} icon`}
+          resizeMode="contain"
         />
       );
     }
-
-    if (typeof exercise.iconUrl === 'number') {
+    
+    if (typeof iconUrl === 'number') {
       return (
         <Image
-          source={exercise.iconUrl}
+          source={iconUrl}
           style={styles.exerciseIcon}
-          onError={() => handleImageError(exerciseId)}
+          onError={onError}
           accessible={true}
-          accessibilityLabel={`${exercise.exerciseName} icon`}
+          accessibilityLabel={`${exerciseName} icon`}
+          resizeMode="contain"
         />
       );
     }
-
+    
     return (
       <Ionicons 
-        name={exercise.iconUrl as any} 
+        name={iconUrl as any} 
         size={24} 
         color={Colors.foreground}
         accessible={true}
-        accessibilityLabel={`${exercise.exerciseName} icon`}
+        accessibilityLabel={`${exerciseName} icon`}
       />
     );
-  }, [handleImageError, hasImageError]);
+  },
+  (prevProps, nextProps) => {
+    // CRITICAL FIX: Only re-render if iconUrl or hasError actually changed
+    // Include exerciseId in comparison to handle cases where same iconUrl might be used by different exercises
+    const shouldSkip = prevProps.iconUrl === nextProps.iconUrl && 
+                       prevProps.hasError === nextProps.hasError && 
+                       prevProps.exerciseId === nextProps.exerciseId;
+    
+    if (!shouldSkip) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:452',message:'ExerciseIcon props changed',data:{prevIconUrl:prevProps.iconUrl,nextIconUrl:nextProps.iconUrl,prevHasError:prevProps.hasError,nextHasError:nextProps.hasError,prevId:prevProps.exerciseId,nextId:nextProps.exerciseId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'icon'})}).catch(()=>{});
+      // #endregion
+    }
+    return shouldSkip;
+  }
+);
+
+ExerciseIcon.displayName = 'ExerciseIcon';
+
+const ExerciseSummary: React.FC<ExerciseSummaryProps> = ({ exercises, readOnly = false }) => {
+  const { handleImageError, hasImageError } = useImageErrorHandling();
+  
+  // CRITICAL FIX: Memoize icon rendering to prevent flashing
+  // Use useMemo to ensure icons are only created once per exercise
+  const exerciseIcons = useMemo(() => {
+    return exercises.reduce((acc, exercise) => {
+      if (!exercise.iconUrl) {
+        acc[exercise.exerciseId] = null;
+        return acc;
+      }
+      
+      const exerciseId = exercise.exerciseId;
+      const hasError = hasImageError(exerciseId);
+      
+      acc[exercise.exerciseId] = (
+        <ExerciseIcon
+          exerciseId={exerciseId}
+          iconUrl={exercise.iconUrl}
+          exerciseName={exercise.exerciseName}
+          onError={() => handleImageError(exerciseId)}
+          hasError={hasError}
+        />
+      );
+      return acc;
+    }, {} as Record<string, React.ReactNode | null>);
+  }, [exercises, handleImageError, hasImageError]);
+  
+  const renderExerciseIcon = useCallback((exercise: WorkoutExercise) => {
+    return exerciseIcons[exercise.exerciseId] || null;
+  }, [exerciseIcons]);
 
   if (exercises.length === 0) return null;
 
@@ -453,7 +524,7 @@ const ExerciseSummary: React.FC<ExerciseSummaryProps> = ({ exercises, readOnly =
 
           return (
             <View 
-              key={`${exercise.exerciseId}-${index}`} 
+              key={`exercise-${exercise.exerciseId}`}
               style={styles.exerciseRow}
               accessible={true}
               accessibilityLabel={`${exercise.exerciseName}, ${completedSets.length} sets completed`}
@@ -515,32 +586,6 @@ export function WorkoutSummaryModal({
   allAvailableMuscleGroups,
   sessionId
 }: WorkoutSummaryModalProps) {
-  // Debug logging - debounced to prevent spam
-  useEffect(() => {
-    if (visible) {
-      const timer = setTimeout(() => {
-        console.log('[WorkoutSummaryModal] Modal opened with data:');
-        console.log('[WorkoutSummaryModal] exercises count:', exercises.length);
-        console.log('[WorkoutSummaryModal] exercises:', exercises.map(e => ({ name: e.exerciseName, sets: e.sets.length, completedSets: e.sets.filter(s => s.isCompleted).length })));
-        console.log('[WorkoutSummaryModal] historicalRating:', historicalRating);
-        console.log('[WorkoutSummaryModal] historicalRating type:', typeof historicalRating);
-        console.log('[WorkoutSummaryModal] workoutName:', workoutName);
-        console.log('[WorkoutSummaryModal] showActions:', showActions);
-        console.log('[WorkoutSummaryModal] duration prop:', providedDuration);
-        // Log calculated metrics
-        console.log('[WorkoutSummaryModal] metrics:', {
-          totalVolume: metrics.totalVolume,
-          prCount: metrics.prCount,
-          totalSets: metrics.totalSets,
-          totalDurationSeconds: metrics.totalDurationSeconds,
-          averageTimePerSet: metrics.averageTimePerSet,
-          intensityScore: metrics.intensityScore,
-          completedSetsCount: metrics.completedSets.length
-        });
-      }, 100); // 100ms debounce
-      return () => clearTimeout(timer);
-    }
-  }, [visible, exercises, historicalRating, workoutName, showActions, providedDuration, metrics]);
   // ===== STATE =====
   const [isSaving, setIsSaving] = useState(false);
   const [rating, setRating] = useState<number>(0);
@@ -587,47 +632,25 @@ export function WorkoutSummaryModal({
   }, [visible, workoutName]);
 
   // ===== MEMOIZED VALUES =====
-  // DEBUG: Log muscle groups from exercises
-  const debugMuscleGroups = useMemo(() => {
-    console.log('[DEBUG] ===== MUSCLE GROUPS DEBUG =====');
-    console.log('[DEBUG] Total exercises:', exercises.length);
-    console.log('[DEBUG] allAvailableMuscleGroups prop:', allAvailableMuscleGroups);
-    
-    const allMuscleGroups: string[] = [];
-    exercises.forEach((ex, idx) => {
-      console.log(`[DEBUG] Exercise ${idx}: ${ex.exerciseName}, muscleGroup: "${ex.muscleGroup}", exerciseId: "${ex.exerciseId}"`);
+  // Extract muscle groups from exercises
+  const allMuscleGroups = useMemo(() => {
+    const groups: string[] = [];
+    exercises.forEach((ex) => {
       if (ex.muscleGroup) {
         // Handle multi-muscle groups (comma-separated)
-        const groups = ex.muscleGroup.split(',').map(m => m.trim());
-        allMuscleGroups.push(...groups);
-        console.log(`[DEBUG]   Split into: ${groups.join(', ')}`);
-        
-        // Check for specific problematic exercises
-        if (ex.exerciseName.toLowerCase().includes('leg press') && !ex.muscleGroup.toLowerCase().includes('leg')) {
-          console.log(`[DEBUG] ⚠️ ISSUE DETECTED: ${ex.exerciseName} has incorrect muscle group: ${ex.muscleGroup}`);
-        }
-      } else {
-        console.log(`[DEBUG]   No muscleGroup defined!`);
+        const splitGroups = ex.muscleGroup.split(',').map(m => m.trim());
+        groups.push(...splitGroups);
       }
     });
-    
-    console.log('[DEBUG] All muscle groups from exercises:', allMuscleGroups);
-    console.log('[DEBUG] ===== END MUSCLE GROUPS DEBUG =====');
-    
-    return { allMuscleGroups };
-  }, [exercises, allAvailableMuscleGroups]);
+    return groups;
+  }, [exercises]);
 
   // Get unique muscle groups - use allAvailableMuscleGroups if provided, otherwise extract from exercises
   const availableMuscleGroups = useMemo(() => {
     // If allAvailableMuscleGroups is provided, use it
     if (allAvailableMuscleGroups && allAvailableMuscleGroups.length > 0) {
-      console.log('[DEBUG] Using allAvailableMuscleGroups prop:', allAvailableMuscleGroups);
-      const result = Array.from(new Set(allAvailableMuscleGroups)).sort((a, b) => a.localeCompare(b));
-      console.log('[DEBUG] availableMuscleGroups from prop:', result);
-      return result;
+      return Array.from(new Set(allAvailableMuscleGroups)).sort((a, b) => a.localeCompare(b));
     }
-    
-    console.log('[DEBUG] No allAvailableMuscleGroups provided, extracting from exercises');
     // Otherwise, extract from exercises (fallback behavior)
     const muscles = new Set<string>();
     exercises.forEach(ex => {
@@ -640,7 +663,6 @@ export function WorkoutSummaryModal({
       }
     });
     const result = Array.from(muscles).sort((a, b) => a.localeCompare(b));
-    console.log('[DEBUG] Extracted availableMuscleGroups from exercises:', result);
     return result;
   }, [exercises, allAvailableMuscleGroups]);
 
@@ -662,7 +684,6 @@ export function WorkoutSummaryModal({
   }, [availableMuscleGroups]);
 
   const volumeDistribution = useMemo(() => {
-    console.log('[Debug Modal] volumeDistribution: received exercises:', JSON.stringify(exercises, null, 2));
     // Filter muscles based on selected tab
     let musclesForTab: string[] = [];
     if (selectedVolumeTab === 'all') {
@@ -707,12 +728,10 @@ export function WorkoutSummaryModal({
       });
     });
     
-    console.log('[Debug Modal] volumeDistribution: final accumulator:', JSON.stringify(acc, null, 2));
     return acc;
   }, [exercises, selectedVolumeTab, upperBodyMuscles, lowerBodyMuscles]);
 
   const weeklyVolumeTotals = useMemo(() => {
-    console.log('[Debug Modal] weeklyVolumeTotals: received weeklyVolumeData:', JSON.stringify(weeklyVolumeData, null, 2));
     const acc: { [key: string]: number } = {};
 
     if (weeklyVolumeData) {
@@ -728,7 +747,6 @@ export function WorkoutSummaryModal({
       });
     }
     
-    console.log('[Debug Modal] weeklyVolumeTotals: final accumulator:', JSON.stringify(acc, null, 2));
     return acc;
   }, [weeklyVolumeData, selectedProgressTab]);
 
@@ -800,6 +818,9 @@ export function WorkoutSummaryModal({
   }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateDashboardCache]);
 
   const handleSaveAndClose = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:806',message:'handleSaveAndClose called',data:{hasRatingChanged,sessionId,userId,workoutName},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (hasRatingChanged) {
       await handleSaveRating();
     }
@@ -807,6 +828,10 @@ export function WorkoutSummaryModal({
     // CRITICAL: Ensure dashboard refresh happens immediately when closing the modal
     if (userId) {
       console.log('[WorkoutSummaryModal] Triggering immediate dashboard refresh after workout completion');
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:816',message:'Starting cache invalidation',data:{sessionId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
       // First, trigger the data context's workout completion handler for immediate cache invalidation
       // CRITICAL: Pass the session ID to award points for workout completion
@@ -817,6 +842,9 @@ export function WorkoutSummaryModal({
           const session = sessions.find(s => s.id === sessionId);
           
           if (session) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:825',message:'Calling handleWorkoutCompletion with session',data:{sessionId:session.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             await handleWorkoutCompletion(session);
             console.log('[WorkoutSummaryModal] Points calculated and awarded for session:', sessionId);
           } else {
@@ -827,6 +855,9 @@ export function WorkoutSummaryModal({
           console.log('[WorkoutSummaryModal] No session ID provided, cache invalidation only (no points)');
           await handleWorkoutCompletion(undefined);
         }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:838',message:'Cache invalidation completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         console.log('[WorkoutSummaryModal] Data context cache invalidation completed');
       } catch (error) {
         console.error('[WorkoutSummaryModal] Error during data context cache invalidation:', error);
@@ -834,24 +865,30 @@ export function WorkoutSummaryModal({
       
       // Then trigger the global refresh mechanism for immediate effect
       if (typeof (global as any).triggerDashboardRefresh === 'function') {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:843',message:'Triggering global dashboard refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         (global as any).triggerDashboardRefresh();
         console.log('[WorkoutSummaryModal] Global dashboard refresh triggered');
       }
       
-      // Wait a bit longer to ensure the dashboard refresh completes before closing
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // CRITICAL FIX: Invalidate cache immediately (don't wait)
+      invalidateDashboardCache();
+      console.log('[WorkoutSummaryModal] Cache invalidated');
       
-      // Also use a small delay to ensure the workout is saved before the dashboard refreshes
-      setTimeout(() => {
-        invalidateDashboardCache();
-        console.log('[WorkoutSummaryModal] Additional cache invalidation completed');
-      }, 500);
+      // CRITICAL FIX: Don't wait - close immediately and let refresh happen in background
+      // The dashboard focus effect will handle the refresh when user navigates
     }
     
-    // CRITICAL: Add a small delay before closing to ensure dashboard has time to refresh
-    setTimeout(() => {
-      onClose();
-    }, 1500);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:856',message:'About to close modal',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:859',message:'Calling onClose immediately',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    // CRITICAL FIX: Close immediately instead of waiting 1.5s to prevent race conditions
+    // The dashboard refresh will complete in the background
+    onClose();
   }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateDashboardCache, handleWorkoutCompletion, sessionId, getWorkoutSessions]);
 
   // ===== TAB ROUTES =====

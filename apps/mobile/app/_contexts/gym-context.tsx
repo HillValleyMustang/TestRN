@@ -109,7 +109,7 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
   }, [userId, fetchGymData]);
 
   const switchActiveGym = useCallback(async (gymId: string): Promise<boolean> => {
-    if (!userId) {
+    if (!userId || !session) {
       Toast.show({
         type: 'error',
         text1: 'You must be logged in to switch active gym.',
@@ -130,16 +130,41 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
     setActiveGym(newActiveGym); // Optimistic update
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ active_gym_id: gymId })
-        .eq('id', userId);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:132',message:'Switching active gym',data:{gymId,previousGymId:activeGym?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Call the edge function to switch active gym, which also updates active_t_path_id
+      const { data, error } = await supabase.functions.invoke('switch-active-gym', {
+        body: { gymId },
+      });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(error.message || 'Failed to switch active gym');
       }
       
-      refreshGyms(); // Trigger a refresh to update all contexts
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:145',message:'Edge function call successful',data:{gymId,result:data},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Refresh gyms and profile to get updated active_t_path_id
+      refreshGyms();
+      
+      // Also manually refresh profile to ensure active_t_path_id is updated
+      const { data: updatedProfile } = await supabase
+        .from('profiles')
+        .select('active_t_path_id, active_gym_id')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:155',message:'Profile after switch',data:{activeGymId:updatedProfile?.active_gym_id,activeTPathId:updatedProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      if (updatedProfile) {
+        setProfile(prev => prev ? { ...prev, active_t_path_id: updatedProfile.active_t_path_id } : null);
+      }
+      
       Toast.show({
         type: 'success',
         text1: 'Active gym switched successfully!',
@@ -147,6 +172,9 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
       return true;
     } catch (error: any) {
       console.error('Error switching active gym:', error.message);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:168',message:'Error switching gym',data:{error:error.message,gymId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       Toast.show({
         type: 'error',
         text1: error.message || 'Failed to switch active gym.',
@@ -154,7 +182,7 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
       setActiveGym(previousActiveGym); // Rollback
       return false;
     }
-  }, [userId, userGyms, activeGym, refreshGyms]);
+  }, [userId, session, userGyms, activeGym, refreshGyms]);
 
   const contextValue = useMemo(() => ({
     userGyms,

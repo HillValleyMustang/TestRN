@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView, Pressable, KeyboardAvoidingView, Platform, Keyboard, TextInput, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable, KeyboardAvoidingView, Platform, Keyboard, TextInput, Dimensions, Modal, Animated, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, Play, Dumbbell } from 'lucide-react-native';
@@ -17,6 +17,7 @@ import { useData } from '../_contexts/data-context';
 import { useAuth } from '../_contexts/auth-context';
 import { database, addToSyncQueue } from '../_lib/database';
 import { supabase } from '../_lib/supabase';
+import type { Gym } from '@data/storage/models';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { ExerciseCard } from '../../components/workout/ExerciseCard';
@@ -25,6 +26,33 @@ import { ExerciseSwapModal } from '../../components/workout/ExerciseSwapModal';
 import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 import { WorkoutPill } from '../../components/workout-launcher';
 import { WorkoutProgressBar } from '../../components/workout/WorkoutProgressBar';
+import { getWorkoutColor } from '../../lib/workout-colors';
+
+// Workout order constants for sorting
+const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+
+// Helper function to get display name for workout buttons
+const getWorkoutDisplayName = (workoutName: string, isULUL: boolean): string => {
+  if (!isULUL) {
+    return workoutName; // Keep PPL names as-is
+  }
+  
+  // Transform ULUL workout names to shorter format
+  const lowerName = workoutName.toLowerCase();
+  if (lowerName.includes('upper body a') || lowerName === 'upper body a') {
+    return 'Upper A';
+  } else if (lowerName.includes('lower body a') || lowerName === 'lower body a') {
+    return 'Lower A';
+  } else if (lowerName.includes('upper body b') || lowerName === 'upper body b') {
+    return 'Upper B';
+  } else if (lowerName.includes('lower body b') || lowerName === 'lower body b') {
+    return 'Lower B';
+  }
+  
+  // Fallback: return original name if no match
+  return workoutName;
+};
 
 interface WorkoutItemProps {
   workout: any;
@@ -111,11 +139,52 @@ export default function WorkoutLauncherScreen() {
     currentSessionId,
     resetWorkoutSession,
     confirmLeave,
+    loadSavedWorkoutState,
+    resumeWorkout,
   } = useWorkoutFlow();
-  const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, error, refresh } = useWorkoutLauncherData();
+  const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, refreshing, error, refresh } = useWorkoutLauncherData();
+
+  // Slide animation for loading indicator
+  const indicatorTranslateY = useRef(new Animated.Value(-50)).current;
+  const indicatorOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (refreshing) {
+      // Slide down and fade in
+      Animated.parallel([
+        Animated.timing(indicatorTranslateY, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(indicatorOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Slide up and fade out
+      Animated.parallel([
+        Animated.timing(indicatorTranslateY, {
+          toValue: -50,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(indicatorOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [refreshing, indicatorTranslateY, indicatorOpacity]);
   
   // Track last known T-path to detect changes and reset workout state
   const lastTPathIdRef = useRef<string | null>(null);
+  
+  // Track if we've attempted initial auto-select
+  const hasAttemptedInitialAutoSelectRef = useRef<boolean>(false);
   
   // Reset workout when T-path changes
   useEffect(() => {
@@ -136,13 +205,15 @@ export default function WorkoutLauncherScreen() {
       // Clear ALL flags so auto-select can run for new T-path
       setUserHasSelectedWorkout(false);
       setHasJustReset(false);
+      // CRITICAL: Reset auto-select attempt flag when T-path changes to allow Push/Upper A selection for new T-path
+      hasAttemptedInitialAutoSelectRef.current = false;
       console.log('[Workout] T-path changed - cleared all flags to allow auto-select for new T-path');
     }
     if (currentTPathId) {
       lastTPathIdRef.current = currentTPathId;
     }
   }, [activeTPath?.id, profile?.active_t_path_id, resetWorkoutSession, selectedWorkout, childWorkouts]);
-  const { getGyms, setActiveGym, shouldRefreshDashboard, setShouldRefreshDashboard } = useData();
+  const { getGyms, setActiveGym, shouldRefreshDashboard, setShouldRefreshDashboard, setLastWorkoutCompletionTime, invalidateAllCaches } = useData();
   const { userId } = useAuth();
   const [userGyms, setUserGyms] = useState<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -166,15 +237,28 @@ export default function WorkoutLauncherScreen() {
     historicalRating?: number;
     sessionId?: string;
   } | null>(null);
+  // Track if user explicitly closed the modal to prevent it from reappearing during sync
+  const summaryModalWasClosedRef = useRef<boolean>(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [currentExerciseId, setCurrentExerciseId] = useState<string>('');
   const [hasJustReset, setHasJustReset] = useState(false);
   const [userHasSelectedWorkout, setUserHasSelectedWorkout] = useState(false);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [savedWorkoutState, setSavedWorkoutState] = useState<any>(null);
 
   // Auto-select the first Push workout (PPL) or Upper Body A (ULUL) on component mount for better UX
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:208',message:'Auto-select condition check',data:{childWorkoutsLength:childWorkouts.length,selectedWorkout,hasProfileId:!!profile?.id,programmeType:profile?.programme_type,isWorkoutActiveInline,hasActiveWorkout:!!activeWorkout,hasJustReset,userHasSelectedWorkout,hasAttemptedInitial:hasAttemptedInitialAutoSelectRef.current,currentSessionId:!!currentSessionId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
+    // CRITICAL FIX: For initial load, ignore blocking flags if no active workout
+    // This ensures Upper A is always selected on page load/app reload
+    const isInitialLoad = !hasAttemptedInitialAutoSelectRef.current && !activeWorkout && !currentSessionId;
+    const shouldIgnoreBlockingFlags = isInitialLoad || (!activeWorkout && !currentSessionId);
+    
     // Wait for childWorkouts to be loaded and ensure all conditions are met
-    if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !activeWorkout && !hasJustReset && !userHasSelectedWorkout) {
+    if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !activeWorkout && (shouldIgnoreBlockingFlags || (!hasJustReset && !userHasSelectedWorkout))) {
       console.log('[WorkoutScreen] Auto-selecting workout - conditions met:', {
         childWorkoutsCount: childWorkouts.length,
         selectedWorkout,
@@ -183,8 +267,12 @@ export default function WorkoutLauncherScreen() {
         activeWorkout: !!activeWorkout,
         hasJustReset,
         userHasSelectedWorkout,
-        programmeType: profile?.programme_type
+        programmeType: profile?.programme_type,
+        isInitialLoad
       });
+      
+      // Mark that we've attempted initial auto-select
+      hasAttemptedInitialAutoSelectRef.current = true;
       
       // Determine if this is a ULUL program
       const isULUL = profile?.programme_type === 'ulul' || activeTPath?.template_name?.toLowerCase().includes('upper/lower');
@@ -223,9 +311,15 @@ export default function WorkoutLauncherScreen() {
           return;
         }
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:264',message:'Auto-selecting workout',data:{workoutId:defaultWorkout.id,workoutName:defaultWorkout.template_name,programmeType:profile?.programme_type,isInitialLoad},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         console.log('[WorkoutScreen] Setting selected workout and calling selectWorkout:', defaultWorkout.id);
         setSelectedWorkout(defaultWorkout.id);
         selectWorkout(defaultWorkout.id).then(() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:266',message:'Workout auto-selected successfully',data:{workoutId:defaultWorkout.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
           console.log('[WorkoutScreen] Workout selected successfully, setting inline state');
           setIsWorkoutActiveInline(true);
           setTimeout(() => {
@@ -252,13 +346,103 @@ export default function WorkoutLauncherScreen() {
         console.log('[WorkoutScreen] Auto-select skipped - workout is active inline');
       } else if (activeWorkout) {
         console.log('[WorkoutScreen] Auto-select skipped - activeWorkout exists');
-      } else if (hasJustReset) {
+      } else if (!shouldIgnoreBlockingFlags && hasJustReset) {
         console.log('[WorkoutScreen] Auto-select skipped - hasJustReset flag is true');
-      } else if (userHasSelectedWorkout) {
+      } else if (!shouldIgnoreBlockingFlags && userHasSelectedWorkout) {
         console.log('[WorkoutScreen] Auto-select skipped - userHasSelectedWorkout flag is true');
       }
     }
-  }, [childWorkouts, selectedWorkout, profile?.id, profile?.programme_type, activeTPath?.template_name, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout]);
+  }, [childWorkouts, selectedWorkout, profile?.id, profile?.programme_type, activeTPath?.template_name, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout, currentSessionId]);
+
+  // ENFORCEMENT: Additional auto-select check when page is focused and no workout is selected
+  useFocusEffect(
+    useCallback(() => {
+      // Wait a bit for state to settle after navigation
+      const timeoutId = setTimeout(() => {
+        // CRITICAL FIX: For initial load or when no active workout, ignore blocking flags
+        const isInitialLoad = !hasAttemptedInitialAutoSelectRef.current && !activeWorkout && !currentSessionId;
+        const shouldIgnoreBlockingFlags = isInitialLoad || (!activeWorkout && !currentSessionId);
+        
+        // Determine if this is a ULUL or PPL program
+        const isULUL = profile?.programme_type === 'ulul' || activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+        
+        // ENFORCEMENT: If no workout is selected and we have workouts available, force select default workout
+        if (childWorkouts.length > 0 && !selectedWorkout && profile?.id && !isWorkoutActiveInline && !activeWorkout && (shouldIgnoreBlockingFlags || (!hasJustReset && !userHasSelectedWorkout))) {
+          let defaultWorkout;
+          
+          if (isULUL) {
+            // For ULUL, find Upper Body A
+            defaultWorkout = childWorkouts.find(workout => {
+              const lowerName = workout.template_name.toLowerCase();
+              return (lowerName.includes('upper') && lowerName.includes('a')) || 
+                     lowerName === 'upper a' || 
+                     lowerName === 'upper body a';
+            });
+            
+            if (defaultWorkout) {
+              console.log('[WorkoutScreen] ENFORCEMENT: Force selecting Upper Body A on focus');
+              hasAttemptedInitialAutoSelectRef.current = true;
+              setSelectedWorkout(defaultWorkout.id);
+              selectWorkout(defaultWorkout.id).then(() => {
+                setIsWorkoutActiveInline(true);
+              }).catch((error) => {
+                console.error('[WorkoutScreen] ENFORCEMENT: Failed to force select workout:', error);
+              });
+            }
+          } else {
+            // For PPL, find Push workout
+            defaultWorkout = childWorkouts.find(workout =>
+              workout.template_name.toLowerCase().includes('push')
+            );
+            
+            if (defaultWorkout) {
+              console.log('[WorkoutScreen] ENFORCEMENT: Force selecting Push workout on focus');
+              hasAttemptedInitialAutoSelectRef.current = true;
+              setSelectedWorkout(defaultWorkout.id);
+              selectWorkout(defaultWorkout.id).then(() => {
+                setIsWorkoutActiveInline(true);
+              }).catch((error) => {
+                console.error('[WorkoutScreen] ENFORCEMENT: Failed to force select workout:', error);
+              });
+            }
+          }
+        }
+      }, 300); // Small delay to let other effects run first
+      
+      return () => clearTimeout(timeoutId);
+    }, [childWorkouts, selectedWorkout, profile?.id, profile?.programme_type, activeTPath?.template_name, isWorkoutActiveInline, activeWorkout, hasJustReset, userHasSelectedWorkout, selectWorkout, currentSessionId])
+  );
+
+  // Check for saved workout state on mount (resume functionality)
+  useEffect(() => {
+    const checkForSavedWorkout = async () => {
+      // Only check if there's no active workout and no current session
+      if (currentSessionId || activeWorkout || !userId) {
+        return;
+      }
+
+      // Wait for initial load to complete
+      if (loading) {
+        return;
+      }
+
+      try {
+        const savedState = await loadSavedWorkoutState();
+        if (savedState && savedState.activeWorkout) {
+          console.log('[WorkoutScreen] Found saved workout state:', savedState.activeWorkout.template_name);
+          setSavedWorkoutState(savedState);
+          setShowResumeDialog(true);
+        }
+      } catch (error) {
+        console.error('[WorkoutScreen] Error checking for saved workout state:', error);
+      }
+    };
+
+    // Only check after initial load is complete and we have workouts
+    if (!loading && childWorkouts.length > 0) {
+      checkForSavedWorkout();
+    }
+  }, [loading, childWorkouts.length, currentSessionId, activeWorkout, userId, loadSavedWorkoutState]);
 
   // Reset workout UI state when context is reset (but don't interfere with T-path change auto-select)
   // Only reset if there was previously an active workout/session, not on initial load or T-path change
@@ -274,15 +458,22 @@ export default function WorkoutLauncherScreen() {
     // This prevents interference with auto-select after T-path changes
     if (!activeWorkout && !currentSessionId && hadActiveWorkoutRef.current) {
       console.log('[WorkoutScreen] Resetting workout UI state after active workout/session ended');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:337',message:'Workout reset triggered',data:{activeWorkout:!!activeWorkout,currentSessionId:!!currentSessionId,hadActiveWorkoutRef:hadActiveWorkoutRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'3B'})}).catch(()=>{});
+      // #endregion
       setIsWorkoutActiveInline(false);
       setSelectedWorkout(null);
       setHasJustReset(true);
       setUserHasSelectedWorkout(false);
+      // ENFORCEMENT: Clear hasJustReset faster to allow auto-select sooner
       setTimeout(() => {
         console.log('[WorkoutScreen] Clearing hasJustReset flag');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:344',message:'hasJustReset flag cleared',data:{hasJustReset:false},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'3B'})}).catch(()=>{});
+        // #endregion
         setHasJustReset(false);
         hadActiveWorkoutRef.current = false;
-      }, 100);
+      }, 50); // Reduced from 100ms to 50ms for faster auto-select
     }
   }, [activeWorkout, currentSessionId]);
 
@@ -413,6 +604,21 @@ export default function WorkoutLauncherScreen() {
 
   const handleSelectWorkout = async (workoutId: string) => {
     console.log('[WorkoutScreen] handleSelectWorkout called with:', workoutId, 'current selected:', selectedWorkout);
+
+    // Close resume dialog if open (user is starting a new workout)
+    if (showResumeDialog) {
+      setShowResumeDialog(false);
+      setSavedWorkoutState(null);
+      // Clear saved state since user is starting a new workout
+      if (userId) {
+        try {
+          const { clearWorkoutState } = await import('../../lib/workoutStorage');
+          await clearWorkoutState(userId);
+        } catch (error) {
+          console.error('[WorkoutScreen] Error clearing workout state:', error);
+        }
+      }
+    }
 
     // For ad-hoc, skip validation
     if (workoutId !== 'ad-hoc') {
@@ -878,7 +1084,20 @@ export default function WorkoutLauncherScreen() {
   };
 
   const handleSaveWorkout = async (rating?: number) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1005',message:'handleSaveWorkout called',data:{rating,sessionId:summaryModalData?.sessionId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     console.log('[Workout] handleSaveWorkout called with rating:', rating);
+    
+    // CRITICAL FIX: Close modal immediately before any other operations
+    // This prevents the modal from reappearing on dashboard
+    summaryModalWasClosedRef.current = true;
+    setSummaryModalVisible(false);
+    setSummaryModalData({
+      exercises: [],
+      workoutName: '',
+      startTime: new Date(),
+    });
     
     // If a rating was provided, save it before navigating away
     if (rating && rating > 0 && summaryModalData?.sessionId) {
@@ -888,8 +1107,25 @@ export default function WorkoutLauncherScreen() {
       console.log('[Workout] Skipping rating save - missing data:', { rating, sessionId: summaryModalData?.sessionId });
     }
     
+    // CRITICAL FIX: Clear auto-select flags before navigation so auto-select works on return
+    setHasJustReset(false);
+    setUserHasSelectedWorkout(false);
+    
+    // CRITICAL FIX: Ensure lastWorkoutCompletionTime is set BEFORE navigation
+    // This ensures dashboard focus effect detects recent completion
+    const completionTime = Date.now();
+    setLastWorkoutCompletionTime(completionTime);
+    setShouldRefreshDashboard(true);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1033',message:'Set refresh flags before navigation',data:{completionTime},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    console.log('[Workout] Set lastWorkoutCompletionTime and shouldRefreshDashboard before navigation');
+    
     // Trigger dashboard refresh before navigation
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1033',message:'Triggering dashboard refresh',data:{hasGlobalTrigger:typeof (global as any).triggerDashboardRefresh === 'function',completionTime},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.log('[Workout] Triggering dashboard refresh before navigation');
       // Use the data context's handleWorkoutCompletion method if available
       // This will set the shouldRefreshDashboard flag and lastWorkoutCompletionTime
@@ -900,12 +1136,15 @@ export default function WorkoutLauncherScreen() {
       
       // CRITICAL FIX: Wait for state updates to propagate before navigating
       // This ensures the dashboard's useFocusEffect sees the updated state
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       console.log('[Workout] State update delay complete, now navigating to dashboard');
     } catch (error) {
       console.warn('[Workout] Failed to trigger dashboard refresh:', error);
     }
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1053',message:'Navigating to dashboard',data:{completionTime},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     router.replace('/(tabs)/dashboard');
   };
 
@@ -989,15 +1228,36 @@ export default function WorkoutLauncherScreen() {
     }
   };
 
-  const handleSummaryModalClose = () => {
+  const handleSummaryModalClose = useCallback(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1111',message:'handleSummaryModalClose called',data:{wasVisible:summaryModalVisible,hasData:!!summaryModalData},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    // ENFORCEMENT: Immediately mark as closed and clear data
+    summaryModalWasClosedRef.current = true;
     setSummaryModalVisible(false);
-  };
+    // Clear summary modal data to prevent it from reappearing
+    setSummaryModalData({
+      exercises: [],
+      workoutName: '',
+      startTime: new Date(),
+    });
+    
+    // CRITICAL FIX: Clear auto-select flags immediately when modal closes so auto-select can run
+    setHasJustReset(false);
+    setUserHasSelectedWorkout(false);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1123',message:'Cleared auto-select flags after modal close',data:{hasJustReset:false,userHasSelectedWorkout:false},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
+    console.log('[WorkoutScreen] ENFORCEMENT: Summary modal closed, preventing reappearance');
+  }, [summaryModalVisible, summaryModalData]);
 
   if (loading) {
     return (
       <ScreenContainer>
         <ScreenHeader title="Start Workout" />
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading workouts...</Text>
         </View>
       </ScreenContainer>
@@ -1021,27 +1281,44 @@ export default function WorkoutLauncherScreen() {
       <View style={styles.container}>
         <BackgroundRoot />
         <View style={styles.innerContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollContent}
-            contentContainerStyle={styles.scrollContentContainer}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          >
-            <View style={{flex: 1}}>
-              <ScreenHeader
-                title="Start Workout"
-                style={{
-                  backgroundColor: 'transparent',
-                  borderBottomColor: 'transparent',
-                }}
-              />
+          <View style={{ flex: 1 }}>
+            {/* Animated loading indicator when refreshing */}
+            {refreshing && (
+              <Animated.View
+                style={[
+                  styles.refreshingIndicator,
+                  {
+                    transform: [{ translateY: indicatorTranslateY }],
+                    opacity: indicatorOpacity,
+                  },
+                ]}
+              >
+                <ActivityIndicator size="small" color={Colors.primary} />
+              </Animated.View>
+            )}
+            
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContentContainer}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
 
-              <View style={styles.descriptionContainer}>
-                <Text style={[styles.descriptionText, { textAlign: 'center' }]}>
-                  Select a workout or start an ad-hoc session
-                </Text>
-              </View>
+              <View style={{flex: 1}}>
+                <ScreenHeader
+                  title="Start Workout"
+                  style={{
+                    backgroundColor: 'transparent',
+                    borderBottomColor: 'transparent',
+                  }}
+                />
+
+                <View style={styles.descriptionContainer}>
+                  <Text style={[styles.descriptionText, { textAlign: 'center' }]}>
+                    Select a workout or start an ad-hoc session
+                  </Text>
+                </View>
 
               {/* Gym Toggle */}
               {userGyms.length > 1 && (
@@ -1050,62 +1327,110 @@ export default function WorkoutLauncherScreen() {
                     gyms={userGyms}
                     activeGym={userGyms.find(g => g.is_active) || null}
                     onGymChange={async (gymId, newActiveGym) => {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1274',message:'onGymChange called',data:{gymId,gymName:newActiveGym?.name,currentActiveTPathId:profile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+                      // #endregion
+                      
                       console.log('[Workout] onGymChange called with:', gymId, newActiveGym?.name);
                       try {
-                        if (profile?.id) {
-                          console.log('[Workout] Setting active gym in database...');
-                          await setActiveGym(profile.id, gymId);
-                          console.log('[Workout] Active gym set in database');
+                        if (profile?.id && userId) {
+                          // Call the edge function to switch active gym, which also updates active_t_path_id
+                          const { data, error } = await supabase.functions.invoke('switch-active-gym', {
+                            body: { gymId },
+                          });
+
+                          if (error) {
+                            throw new Error(error.message || 'Failed to switch active gym');
+                          }
                           
-                          // Update local state to reflect the change immediately
+                          // #region agent log
+                          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1285',message:'Edge function call successful',data:{gymId,result:data},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+                          // #endregion
+                          
+                          console.log('[Workout] Active gym switched via edge function');
+                          
+                          // OPTIMISTIC UPDATE: Update UI immediately for instant feedback
                           setUserGyms(prev => {
                             const updated = prev.map(g => ({
                               ...g,
                               is_active: g.id === gymId
                             }));
-                            console.log('[Workout] Updated local gym state:', updated.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+                            console.log('[Workout] Optimistically updated local gym state:', updated.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
                             return updated;
                           });
                           
-                          // Reload gyms to ensure we have the latest data
-                          console.log('[Workout] Reloading gyms from database...');
-                          const allUpdatedGyms = await getGyms(profile.id);
-                          
-                          // Deduplicate gyms by name - same logic as loadGyms
-                          const uniqueGymsMap = new Map<string, Gym>();
-                          allUpdatedGyms.forEach(gym => {
-                            const existing = uniqueGymsMap.get(gym.name);
-                            if (!existing) {
-                              uniqueGymsMap.set(gym.name, gym);
-                            } else if (gym.is_active && !existing.is_active) {
-                              uniqueGymsMap.set(gym.name, gym);
-                            }
+                          // Run background operations in parallel (don't block UI)
+                          Promise.all([
+                            // Update local database
+                            setActiveGym(profile.id, gymId),
+                            // Fetch updated profile (for cache invalidation)
+                            supabase
+                              .from('profiles')
+                              .select('active_t_path_id, active_gym_id')
+                              .eq('id', userId)
+                              .maybeSingle(),
+                            // Reload gyms from database
+                            getGyms(profile.id)
+                          ]).then(([_, updatedProfile, allUpdatedGyms]) => {
+                            // #region agent log
+                            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1357',message:'Profile after switch',data:{activeGymId:updatedProfile?.active_gym_id,activeTPathId:updatedProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+                            // #endregion
+                            
+                            // Deduplicate gyms by name - same logic as loadGyms
+                            const uniqueGymsMap = new Map<string, Gym>();
+                            allUpdatedGyms.forEach(gym => {
+                              const existing = uniqueGymsMap.get(gym.name);
+                              if (!existing) {
+                                uniqueGymsMap.set(gym.name, gym);
+                              } else if (gym.is_active && !existing.is_active) {
+                                uniqueGymsMap.set(gym.name, gym);
+                              }
+                            });
+                            
+                            // Sort to ensure consistent order: active first, then alphabetical
+                            const uniqueGyms = Array.from(uniqueGymsMap.values());
+                            const gymsWithActive = uniqueGyms.map(gym => ({
+                              ...gym,
+                              is_active: gym.id === gymId
+                            }));
+                            
+                            // Sort to ensure consistent order: active first, then alphabetical by name
+                            gymsWithActive.sort((a, b) => {
+                              if (a.is_active && !b.is_active) return -1;
+                              if (!a.is_active && b.is_active) return 1;
+                              return a.name.localeCompare(b.name);
+                            });
+                            
+                            console.log('[Workout] Reloaded gyms:', gymsWithActive.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+                            setUserGyms(gymsWithActive);
+                          }).catch(error => {
+                            console.error('[Workout] Error in background gym update:', error);
+                            // On error, still invalidate caches to force refresh
                           });
                           
-                          // Sort to ensure consistent order: active first, then alphabetical
-                          const uniqueGyms = Array.from(uniqueGymsMap.values());
-                          const gymsWithActive = uniqueGyms.map(gym => ({
-                            ...gym,
-                            is_active: gym.id === gymId
-                          }));
+                          // Invalidate caches in background (don't block UI)
+                          // #region agent log
+                          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1407',message:'Invalidating caches after gym switch',data:{gymId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'F'})}).catch(()=>{});
+                          // #endregion
+                          invalidateAllCaches();
+                          setShouldRefreshDashboard(true);
                           
-                          // Sort to ensure consistent order: active first, then alphabetical by name
-                          gymsWithActive.sort((a, b) => {
-                            if (a.is_active && !b.is_active) return -1;
-                            if (!a.is_active && b.is_active) return 1;
-                            return a.name.localeCompare(b.name);
+                          // Refresh workout data in background (don't block UI)
+                          console.log('[Workout] Refreshing workout data for new gym...');
+                          refresh().catch(error => {
+                            console.error('[Workout] Error refreshing workout data:', error);
                           });
                           
-                          console.log('[Workout] Reloaded gyms:', gymsWithActive.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
-                          setUserGyms(gymsWithActive);
                           console.log('[Workout] onGymChange complete');
-                          // Note: No need to re-select workout since exercises aren't filtered by gym
-                          // All exercises assigned to workouts are shown regardless of gym
                         } else {
-                          console.log('[Workout] No profile ID available');
+                          console.log('[Workout] No profile ID or userId available');
                         }
-                      } catch (error) {
+                      } catch (error: any) {
                         console.error('[Workout] Error changing active gym:', error);
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1335',message:'Error switching gym',data:{error:error.message,gymId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+                        // #endregion
+                        Alert.alert('Error', error.message || 'Failed to switch active gym');
                       }
                     }}
                   />
@@ -1129,20 +1454,27 @@ export default function WorkoutLauncherScreen() {
                   >
                     {childWorkouts
                       .sort((a, b) => {
-                        const aLower = a.template_name.toLowerCase();
-                        const bLower = b.template_name.toLowerCase();
                         const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
 
                         if (isUpperLowerSplit) {
-                          if (aLower.includes('upper') && bLower.includes('lower')) return -1;
-                          if (aLower.includes('lower') && bLower.includes('upper')) return 1;
+                          // Use ULUL_ORDER for proper sorting: Upper Body A, Lower Body A, Upper Body B, Lower Body B
+                          const indexA = ULUL_ORDER.indexOf(a.template_name);
+                          const indexB = ULUL_ORDER.indexOf(b.template_name);
+                          // If workout not found in order, put it at the end
+                          if (indexA === -1 && indexB === -1) return 0;
+                          if (indexA === -1) return 1;
+                          if (indexB === -1) return -1;
+                          return indexA - indexB;
                         } else {
-                          const categoryOrder = { 'push': 1, 'pull': 2, 'legs': 3 };
-                          const aCategory = aLower.includes('push') ? 'push' : aLower.includes('pull') ? 'pull' : aLower.includes('legs') ? 'legs' : 'push';
-                          const bCategory = bLower.includes('push') ? 'push' : bLower.includes('pull') ? 'pull' : bLower.includes('legs') ? 'legs' : 'push';
-                          return categoryOrder[aCategory] - categoryOrder[bCategory];
+                          // PPL sorting
+                          const indexA = PPL_ORDER.indexOf(a.template_name);
+                          const indexB = PPL_ORDER.indexOf(b.template_name);
+                          // If workout not found in order, put it at the end
+                          if (indexA === -1 && indexB === -1) return 0;
+                          if (indexA === -1) return 1;
+                          if (indexB === -1) return -1;
+                          return indexA - indexB;
                         }
-                        return 0;
                       })
                       .map((workout) => {
                         const lowerTitle = workout.template_name.toLowerCase();
@@ -1162,12 +1494,13 @@ export default function WorkoutLauncherScreen() {
 
                         const isSelected = selectedWorkout === workout.id;
                         const completedAt = lastCompletedDates[workout.id] || null;
+                        const displayName = getWorkoutDisplayName(workout.template_name, isUpperLowerSplit);
 
                         return (
                           <WorkoutPill
                             key={workout.id}
                             id={workout.id}
-                            title={workout.template_name}
+                            title={displayName}
                             category={category}
                             completedAt={completedAt}
                             isSelected={isSelected}
@@ -1203,7 +1536,12 @@ export default function WorkoutLauncherScreen() {
                         <View style={styles.workoutTitleContainer}>
                           <WorkoutPill
                             id={selectedWorkout}
-                            title={activeWorkout?.template_name || 'Workout'}
+                            title={(() => {
+                              const workout = childWorkouts.find(w => w.id === selectedWorkout);
+                              const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
+                              const workoutName = activeWorkout?.template_name || workout?.template_name || 'Workout';
+                              return getWorkoutDisplayName(workoutName, isUpperLowerSplit);
+                            })()}
                             category={(() => {
                               const workout = childWorkouts.find(w => w.id === selectedWorkout);
                               if (workout) {
@@ -1258,18 +1596,14 @@ export default function WorkoutLauncherScreen() {
                                 templateName={activeWorkout?.template_name || null}
                                 accentColor={(() => {
                                   const workout = childWorkouts.find(w => w.id === selectedWorkout);
-                                  if (workout) {
-                                    const lowerTitle = workout.template_name.toLowerCase();
-                                    const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-
-                                    if (isUpperLowerSplit) {
-                                      if (lowerTitle.includes('upper')) return '#8B5CF6';
-                                      else if (lowerTitle.includes('lower')) return '#EF4444';
-                                    } else {
-                                      if (lowerTitle.includes('push')) return '#3B82F6';
-                                      else if (lowerTitle.includes('pull')) return '#10B981';
-                                      else if (lowerTitle.includes('legs')) return '#F59E0B';
-                                    }
+                                  if (workout && workout.template_name) {
+                                    const colors = getWorkoutColor(workout.template_name);
+                                    return colors.main;
+                                  }
+                                  // Fallback for ad-hoc workouts
+                                  if (selectedWorkout === 'ad-hoc') {
+                                    const colors = getWorkoutColor('Ad Hoc Workout');
+                                    return colors.main;
                                   }
                                   return undefined;
                                 })()}
@@ -1372,21 +1706,26 @@ export default function WorkoutLauncherScreen() {
                                 nextWorkoutSuggestion: !!nextWorkoutSuggestion
                               });
                               
-                              // Set the modal data
-                              setSummaryModalData({
-                                exercises: modalExercises,
-                                workoutName,
-                                startTime,
-                                duration: completedSession?.duration_string || undefined,
-                                historicalWorkout,
-                                weeklyVolumeData,
-                                nextWorkoutSuggestion,
-                                isOnTPath: !!activeTPath,
-                                historicalRating: currentSessionRating,
-                                sessionId: sessionId, // Store session ID for rating saves
-                              });
-                              
-                              console.log('[Workout] Modal data set, showing modal...');
+                              // ENFORCEMENT: Only set modal data if modal wasn't explicitly closed
+                              if (!summaryModalWasClosedRef.current) {
+                                // Set the modal data
+                                setSummaryModalData({
+                                  exercises: modalExercises,
+                                  workoutName,
+                                  startTime,
+                                  duration: completedSession?.duration_string || undefined,
+                                  historicalWorkout,
+                                  weeklyVolumeData,
+                                  nextWorkoutSuggestion,
+                                  isOnTPath: !!activeTPath,
+                                  historicalRating: currentSessionRating,
+                                  sessionId: sessionId, // Store session ID for rating saves
+                                });
+                                
+                                console.log('[Workout] Modal data set, showing modal...');
+                              } else {
+                                console.log('[Workout] ENFORCEMENT: Blocked setting modal data - modal was previously closed');
+                              }
 
                               console.log('[Workout] Historical workout:', historicalWorkout ? 'Found' : 'Not found');
                               console.log('[Workout] Weekly volume data keys:', Object.keys(weeklyVolumeData || {}));
@@ -1412,12 +1751,48 @@ export default function WorkoutLauncherScreen() {
                                 isOnTPath: !!activeTPath,
                               });
 
-                              await resetWorkoutSession();
-                              setIsWorkoutActiveInline(false);
-
-                              setTimeout(() => {
+                              // ENFORCEMENT: Only show modal if it wasn't explicitly closed
+                              if (!summaryModalWasClosedRef.current) {
+                                // Reset the "was closed" flag since we're showing the modal for a new workout
+                                summaryModalWasClosedRef.current = false;
+                                
+                                // Set modal data first
+                                setSummaryModalData({
+                                  exercises: modalExercises,
+                                  workoutName,
+                                  startTime,
+                                  duration: completedSession?.duration_string || undefined,
+                                  historicalWorkout,
+                                  weeklyVolumeData,
+                                  nextWorkoutSuggestion,
+                                  isOnTPath: !!activeTPath,
+                                  historicalRating: currentSessionRating,
+                                  sessionId: sessionId, // Store session ID for rating saves
+                                });
+                                
+                                // Reset workout session AFTER setting modal data to prevent race conditions
+                                await resetWorkoutSession();
+                                setIsWorkoutActiveInline(false);
+                                
+                                // CRITICAL FIX: Clear auto-select flags immediately so auto-select works after modal closes
+                                setHasJustReset(false);
+                                setUserHasSelectedWorkout(false);
+                                
+                                // Set modal visible immediately - don't use setTimeout to avoid race conditions
                                 setSummaryModalVisible(true);
-                              }, 100);
+                                // #region agent log
+                                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1561',message:'Showing summary modal',data:{sessionId,workoutName},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
+                                // #endregion
+                                console.log('[WorkoutScreen] ENFORCEMENT: Showing summary modal for new workout');
+                              } else {
+                                console.log('[WorkoutScreen] ENFORCEMENT: Blocked summary modal from showing - was previously closed');
+                                // Still reset workout session even if modal is blocked
+                                await resetWorkoutSession();
+                                setIsWorkoutActiveInline(false);
+                                // Clear flags so auto-select works
+                                setHasJustReset(false);
+                                setUserHasSelectedWorkout(false);
+                              }
                             }
                           }}
                         >
@@ -1464,6 +1839,7 @@ export default function WorkoutLauncherScreen() {
               )}
             </View>
           </ScrollView>
+          </View>
         </View>
       </View>
 
@@ -1503,8 +1879,13 @@ export default function WorkoutLauncherScreen() {
       )}
 
       <WorkoutSummaryModal
-        visible={summaryModalVisible}
-        onClose={handleSummaryModalClose}
+        visible={summaryModalVisible && !summaryModalWasClosedRef.current && summaryModalData?.exercises && summaryModalData.exercises.length > 0}
+        onClose={() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workout.tsx:1655',message:'Workout screen modal onClose called',data:{visible:summaryModalVisible,wasClosedRef:summaryModalWasClosedRef.current,hasExercises:summaryModalData?.exercises?.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          handleSummaryModalClose();
+        }}
         exercises={summaryModalData?.exercises || []}
         workoutName={summaryModalData?.workoutName || 'Workout'}
         startTime={summaryModalData?.startTime || new Date()}
@@ -1518,6 +1899,69 @@ export default function WorkoutLauncherScreen() {
         onSaveWorkout={handleSaveWorkout}
         onRateWorkout={handleRateWorkout}
       />
+
+      {/* Resume Workout Dialog */}
+      <Modal
+        visible={showResumeDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowResumeDialog(false)}
+      >
+        <View style={styles.resumeDialogOverlay}>
+          <View style={styles.resumeDialogContainer}>
+            <Text style={styles.resumeDialogTitle}>Resume Workout?</Text>
+            <Text style={styles.resumeDialogMessage}>
+              You have an unfinished workout: {savedWorkoutState?.activeWorkout?.template_name || 'Workout'}
+            </Text>
+            <Text style={styles.resumeDialogSubtext}>
+              Would you like to resume where you left off?
+            </Text>
+            
+            <View style={styles.resumeDialogButtons}>
+              <Pressable
+                style={[styles.resumeDialogButton, styles.resumeDialogButtonPrimary]}
+                onPress={async () => {
+                  if (savedWorkoutState) {
+                    await resumeWorkout(savedWorkoutState);
+                    setShowResumeDialog(false);
+                    setSavedWorkoutState(null);
+                  }
+                }}
+              >
+                <Text style={styles.resumeDialogButtonTextPrimary}>Resume Workout</Text>
+              </Pressable>
+              
+              <Pressable
+                style={[styles.resumeDialogButton, styles.resumeDialogButtonSecondary]}
+                onPress={async () => {
+                  if (userId) {
+                    const { clearWorkoutState } = await import('../../lib/workoutStorage');
+                    await clearWorkoutState(userId);
+                  }
+                  setShowResumeDialog(false);
+                  setSavedWorkoutState(null);
+                }}
+              >
+                <Text style={styles.resumeDialogButtonTextSecondary}>Start New Workout</Text>
+              </Pressable>
+              
+              <Pressable
+                style={[styles.resumeDialogButton, styles.resumeDialogButtonTertiary]}
+                onPress={async () => {
+                  if (userId) {
+                    const { clearWorkoutState } = await import('../../lib/workoutStorage');
+                    await clearWorkoutState(userId);
+                  }
+                  setShowResumeDialog(false);
+                  setSavedWorkoutState(null);
+                }}
+              >
+                <Text style={styles.resumeDialogButtonTextTertiary}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -1541,6 +1985,20 @@ const styles = StyleSheet.create({
   loadingText: {
     ...TextStyles.body,
     color: Colors.mutedForeground,
+    marginTop: Spacing.md,
+  },
+  refreshingIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   errorContainer: {
     flex: 1,
@@ -1732,6 +2190,78 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
+  },
+  resumeDialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resumeDialogContainer: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: Spacing.xl,
+    width: '85%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  resumeDialogTitle: {
+    ...TextStyles.h3,
+    color: Colors.foreground,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  resumeDialogMessage: {
+    ...TextStyles.body,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  resumeDialogSubtext: {
+    ...TextStyles.caption,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  resumeDialogButtons: {
+    gap: Spacing.md,
+  },
+  resumeDialogButton: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resumeDialogButtonPrimary: {
+    backgroundColor: Colors.actionPrimary,
+  },
+  resumeDialogButtonSecondary: {
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  resumeDialogButtonTertiary: {
+    backgroundColor: 'transparent',
+  },
+  resumeDialogButtonTextPrimary: {
+    ...TextStyles.button,
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  resumeDialogButtonTextSecondary: {
+    ...TextStyles.button,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  resumeDialogButtonTextTertiary: {
+    ...TextStyles.button,
+    color: Colors.mutedForeground,
+    fontWeight: '500',
   },
   workoutButtonsContainer: {
     flexDirection: 'row',

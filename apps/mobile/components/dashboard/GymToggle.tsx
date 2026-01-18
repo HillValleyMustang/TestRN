@@ -211,6 +211,9 @@ export function GymToggle({ gyms = [], activeGym = null, onGymChange }: GymToggl
   }, [gyms, localGyms, userId, activeGym, activeGymId, onGymChange, setActiveGym]);
 
   const gymsToUse = gyms.length > 0 ? gyms : localGyms;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymToggle.tsx:213',message:'GymToggle render check',data:{gymsFromProps:gyms.length,localGymsCount:localGyms.length,gymsToUseCount:gymsToUse.length,loading,willRender:!(loading||gymsToUse.length<=1),gymsToUse:gymsToUse.map(g=>({id:g.id,name:g.name,is_active:g.is_active}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   if (loading || gymsToUse.length <= 1) {
     return null;
   }

@@ -37,6 +37,7 @@ interface UseWorkoutLauncherDataReturn {
   workoutExercisesCache: Record<string, any[]>;
   lastCompletedDates: Record<string, Date | null>;
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
   refresh: () => Promise<void>;
 }
@@ -46,7 +47,9 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasInitiallyLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!userId) {
@@ -55,7 +58,13 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     }
 
     try {
-      setLoading(true);
+      // Only show full loading screen on initial load
+      if (!hasInitiallyLoadedRef.current) {
+        setLoading(true);
+      } else {
+        // Use refreshing state for subsequent refreshes (e.g., gym switches)
+        setRefreshing(true);
+      }
       setError(null);
 
       // Ensure we have local data first, will sync from Supabase during data loading
@@ -108,11 +117,14 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       } else {
         setWorkoutExercisesCache({});
       }
+      
+      hasInitiallyLoadedRef.current = true;
     } catch (err) {
       console.error('Error in refresh:', err);
       setError('Failed to load workout data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [userId]);
 
@@ -199,7 +211,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
 
   // Build workout exercises cache and last completed dates
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, any[]>>({});
-  const [lastCompletedDates] = useState<Record<string, Date | null>>({});
+  const [lastCompletedDates, setLastCompletedDates] = useState<Record<string, Date | null>>({});
 
   // Helper function to get exercise details from local database
   const getExerciseDetailsFromLocal = async (exerciseIds: string[]): Promise<Array<{ id: string; name: string; main_muscle?: string }>> => {
@@ -355,6 +367,106 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     }
   }, [derivedData.childWorkouts]);
 
+  // Fetch last completed dates for workouts
+  useEffect(() => {
+    const fetchLastCompletedDates = async () => {
+      if (!userId || derivedData.childWorkouts.length === 0) {
+        setLastCompletedDates({});
+        return;
+      }
+
+      try {
+        // Get all workout IDs and template names
+        const workoutIds = derivedData.childWorkouts.map(w => w.id);
+        const workoutNames = derivedData.childWorkouts.map(w => w.template_name);
+        
+        if (workoutIds.length === 0) {
+          setLastCompletedDates({});
+          return;
+        }
+
+        // Build a map for quick lookup
+        const workoutMap = new Map<string, TPath>();
+        derivedData.childWorkouts.forEach(workout => {
+          workoutMap.set(workout.id, workout);
+          workoutMap.set(workout.template_name, workout);
+        });
+
+        // Query Supabase for the most recent completed session for each workout
+        // Try to match by t_path_id first (most accurate), then fall back to template_name
+        const { data: sessions, error } = await supabase
+          .from('workout_sessions')
+          .select('template_name, completed_at, t_path_id')
+          .eq('user_id', userId)
+          .not('completed_at', 'is', null)
+          .order('completed_at', { ascending: false });
+
+        if (error) {
+          console.error('[useWorkoutLauncherData] Error fetching last completed dates:', error);
+          setLastCompletedDates({});
+          return;
+        }
+
+        // Build a map of workout ID to last completed date
+        const datesMap: Record<string, Date | null> = {};
+        
+        // Initialize all workouts with null
+        derivedData.childWorkouts.forEach(workout => {
+          datesMap[workout.id] = null;
+        });
+
+        if (sessions && sessions.length > 0) {
+          // Process sessions to find the most recent completed date for each workout
+          // Prefer matching by t_path_id, then fall back to template_name
+          const latestByWorkoutId = new Map<string, Date>();
+          const latestByTemplateName = new Map<string, Date>();
+          
+          sessions.forEach(session => {
+            const completedAt = session.completed_at ? new Date(session.completed_at) : null;
+            if (!completedAt) return;
+
+            // Try to match by t_path_id first (most accurate)
+            if (session.t_path_id && workoutIds.includes(session.t_path_id)) {
+              const existing = latestByWorkoutId.get(session.t_path_id);
+              if (!existing || completedAt > existing) {
+                latestByWorkoutId.set(session.t_path_id, completedAt);
+              }
+            }
+            
+            // Also track by template_name as fallback
+            if (session.template_name && workoutNames.includes(session.template_name)) {
+              const existing = latestByTemplateName.get(session.template_name);
+              if (!existing || completedAt > existing) {
+                latestByTemplateName.set(session.template_name, completedAt);
+              }
+            }
+          });
+
+          // Apply dates by workout ID (preferred method)
+          latestByWorkoutId.forEach((date, workoutId) => {
+            datesMap[workoutId] = date;
+          });
+
+          // Fill in any missing dates using template_name matching
+          latestByTemplateName.forEach((date, templateName) => {
+            const workout = workoutMap.get(templateName);
+            if (workout && !datesMap[workout.id]) {
+              datesMap[workout.id] = date;
+            }
+          });
+        }
+
+        setLastCompletedDates(datesMap);
+        console.log('[useWorkoutLauncherData] Last completed dates:', datesMap);
+      } catch (error) {
+        console.error('[useWorkoutLauncherData] Error fetching last completed dates:', error);
+        setLastCompletedDates({});
+      }
+    };
+
+    fetchLastCompletedDates();
+  }, [userId, derivedData.childWorkouts]);
+
   return {
     profile,
     activeTPath: derivedData.activeTPath,
@@ -363,6 +475,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     workoutExercisesCache,
     lastCompletedDates,
     loading,
+    refreshing,
     error,
     refresh,
   };

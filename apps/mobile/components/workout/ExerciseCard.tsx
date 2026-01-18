@@ -7,7 +7,7 @@ import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { supabase } from '../../app/_lib/supabase';
-import { database, addToSyncQueue } from '../../app/_lib/database';
+import { database } from '../../app/_lib/database';
 import Toast from 'react-native-toast-message';
 import { WorkoutBadge } from '../ui/WorkoutBadge';
 
@@ -180,22 +180,56 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
         
         try {
-            const { data: historicalSets, error: historyError } = await supabase
-                .from('set_logs')
-                .select('weight_kg, reps')
-                .eq('exercise_id', exercise.id)
-                .neq('session_id', currentSessionId || '')
-                .not('weight_kg', 'is', null)
-                .not('reps', 'is', null);
-
-            if (historyError) {
-                console.error('[ExerciseCard] Error fetching historical data for PB check:', historyError);
-            }
-
-            const historicalVolumes = historicalSets?.map(s => (s.weight_kg || 0) * (s.reps || 0)) || [];
-            const maxHistoricalVolume = Math.max(...historicalVolumes, 0);
+            // Use local database for PB check - more reliable and includes all synced data
+            // IMPORTANT: Must check against both historical sets AND already-saved sets in current session
+            // to prevent duplicate PBs when sets match each other
+            const db = database.getDB();
+            const historicalSetsQuery = `
+                SELECT weight_kg, reps
+                FROM set_logs
+                WHERE exercise_id = ?
+                AND session_id != COALESCE(?, '')
+                AND weight_kg IS NOT NULL
+                AND reps IS NOT NULL
+            `;
+            const historicalSets = await db.getAllAsync<{ weight_kg: number; reps: number }>(
+                historicalSetsQuery,
+                [exercise.id, currentSessionId || '']
+            );
             
-            const isVolumePB = currentVolume > maxHistoricalVolume;
+            // Also get already-saved sets from current session to check against
+            const currentSessionSetsQuery = `
+                SELECT weight_kg, reps
+                FROM set_logs
+                WHERE exercise_id = ?
+                AND session_id = ?
+                AND weight_kg IS NOT NULL
+                AND reps IS NOT NULL
+            `;
+            const currentSessionSets = currentSessionId ? await db.getAllAsync<{ weight_kg: number; reps: number }>(
+                currentSessionSetsQuery,
+                [exercise.id, currentSessionId]
+            ) : [];
+            
+            // Also check against already-saved sets in localSets (sets saved earlier in this workout)
+            const alreadySavedLocalSets = localSets.filter((s, idx) => idx !== setIndex && s.isSaved && s.weight_kg && s.reps);
+            const alreadySavedVolumes = alreadySavedLocalSets.map(s => (s.weight_kg || 0) * (s.reps || 0));
+            
+            // Combine all previous volumes for comparison
+            const allPreviousVolumes = [
+                ...historicalSets.map(s => (s.weight_kg || 0) * (s.reps || 0)),
+                ...currentSessionSets.map(s => (s.weight_kg || 0) * (s.reps || 0)),
+                ...alreadySavedVolumes
+            ];
+            const maxPreviousVolume = allPreviousVolumes.length > 0 ? Math.max(...allPreviousVolumes) : 0;
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:198',message:'PB calculation check',data:{exerciseId:exercise.id,exerciseName:exercise.name,setIndex,currentVolume,maxPreviousVolume,historicalSetsCount:historicalSets?.length||0,currentSessionSetsCount:currentSessionSets?.length||0,alreadySavedLocalSetsCount:alreadySavedLocalSets.length,isVolumePB:currentVolume>0&&(allPreviousVolumes.length===0||currentVolume>maxPreviousVolume),hasUserInput:!!(set.weight_kg && set.reps)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'2A'})}).catch(()=>{});
+            // #endregion
+            
+            // PB is true if: current volume > max previous volume (strictly greater, not equal), OR if no history exists and volume > 0 (first time doing exercise)
+            // Note: Matching a previous PB is NOT a new PB - must exceed it
+            const isVolumePB = currentVolume > 0 && (allPreviousVolumes.length === 0 || currentVolume > maxPreviousVolume);
 
             const newSets = [...localSets];
             newSets[setIndex] = {
@@ -204,7 +238,15 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 isPR: isVolumePB
             };
             setLocalSets(newSets);
-            updateSet(exercise.id, setIndex, { isSaved: !set.isSaved, isPR: isVolumePB });
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:207',message:'Set updated with isPR flag',data:{exerciseId:exercise.id,setIndex,isPR:isVolumePB,isSaved:!set.isSaved},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'2A'})}).catch(()=>{});
+            // #endregion
+            // Update both isPR and is_pb to ensure consistency
+            updateSet(exercise.id, setIndex, { 
+              isSaved: !set.isSaved, 
+              isPR: isVolumePB,
+              is_pb: isVolumePB  // Also set is_pb for database consistency
+            });
 
             if (!set.isSaved) {
                 setRestTimer(60);
@@ -262,21 +304,20 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             // Use local database instead of Supabase for better performance and offline support
             const db = database.getDB();
 
-            // First, find the most recent workout session for this exercise (excluding current session)
-            // Join with workout_sessions to filter by template_name when provided
+            // First, find the most recent COMPLETED workout session for this exercise (excluding current session)
+            // Show data from ANY workout template - don't filter by template_name so users can see their last performance
+            // regardless of which program they were on
             let sessionQuery = `
                 SELECT DISTINCT sl.session_id
                 FROM set_logs sl
                 JOIN workout_sessions ws ON sl.session_id = ws.id
                 WHERE sl.exercise_id = ?
+                AND ws.completed_at IS NOT NULL
             `;
             const sessionParams: any[] = [exercise.id];
 
-            // Filter by template name if provided to only show data from same workout type
-            if (templateName) {
-                sessionQuery += ' AND ws.template_name = ?';
-                sessionParams.push(templateName);
-            }
+            // Don't filter by template name - show last performance from any workout
+            // This helps users see their progress even when switching between programs
 
             if (currentSessionId && currentSessionId !== '') {
                 sessionQuery += ' AND sl.session_id != ?';
@@ -291,6 +332,10 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             `;
 
             const recentSessionResult = await db.getFirstAsync<any>(sessionQuery, sessionParams);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:302',message:'Previous workout sets query result',data:{exerciseId:exercise.id,exerciseName:exercise.name,templateName,currentSessionId,foundRecentSession:!!recentSessionResult,recentSessionId:recentSessionResult?.session_id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'4A'})}).catch(()=>{});
+            // #endregion
 
             if (recentSessionResult) {
                 // Get all sets from that session for this exercise, ordered by creation time
@@ -305,6 +350,10 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 `;
 
                 const previousSets = await db.getAllAsync<any>(setsQuery, [recentSessionResult.session_id, exercise.id]);
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:316',message:'Previous sets found',data:{previousSetsCount:previousSets?.length||0,previousSets:previousSets?.map((s:any)=>({weight_kg:s.weight_kg,reps:s.reps}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'4B'})}).catch(()=>{});
+                // #endregion
 
                 if (previousSets && previousSets.length > 0) {
                     // Map previous sets to current sets by index
@@ -345,18 +394,39 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
     const fetchExerciseHistory = useCallback(async () => {
         try {
-            const { data: sessionData, error: sessionError } = await supabase
+            // First, get all set_logs for this exercise
+            const { data: allSetLogs, error: setLogsError } = await supabase
                 .from('set_logs')
                 .select('session_id, created_at')
                 .eq('exercise_id', exercise.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            if (sessionError) throw sessionError;
+            if (setLogsError) throw setLogsError;
 
+            // Get unique session IDs
+            const sessionIds = [...new Set(allSetLogs?.map(log => log.session_id) || [])];
+
+            if (sessionIds.length === 0) {
+                setExerciseHistory([]);
+                return [];
+            }
+
+            // Filter to only completed workout sessions
+            const { data: completedSessions, error: sessionsError } = await supabase
+                .from('workout_sessions')
+                .select('id, completed_at')
+                .in('id', sessionIds)
+                .not('completed_at', 'is', null);
+
+            if (sessionsError) throw sessionsError;
+
+            const completedSessionIds = new Set(completedSessions?.map(s => s.id) || []);
+
+            // Filter set_logs to only include completed sessions
             const sessionMap = new Map();
-            sessionData?.forEach(log => {
-                if (!sessionMap.has(log.session_id)) {
+            allSetLogs?.forEach(log => {
+                if (completedSessionIds.has(log.session_id) && !sessionMap.has(log.session_id)) {
                     sessionMap.set(log.session_id, {
                         session_id: log.session_id,
                         created_at: log.created_at
@@ -678,38 +748,74 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                     return;
                                 }
 
-                                // Use the PR status that was already determined during real-time completion
-                                const setsWithPR = localSets;
+                                // Check PB status for all sets before saving
+                                // IMPORTANT: Must check against both historical sets AND already-saved sets in current session
+                                // to prevent duplicate PBs when sets match each other
+                                const db = database.getDB();
+                                const historicalSetsQuery = `
+                                    SELECT weight_kg, reps
+                                    FROM set_logs
+                                    WHERE exercise_id = ?
+                                    AND session_id != COALESCE(?, '')
+                                    AND weight_kg IS NOT NULL
+                                    AND reps IS NOT NULL
+                                `;
+                                const historicalSets = await db.getAllAsync<{ weight_kg: number; reps: number }>(
+                                    historicalSetsQuery,
+                                    [exercise.id, currentSessionId || '']
+                                );
+                                
+                                // Also get already-saved sets from current session to check against
+                                const currentSessionSetsQuery = `
+                                    SELECT weight_kg, reps
+                                    FROM set_logs
+                                    WHERE exercise_id = ?
+                                    AND session_id = ?
+                                    AND weight_kg IS NOT NULL
+                                    AND reps IS NOT NULL
+                                `;
+                                const currentSessionSets = currentSessionId ? await db.getAllAsync<{ weight_kg: number; reps: number }>(
+                                    currentSessionSetsQuery,
+                                    [exercise.id, currentSessionId]
+                                ) : [];
+                                
+                                // Combine historical and current session sets for PB comparison
+                                const allPreviousSets = [...historicalSets, ...currentSessionSets];
+                                const allPreviousVolumes = allPreviousSets.map(s => (s.weight_kg || 0) * (s.reps || 0));
+                                const maxPreviousVolume = allPreviousVolumes.length > 0 ? Math.max(...allPreviousVolumes) : 0;
 
                                 const savedSetUpdates: Array<{ setIndex: number; setId: string; created_at: string; isPR: boolean }> = [];
+                                
+                                // Track volumes of sets we're about to save to prevent duplicate PBs within the same save operation
+                                const volumesInThisSave: number[] = [];
 
-                                for (let i = 0; i < setsWithPR.length; i++) {
-                                    const set = setsWithPR[i];
+                                // Mark sets as saved locally and check PB status (no database save - will be saved when workout is completed)
+                                for (let i = 0; i < localSets.length; i++) {
+                                    const set = localSets[i];
                                     const setIndex = i;
                                     if (!hasUserInput(set)) {
                                         continue;
                                     }
+                                    
+                                    // Calculate PB status - must exceed ALL previous volumes (historical + current session + already processed in this save)
+                                    const currentVolume = (set.weight_kg || 0) * (set.reps || 0);
+                                    const maxVolumeToBeat = Math.max(maxPreviousVolume, ...volumesInThisSave);
+                                    // PB is true if: current volume > max volume to beat (strictly greater, not equal), OR if no history exists and volume > 0
+                                    const isVolumePB = currentVolume > 0 && (allPreviousSets.length === 0 && volumesInThisSave.length === 0 || currentVolume > maxVolumeToBeat);
+                                    
+                                    // Track this volume for subsequent sets in the same save operation
+                                    volumesInThisSave.push(currentVolume);
+                                    
                                     if (currentSessionId) {
                                         try {
                                             const setId = set.id || generateUUID();
-                                            const setData = {
-                                                id: setId,
-                                                session_id: currentSessionId,
-                                                exercise_id: exercise.id,
-                                                weight_kg: set.weight_kg,
-                                                reps: set.reps,
-                                                reps_l: null,
-                                                reps_r: null,
-                                                time_seconds: null,
-                                                is_pb: set.isPR || false,
-                                                created_at: set.created_at || new Date().toISOString(),
-                                            };
-                                            await database.addSetLog(setData);
-                                            await addToSyncQueue('create', 'set_logs', setData);
-                                            savedSetUpdates.push({ setIndex, setId, created_at: setData.created_at, isPR: set.isPR || false });
-                                            updateSet(exercise.id, setIndex, { id: setId, isSaved: true, created_at: setData.created_at });
+                                            const createdAt = set.created_at || new Date().toISOString();
+                                            const finalIsPR = set.isPR || isVolumePB;
+                                            // Only update local state - no database save
+                                            savedSetUpdates.push({ setIndex, setId, created_at: createdAt, isPR: finalIsPR });
+                                            updateSet(exercise.id, setIndex, { id: setId, isSaved: true, created_at: createdAt, isPR: finalIsPR, is_pb: finalIsPR });
                                         } catch (error) {
-                                            console.error(`Error saving set for ${exercise.name}:`, error);
+                                            console.error(`Error marking set as saved for ${exercise.name}:`, error);
                                         }
                                     } else {
                                         console.error(`No currentSessionId available for ${exercise.name}`);
@@ -826,8 +932,8 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                                 <Text style={styles.bestValue}>{session.bestSet.weight}kg × {session.bestSet.reps}</Text>
                                             </View>
                                             <View style={styles.sessionSetsList}>
-                                                {session.sets.map((set: any) => (
-                                                    <Text key={set.created_at} style={styles.setItemText}>{set.weight_kg}kg × {set.reps}{set.is_pb && <Text style={styles.pbIndicator}> ★</Text>}</Text>
+                                                {session.sets.map((set: any, setIdx: number) => (
+                                                    <Text key={set.id || `${session.session_id}-${setIdx}-${set.created_at}`} style={styles.setItemText}>{set.weight_kg}kg × {set.reps}{set.is_pb && <Text style={styles.pbIndicator}> ★</Text>}</Text>
                                                 ))}
                                             </View>
                                         </View>

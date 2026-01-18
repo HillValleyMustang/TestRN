@@ -101,7 +101,7 @@ const TAB_COLORS: Record<Tab, string> = {
 
 export default function ProfileScreen() {
   const { session, userId, supabase } = useAuth();
-  const { forceRefresh, invalidateAllCaches, setShouldRefreshDashboard, getUserAchievements, deleteGym } = useData();
+  const { forceRefresh, invalidateAllCaches, setShouldRefreshDashboard, getUserAchievements, deleteGym, addTPath, addTPathExercise } = useData();
 
   console.log('[Profile] Component rendered with forceRefresh:', forceRefresh, 'profile total_points:', profile?.total_points);
   const router = useRouter();
@@ -241,6 +241,9 @@ export default function ProfileScreen() {
       }
 
       console.log('[Profile] Profile data loaded:', profileRes.data?.id, 'total_points:', profileRes.data?.total_points, 'forceRefresh value:', forceRefresh);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:243',message:'Profile loaded from Supabase',data:{profileId:profileRes.data?.id,activeTPathId:profileRes.data?.active_t_path_id,programmeType:profileRes.data?.programme_type},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       // Load gyms data
       const gymsRes = await supabase
@@ -357,6 +360,9 @@ export default function ProfileScreen() {
       });
 
       console.log('[Profile] Setting profile state with total_points:', profileData.total_points);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:360',message:'Setting profile state',data:{profileId:profileData.id,activeTPathId:profileData.active_t_path_id,programmeType:profileData.programme_type},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       setProfile(profileData);
 
       if (gymsRes.data) {
@@ -449,216 +455,350 @@ export default function ProfileScreen() {
     }
 
     try {
-      console.log('[Profile] Starting T-Path regeneration for type:', newProgrammeType);
-      
-      // Get active gym
-      const activeGymId = profile.active_gym_id || gyms[0]?.id;
-      if (!activeGymId) {
-        throw new Error('No active gym found');
-      }
+      console.log('[Profile] Starting T-Path regeneration for ALL gyms with type:', newProgrammeType);
 
-      // Convert session length from number to string format if needed
-      let sessionLengthString: string;
-      const sessionLength = profile.preferred_session_length;
-      if (typeof sessionLength === 'number') {
-        const sessionLengthMap: Record<number, string> = {
-          30: '15-30',
-          45: '30-45',
-          60: '45-60',
-          90: '60-90',
-        };
-        sessionLengthString = sessionLengthMap[sessionLength] || '45-60';
-      } else {
-        sessionLengthString = sessionLength || '45-60';
-      }
-
-      // Build payload for workout generation - USE THE NEW PROGRAMME TYPE PASSED IN
-      const payload: OnboardingPayload = {
-        fullName: profile.full_name || 'Athlete',
-        heightCm: profile.height_cm || 175,
-        weightKg: profile.weight_kg || 75,
-        bodyFatPct: profile.body_fat_pct,
-        tPathType: newProgrammeType, // Use the new type, not from profile state!
-        experience: 'intermediate',
-        goalFocus: profile.primary_goal || 'muscle_gain',
-        preferredMuscles: profile.preferred_muscles || '',
-        constraints: profile.health_notes || '',
-        sessionLength: sessionLengthString,
-        gymId: activeGymId,
-        equipmentMethod: 'skip',
-        unitSystem: profile.unit_system || 'metric',
-      };
-
-      console.log('[Profile] Payload tPathType:', payload.tPathType);
-
-      console.log('[Profile] Generating new workout plan with payload:', payload);
-
-      // Call AI service to generate new workout plan
-      const aiResponse = await AIWorkoutService.generateWorkoutPlan(
-        payload,
-        session.access_token
-      );
-
-      console.log('[Profile] New workout plan generated:', aiResponse);
-
-      // Delete old T-Path and workouts from local database
-      if (profile.active_t_path_id) {
-        console.log('[Profile] Deleting old T-Path:', profile.active_t_path_id);
-        await database.deleteTPath(profile.active_t_path_id);
-      }
-
-      // Save new T-Path to local database
-      console.log('[Profile] Saving new T-Path to local database');
-      await database.addTPath({
-        id: aiResponse.mainTPath.id,
-        user_id: userId,
-        template_name: aiResponse.mainTPath.template_name,
-        description: aiResponse.mainTPath.description,
-        t_path_type: aiResponse.mainTPath.t_path_type,
-        experience_level: aiResponse.mainTPath.experience_level,
-        session_length: aiResponse.mainTPath.session_length,
-        created_at: aiResponse.mainTPath.created_at,
-        updated_at: aiResponse.mainTPath.created_at,
-        parent_t_path_id: null, // Main T-Path has no parent
-        gym_id: activeGymId,
-        is_active: true,
-        is_main_program: true, // Mark as main program
-      });
-
-      // Save child workouts
-      console.log('[Profile] Saving child workouts');
-      for (const workout of aiResponse.childWorkouts) {
-        await database.addTPath({
-          id: workout.id,
-          user_id: userId,
-          template_name: workout.workout_name,
-          description: '',
-          t_path_type: aiResponse.mainTPath.t_path_type,
-          experience_level: aiResponse.mainTPath.experience_level,
-          session_length: aiResponse.mainTPath.session_length,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          parent_t_path_id: aiResponse.mainTPath.id, // Link to parent T-Path
-          gym_id: activeGymId,
-          is_active: true,
-          is_main_program: false, // Child workouts are not main programs
-        });
-
-        // Save exercises for each workout
-        console.log('[Profile] Saving exercises for workout:', workout.workout_name, 'count:', workout.exercises.length);
-        for (const exercise of workout.exercises) {
-          // Get the exercise ID - could be exercise_id or id depending on response structure
-          const exerciseId = (exercise as any).exercise_id || (exercise as any).id;
-          
-          if (!exerciseId) {
-            console.warn('[Profile] Skipping exercise without ID:', exercise);
-            continue;
-          }
-
-          try {
-            await database.addTPathExercise({
-              id: `${workout.id}_${exerciseId}_${Date.now()}_${exercise.order_index}`,
-              t_path_id: workout.id,
-              exercise_id: exerciseId,
-              order_index: exercise.order_index,
-              is_bonus_exercise: Boolean((exercise as any).is_bonus_exercise),
-              created_at: new Date().toISOString(),
-            } as any);
-            console.log('[Profile] Saved exercise:', exerciseId);
-          } catch (exerciseError) {
-            console.error('[Profile] Failed to save exercise:', exerciseId, exerciseError);
-            // Continue with next exercise instead of failing the entire workout
-          }
-        }
-      }
-
-      // Clear all caches and trigger refresh BEFORE updating Supabase
-      // This ensures dashboard/workout page don't load stale data
-      console.log('[Profile] Invalidating caches before profile update');
-      invalidateAllCaches();
-      setShouldRefreshDashboard(true);
-
-      // Update profile with new active_t_path_id AND programme_type to ensure it's persisted
-      console.log('[Profile] Updating profile with new T-Path ID and programme type:', newProgrammeType);
+      // Step 1: Update programme_type in profile first
+      console.log('[Profile] Updating programme_type in profile');
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          active_t_path_id: aiResponse.mainTPath.id,
           programme_type: newProgrammeType,
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
 
       if (updateError) {
-        console.error('[Profile] Failed to update profile:', updateError);
+        console.error('[Profile] Failed to update programme_type:', updateError);
         throw updateError;
       }
 
-      // Update local state with both the new T-Path ID and programme type
-      setProfile({ 
-        ...profile, 
-        active_t_path_id: aiResponse.mainTPath.id,
-        programme_type: newProgrammeType
-      });
+      // Step 2: Call regenerate-all-user-plans edge function
+      console.log('[Profile] Calling regenerate-all-user-plans edge function');
+      const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke(
+        'regenerate-all-user-plans',
+        {
+          body: {}, // No body needed, user is identified by JWT
+        }
+      );
+
+      if (edgeFunctionError) {
+        console.error('[Profile] Edge function error:', edgeFunctionError);
+        throw new Error(edgeFunctionError.message || 'Failed to regenerate workout plans');
+      }
+
+      console.log('[Profile] Edge function response:', edgeFunctionData);
+
+      // Step 3: Poll for completion by checking t_path_generation_status
+      console.log('[Profile] Polling for regeneration completion...');
+      let isComplete = false;
+      let pollAttempts = 0;
+      const maxPollAttempts = 60; // 60 attempts * 1 second = 60 seconds max wait
       
-      // Wait for Supabase to propagate the update (increased delay for reliability)
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Verify the update was saved correctly before proceeding
-      let verifyData = null;
-      let retries = 0;
-      const maxRetries = 3;
-      
-      while (retries < maxRetries && (!verifyData || verifyData.programme_type !== newProgrammeType)) {
-        const { data, error } = await supabase
+      while (!isComplete && pollAttempts < maxPollAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between polls
+        
+        const { data: profileStatus, error: statusError } = await supabase
           .from('profiles')
-          .select('programme_type, active_t_path_id')
+          .select('t_path_generation_status, t_path_generation_error, active_t_path_id')
           .eq('id', userId)
           .single();
-        
-        if (error) {
-          console.warn('[Profile] Verification query error:', error);
-        } else {
-          verifyData = data;
+
+        if (statusError) {
+          console.warn('[Profile] Error checking generation status:', statusError);
+          pollAttempts++;
+          continue;
         }
-        
-        if (verifyData && verifyData.programme_type === newProgrammeType && verifyData.active_t_path_id === aiResponse.mainTPath.id) {
-          console.log('[Profile] Verification successful on attempt', retries + 1);
+
+        if (profileStatus?.t_path_generation_status === 'completed') {
+          console.log('[Profile] Regeneration completed successfully');
+          isComplete = true;
           break;
-        }
-        
-        retries++;
-        if (retries < maxRetries) {
-          console.log('[Profile] Verification failed, retrying...', retries);
-          await new Promise(resolve => setTimeout(resolve, 300));
+        } else if (profileStatus?.t_path_generation_status === 'failed') {
+          const errorMsg = profileStatus.t_path_generation_error || 'Unknown error';
+          console.error('[Profile] Regeneration failed:', errorMsg);
+          throw new Error(`Regeneration failed: ${errorMsg}`);
+        } else if (profileStatus?.t_path_generation_status === 'in_progress') {
+          console.log(`[Profile] Regeneration in progress... (attempt ${pollAttempts + 1}/${maxPollAttempts})`);
+          pollAttempts++;
+        } else {
+          // Status might be null or something else, assume in progress
+          pollAttempts++;
         }
       }
-      
-      console.log('[Profile] Verification - Database values:', {
-        programme_type: verifyData?.programme_type,
-        active_t_path_id: verifyData?.active_t_path_id,
-        expected_programme_type: newProgrammeType,
-        expected_t_path_id: aiResponse.mainTPath.id,
-        verified: verifyData?.programme_type === newProgrammeType
-      });
-      
-      // Reload profile to ensure local state is in sync
-      await loadProfile();
 
-      console.log('[Profile] T-Path regeneration complete');
+      if (!isComplete) {
+        throw new Error('Regeneration timed out. Please check your workout plans manually.');
+      }
+
+      // Step 4: Clear old t-paths from local database
+      console.log('[Profile] Clearing old t-paths from local database');
+      const oldTPaths = await database.getTPaths(userId);
+      for (const tPath of oldTPaths) {
+        try {
+          await database.deleteTPath(tPath.id);
+        } catch (deleteError) {
+          console.warn('[Profile] Error deleting old t-path:', tPath.id, deleteError);
+        }
+      }
+
+      // Step 5: Fetch all t-paths from Supabase and sync to local database
+      console.log('[Profile] Syncing all t-paths from Supabase to local database');
+      const { data: allTPaths, error: tPathsError } = await supabase
+        .from('t_paths')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+
+      if (tPathsError) {
+        console.error('[Profile] Error fetching t-paths from Supabase:', tPathsError);
+        throw tPathsError;
+      }
+
+      if (allTPaths && allTPaths.length > 0) {
+        // Sync main t-paths first
+        const mainTPaths = allTPaths.filter(tp => !tp.parent_t_path_id);
+        for (const tPath of mainTPaths) {
+          try {
+            const tPathRecord = {
+              id: tPath.id,
+              user_id: userId,
+              template_name: tPath.template_name,
+              description: tPath.description || null,
+              is_main_program: !tPath.parent_t_path_id,
+              parent_t_path_id: tPath.parent_t_path_id || null,
+              order_index: tPath.order_index || null,
+              is_ai_generated: tPath.is_ai_generated || false,
+              ai_generation_params: tPath.ai_generation_params ? (typeof tPath.ai_generation_params === 'string' ? tPath.ai_generation_params : JSON.stringify(tPath.ai_generation_params)) : null,
+              is_bonus: tPath.is_bonus || false,
+              created_at: tPath.created_at,
+              updated_at: tPath.updated_at || tPath.created_at,
+              gym_id: tPath.gym_id || null,
+              settings: tPath.settings ? (typeof tPath.settings === 'string' ? tPath.settings : JSON.stringify(tPath.settings)) : null,
+              progression_settings: tPath.progression_settings ? (typeof tPath.progression_settings === 'string' ? tPath.progression_settings : JSON.stringify(tPath.progression_settings)) : null,
+              version: tPath.version || 1,
+            };
+            await addTPath(tPathRecord as any);
+            console.log('[Profile] Synced main t-path:', tPath.id, tPath.template_name);
+          } catch (syncError: any) {
+            // Ignore duplicate errors
+            if (!syncError?.message?.includes('UNIQUE constraint') && !syncError?.message?.includes('duplicate')) {
+              console.warn('[Profile] Error syncing main t-path:', tPath.id, syncError);
+            }
+          }
+        }
+
+        // Sync child workouts and their exercises
+        const childWorkouts = allTPaths.filter(tp => tp.parent_t_path_id);
+        for (const child of childWorkouts) {
+          try {
+            const childRecord = {
+              id: child.id,
+              user_id: userId,
+              template_name: child.template_name,
+              description: child.description || null,
+              is_main_program: false,
+              parent_t_path_id: child.parent_t_path_id || null,
+              order_index: child.order_index || null,
+              is_ai_generated: child.is_ai_generated || false,
+              ai_generation_params: child.ai_generation_params ? (typeof child.ai_generation_params === 'string' ? child.ai_generation_params : JSON.stringify(child.ai_generation_params)) : null,
+              is_bonus: child.is_bonus || false,
+              created_at: child.created_at,
+              updated_at: child.updated_at || child.created_at,
+              gym_id: child.gym_id || null,
+              settings: child.settings ? (typeof child.settings === 'string' ? child.settings : JSON.stringify(child.settings)) : null,
+              progression_settings: child.progression_settings ? (typeof child.progression_settings === 'string' ? child.progression_settings : JSON.stringify(child.progression_settings)) : null,
+              version: child.version || 1,
+            };
+            await addTPath(childRecord as any);
+            console.log('[Profile] Synced child workout:', child.id, child.template_name);
+
+            // Fetch and sync exercises for this workout
+            const { data: workoutExercises, error: exercisesError } = await supabase
+              .from('t_path_exercises')
+              .select('id, template_id, exercise_id, order_index, is_bonus_exercise, created_at')
+              .eq('template_id', child.id)
+              .order('order_index', { ascending: true });
+
+            if (!exercisesError && workoutExercises && workoutExercises.length > 0) {
+              for (const ex of workoutExercises) {
+                try {
+                  const tPathExercise = {
+                    id: ex.id || `${child.id}-${ex.exercise_id}-${ex.order_index}`,
+                    template_id: ex.template_id || child.id,
+                    t_path_id: ex.template_id || child.id,
+                    exercise_id: ex.exercise_id,
+                    order_index: ex.order_index !== undefined ? ex.order_index : 0,
+                    is_bonus_exercise: ex.is_bonus_exercise || false,
+                    created_at: ex.created_at || new Date().toISOString(),
+                  };
+                  await addTPathExercise(tPathExercise as any);
+                } catch (exError: any) {
+                  // Ignore duplicate errors
+                  if (!exError?.message?.includes('UNIQUE constraint') && !exError?.message?.includes('duplicate')) {
+                    console.warn('[Profile] Error syncing exercise:', ex.exercise_id, exError);
+                  }
+                }
+              }
+            }
+          } catch (syncError: any) {
+            // Ignore duplicate errors
+            if (!syncError?.message?.includes('UNIQUE constraint') && !syncError?.message?.includes('duplicate')) {
+              console.warn('[Profile] Error syncing child workout:', child.id, syncError);
+            }
+          }
+        }
+      }
+
+      // Step 6: Ensure active_t_path_id is set correctly for the active gym
+      console.log('[Profile] Ensuring active_t_path_id is set for active gym');
+      const activeGymId = profile.active_gym_id;
+      if (activeGymId && allTPaths && allTPaths.length > 0) {
+        // Find the main t-path for the active gym (re-filter to get main t-paths)
+        const mainTPaths = allTPaths.filter(tp => !tp.parent_t_path_id);
+        const activeGymTPath = mainTPaths.find(tp => tp.gym_id === activeGymId);
+        if (activeGymTPath) {
+          console.log('[Profile] Found t-path for active gym:', activeGymTPath.id);
+          // Verify the profile has the correct active_t_path_id
+          const { data: currentProfile, error: profileCheckError } = await supabase
+            .from('profiles')
+            .select('active_t_path_id')
+            .eq('id', userId)
+            .single();
+          
+          if (!profileCheckError && currentProfile?.active_t_path_id !== activeGymTPath.id) {
+            console.log('[Profile] Updating active_t_path_id to:', activeGymTPath.id);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:663',message:'Updating active_t_path_id in Supabase',data:{activeGymId,activeGymTPathId:activeGymTPath.id,currentActiveTPathId:currentProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            const { error: updateActiveTPathError } = await supabase
+              .from('profiles')
+              .update({ 
+                active_t_path_id: activeGymTPath.id,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userId);
+            
+            if (updateActiveTPathError) {
+              console.warn('[Profile] Failed to update active_t_path_id:', updateActiveTPathError);
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:673',message:'Failed to update active_t_path_id',data:{error:updateActiveTPathError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+              // #endregion
+            } else {
+              console.log('[Profile] Successfully updated active_t_path_id');
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:675',message:'Successfully updated active_t_path_id',data:{activeGymTPathId:activeGymTPath.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+              // #endregion
+              // Wait longer for Supabase to propagate the update and verify it's saved
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Verify the update was saved correctly
+              let verified = false;
+              let verifyAttempts = 0;
+              const maxVerifyAttempts = 5;
+              while (!verified && verifyAttempts < maxVerifyAttempts) {
+                const { data: verifyProfile, error: verifyError } = await supabase
+                  .from('profiles')
+                  .select('active_t_path_id')
+                  .eq('id', userId)
+                  .single();
+                
+                if (!verifyError && verifyProfile?.active_t_path_id === activeGymTPath.id) {
+                  verified = true;
+                  console.log('[Profile] Verified active_t_path_id update on attempt', verifyAttempts + 1);
+                  // #region agent log
+                  fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:692',message:'Verified active_t_path_id update',data:{activeTPathId:verifyProfile.active_t_path_id,attempts:verifyAttempts+1},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+                  // #endregion
+                  break;
+                }
+                
+                verifyAttempts++;
+                if (verifyAttempts < maxVerifyAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                }
+              }
+              
+              if (!verified) {
+                console.warn('[Profile] Could not verify active_t_path_id update after', maxVerifyAttempts, 'attempts');
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:710',message:'Failed to verify active_t_path_id update',data:{expectedTPathId:activeGymTPath.id,attempts:maxVerifyAttempts},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+              }
+            }
+          } else {
+            console.log('[Profile] active_t_path_id is already correct:', currentProfile?.active_t_path_id);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:680',message:'active_t_path_id already correct',data:{activeTPathId:currentProfile?.active_t_path_id,expectedTPathId:activeGymTPath.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          }
+        } else {
+          console.warn('[Profile] No t-path found for active gym:', activeGymId);
+        }
+      }
+
+      // Step 7: Wait a bit more to ensure Supabase has fully propagated the active_t_path_id update
+      // This is critical - we need to ensure the update is visible before clearing caches
+      console.log('[Profile] Waiting for Supabase to fully propagate active_t_path_id update...');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for full propagation
+      
+      // Final verification that active_t_path_id is correct in Supabase
+      if (activeGymId && allTPaths && allTPaths.length > 0) {
+        const mainTPaths = allTPaths.filter(tp => !tp.parent_t_path_id);
+        const activeGymTPath = mainTPaths.find(tp => tp.gym_id === activeGymId);
+        if (activeGymTPath) {
+          const { data: finalVerifyProfile, error: finalVerifyError } = await supabase
+            .from('profiles')
+            .select('active_t_path_id')
+            .eq('id', userId)
+            .single();
+          
+          if (!finalVerifyError && finalVerifyProfile?.active_t_path_id !== activeGymTPath.id) {
+            console.warn('[Profile] Final verification failed - active_t_path_id still incorrect:', {
+              expected: activeGymTPath.id,
+              actual: finalVerifyProfile?.active_t_path_id
+            });
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:730',message:'Final verification failed',data:{expected:activeGymTPath.id,actual:finalVerifyProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          } else {
+            console.log('[Profile] Final verification passed - active_t_path_id is correct:', finalVerifyProfile?.active_t_path_id);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:735',message:'Final verification passed',data:{activeTPathId:finalVerifyProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          }
+        }
+      }
+
+      // Step 8: Clear caches and refresh (AFTER active_t_path_id is verified)
+      console.log('[Profile] Invalidating caches and refreshing data');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:740',message:'Before invalidateAllCaches and setShouldRefreshDashboard',data:{activeGymId:profile.active_gym_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      invalidateAllCaches();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:743',message:'Setting shouldRefreshDashboard to true',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      setShouldRefreshDashboard(true);
+
+      // Step 9: Reload profile to get updated active_t_path_id
+      await loadProfile();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:693',message:'After loadProfile - checking profile state',data:{profileActiveTPathId:profile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      console.log('[Profile] T-Path regeneration for all gyms complete');
       
       Toast.show({
         type: 'success',
-        text1: 'Workout Plan Updated',
-        text2: 'Your new workout plan has been generated successfully',
+        text1: 'Workout Plans Updated',
+        text2: `All workout plans for all gyms have been regenerated with ${newProgrammeType === 'ppl' ? 'Push/Pull/Legs' : 'Upper/Lower'} structure`,
         position: 'bottom',
-        visibilityTime: 3000,
+        visibilityTime: 4000,
       });
     } catch (error: any) {
       console.error('[Profile] T-Path regeneration failed:', error);
       Alert.alert(
         'Error',
-        `Failed to regenerate workout plan: ${error.message || 'Unknown error'}`
+        `Failed to regenerate workout plans: ${error.message || 'Unknown error'}`
       );
       throw error;
     }

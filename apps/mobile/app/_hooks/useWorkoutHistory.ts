@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../_contexts/auth-context';
 import { useData } from '../_contexts/data-context';
+import { database } from '../_lib/database';
 
 interface WorkoutHistorySession {
   id: string;
@@ -16,6 +17,7 @@ interface WorkoutHistorySession {
   exercise_count: number;
   total_volume_kg: number;
   has_prs?: boolean;
+  gym_name?: string | null;
 }
 
 interface UseWorkoutHistoryReturn {
@@ -46,6 +48,21 @@ export default function useWorkoutHistory(): UseWorkoutHistoryReturn {
 
       // Get all workout sessions
       const workoutSessions = await getWorkoutSessions(userId);
+
+      // Get gym names for all sessions in one query
+      const db = database.getDB();
+      const gymNameRows = await db.getAllAsync<{ session_id: string; gym_name: string | null }>(
+        `SELECT ws.id as session_id, gyms.name as gym_name
+         FROM workout_sessions ws
+         LEFT JOIN t_paths tp ON tp.id = ws.t_path_id
+         LEFT JOIN gyms ON gyms.id = COALESCE(ws.gym_id, tp.gym_id)
+         WHERE ws.user_id = ? AND ws.completed_at IS NOT NULL`,
+        [userId]
+      );
+      const gymNameMap = new Map<string, string | null>();
+      gymNameRows.forEach(row => {
+        gymNameMap.set(row.session_id, row.gym_name || null);
+      });
 
       // Sort by session date descending (most recent first)
       const sortedSessions = workoutSessions.sort(
@@ -89,6 +106,7 @@ export default function useWorkoutHistory(): UseWorkoutHistoryReturn {
             exercise_count: exerciseCount,
             total_volume_kg: Math.round(totalVolume),
             has_prs: hasPrs,
+            gym_name: gymNameMap.get(session.id) || null,
           });
         } catch (err) {
           console.error(`Failed to process session ${session.id}:`, err);

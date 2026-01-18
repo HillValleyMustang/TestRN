@@ -224,8 +224,8 @@ export const WorkoutColors = {
   lowerBLight: '#9333ea',
   bonus: '#F59E0B',
   bonusLight: '#FBBF24',
-  adHoc: '#F59E0B',
-  adHocLight: '#FBBF24',
+  adHoc: '#64748B',
+  adHocLight: '#94A3B8',
 };
 
 // Spacing scale matching web app

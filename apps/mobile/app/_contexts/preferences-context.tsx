@@ -39,16 +39,20 @@ const PreferencesProviderInner = ({
   const [isDbReady, setIsDbReady] = useState(false);
 
   // Database initialization is now handled by DataProvider
-  // Just wait for database to be ready
+  // Wait for database to be ready before accessing it
   useEffect(() => {
     const checkDbReady = async () => {
       try {
-        // Simple check if database is initialized
-        await database.getUserPreferences(userId || 'dummy');
+        // First, ensure database is initialized
+        if (!database.isInitialized()) {
+          // If not initialized, wait for it
+          await database.init();
+        }
         setIsDbReady(true);
       } catch (err) {
-        // If it fails, database might not be ready yet
-        setTimeout(checkDbReady, 100);
+        // If initialization fails, retry after a delay
+        console.error('[Preferences] Database initialization check failed:', err);
+        setTimeout(checkDbReady, 200);
       }
     };
 

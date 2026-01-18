@@ -4,7 +4,7 @@
  * Reference: profile s7, s9, s10, s11 designs
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { FontFamily } from '../../constants/Typography';
 
 // React Native-compatible UUID generator
 const generateUUID = () => {
@@ -36,6 +37,7 @@ import { RenameGymDialog } from './RenameGymDialog';
 import { ExerciseSelectionDialog } from './ExerciseSelectionDialog';
 import { TPathSetupDialog } from './TPathSetupDialog';
 import { GymSetupSummaryModal } from './GymSetupSummaryModal';
+import { useData } from '../../app/_contexts/data-context';
 
 interface Gym {
   id: string;
@@ -80,6 +82,7 @@ export function MyGymsCardNew({
 }: MyGymsCardProps) {
   const strings = useSettingsStrings();
   const router = useRouter();
+  const { addTPath, addTPathExercise, loadDashboardSnapshot } = useData();
 
   const [isEditing, setIsEditing] = useState(false);
   const [flowStep, setFlowStep] = useState<FlowStep | null>(null);
@@ -103,15 +106,365 @@ export function MyGymsCardNew({
     sessionLength?: string;
   }>({});
 
-  const handleStartAddGym = () => {
-    setFlowStep('name');
+  // Helper function to check if a gym is incomplete
+  // A gym is incomplete if it has NO exercises, NO equipment, AND NO t_paths
+  const isGymIncomplete = async (gymId: string): Promise<boolean> => {
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:109',message:'isGymIncomplete called',data:{gymId,currentGymId,setupCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Check exercises - gym_exercises table has gym_id, exercise_id (composite key), no id column
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('gym_exercises')
+        .select('exercise_id')
+        .eq('gym_id', gymId)
+        .limit(1);
+      
+      // Check equipment
+      const { data: equipment, error: equipmentError } = await supabase
+        .from('gym_equipment')
+        .select('id')
+        .eq('gym_id', gymId)
+        .limit(1);
+      
+      // Check t_paths (workout plans)
+      const { data: tPaths, error: tPathsError } = await supabase
+        .from('t_paths')
+        .select('id')
+        .eq('gym_id', gymId)
+        .limit(1);
+      
+      // Handle null/undefined data - treat as empty array
+      const hasExercises = (exercises && Array.isArray(exercises) && exercises.length > 0) || false;
+      const hasEquipment = (equipment && Array.isArray(equipment) && equipment.length > 0) || false;
+      const hasTPaths = (tPaths && Array.isArray(tPaths) && tPaths.length > 0) || false;
+      
+      // Log errors if any (but don't fail the check)
+      if (exercisesError) {
+        console.warn('[MyGymsCard] Error checking exercises:', exercisesError);
+      }
+      if (equipmentError) {
+        console.warn('[MyGymsCard] Error checking equipment:', equipmentError);
+      }
+      if (tPathsError) {
+        console.warn('[MyGymsCard] Error checking t_paths:', tPathsError);
+      }
+      
+      // Incomplete if ALL three checks fail
+      const isIncomplete = !hasExercises && !hasEquipment && !hasTPaths;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:162',message:'isGymIncomplete result',data:{gymId,hasExercises,hasEquipment,hasTPaths,isIncomplete,exercisesError:exercisesError?.code,equipmentCount:equipment?.length,tPathsCount:tPaths?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      console.log('[MyGymsCard] Gym completeness check:', {
+        gymId,
+        hasExercises,
+        hasEquipment,
+        hasTPaths,
+        isIncomplete,
+        exercisesData: exercises,
+        equipmentData: equipment,
+        tPathsData: tPaths,
+      });
+      
+      return isIncomplete;
+    } catch (error) {
+      console.error('[MyGymsCard] Error checking gym completeness:', error);
+      // On error, assume gym is complete to avoid accidental deletion
+      return false;
+    }
   };
 
-  const handleNameComplete = (gymId: string, gymName: string) => {
-    setCurrentGymId(gymId);
-    setCurrentGymName(gymName);
-    setSetupCompleted(false);
-    setFlowStep('setup');
+  // Comprehensive cleanup function to delete incomplete gym
+  // Handles active gym switching before deletion
+  const cleanupIncompleteGym = async (gymId: string | null, forceCleanup = false) => {
+    if (!gymId) return;
+    
+    // Only skip if setup is completed and this is not a forced cleanup
+    // (forceCleanup is used when checking old incomplete gyms on mount)
+    if (!forceCleanup && setupCompleted) return;
+
+    // Double-check that gym is actually incomplete before deleting
+    const isIncomplete = await isGymIncomplete(gymId);
+    if (!isIncomplete) {
+      console.log('[MyGymsCard] Gym is not incomplete, skipping cleanup:', gymId);
+      return;
+    }
+
+    console.log('[MyGymsCard] Cleaning up incomplete gym:', gymId);
+    
+    try {
+      // If this is the active gym, switch to another gym first
+      if (gymId === activeGymId) {
+        console.log('[MyGymsCard] Incomplete gym is active, switching active gym before deletion');
+        
+        // Find another gym to switch to
+        const otherGyms = gyms.filter(g => g.id !== gymId);
+        if (otherGyms.length > 0) {
+          // Try to find a complete gym first
+          let newActiveGym = otherGyms.find(g => {
+            // Quick check - prefer gyms that we know exist
+            return true; // Will validate properly below
+          });
+          
+          // If no preference, use the first available gym
+          if (!newActiveGym) {
+            newActiveGym = otherGyms[0];
+          }
+          
+          // Switch active gym
+          if (newActiveGym) {
+            await supabase
+              .from('profiles')
+              .update({ active_gym_id: newActiveGym.id })
+              .eq('id', userId);
+            console.log('[MyGymsCard] Switched active gym to:', newActiveGym.id);
+          }
+        } else {
+          // This is the last gym - don't delete it
+          console.log('[MyGymsCard] Cannot delete incomplete gym - it is the last remaining gym');
+          return;
+        }
+      }
+      
+      // Delete gym_exercises first (foreign key constraint)
+      await supabase.from('gym_exercises').delete().eq('gym_id', gymId);
+      
+      // Delete gym_equipment
+      await supabase.from('gym_equipment').delete().eq('gym_id', gymId);
+      
+      // Delete t_paths associated with this gym (if any)
+      await supabase.from('t_paths').delete().eq('gym_id', gymId);
+      
+      // Delete the gym
+      await supabase.from('gyms').delete().eq('id', gymId);
+      
+      console.log('[MyGymsCard] Incomplete gym deleted successfully:', gymId);
+      await onRefresh();
+    } catch (error) {
+      console.error('[MyGymsCard] Error cleaning up incomplete gym:', error);
+    }
+  };
+
+  // Reusable function to clean up incomplete gyms (used on mount and before adding new gym)
+  const cleanupIncompleteGyms = async (): Promise<number> => {
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:242',message:'cleanupIncompleteGyms started',data:{userId,currentGymId,setupCompleted,activeGymId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      console.log('[MyGymsCard] Starting cleanup of incomplete gyms');
+      
+      // Find all gyms for this user
+      const { data: allGyms } = await supabase
+        .from('gyms')
+        .select('id, created_at, name')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+
+      if (!allGyms || allGyms.length === 0) {
+        console.log('[MyGymsCard] No gyms found, skipping cleanup');
+        return 0;
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:258',message:'All gyms found',data:{totalGyms:allGyms.length,gyms:allGyms.map(g=>({id:g.id,name:g.name,created_at:g.created_at})),currentGymId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      console.log('[MyGymsCard] Found', allGyms.length, 'gym(s) to check');
+
+      // Track which gyms are incomplete
+      const incompleteGyms: Array<{ id: string; created_at: string }> = [];
+      const completeGyms: Array<{ id: string; created_at: string }> = [];
+
+      // Check each gym for completeness
+      for (const gym of allGyms) {
+        const isIncomplete = await isGymIncomplete(gym.id);
+        if (isIncomplete) {
+          incompleteGyms.push(gym);
+        } else {
+          completeGyms.push(gym);
+        }
+      }
+
+      // If no incomplete gyms, nothing to do
+      if (incompleteGyms.length === 0) {
+        console.log('[MyGymsCard] No incomplete gyms found');
+        return 0;
+      }
+
+      // Always preserve at least one gym - never delete if it's the last one
+      if (allGyms.length === 1 && incompleteGyms.length === 1) {
+        console.log('[MyGymsCard] Only one gym exists and it is incomplete - preserving it');
+        return 0;
+      }
+
+      // If active gym is incomplete, switch to another gym first
+      if (activeGymId && incompleteGyms.some(g => g.id === activeGymId)) {
+        console.log('[MyGymsCard] Active gym is incomplete, switching active gym before cleanup');
+        
+        // Prefer switching to a complete gym
+        let newActiveGym = completeGyms.length > 0 
+          ? completeGyms[0] 
+          : incompleteGyms.find(g => g.id !== activeGymId);
+        
+        // If all gyms are incomplete, keep the oldest (first in sorted list)
+        if (!newActiveGym && incompleteGyms.length > 1) {
+          newActiveGym = incompleteGyms[0]; // Oldest incomplete gym
+        }
+        
+        if (newActiveGym) {
+          await supabase
+            .from('profiles')
+            .update({ active_gym_id: newActiveGym.id })
+            .eq('id', userId);
+          console.log('[MyGymsCard] Switched active gym from', activeGymId, 'to', newActiveGym.id);
+        }
+      }
+
+      // Determine which incomplete gyms to delete
+      let gymsToDelete: string[] = [];
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:309',message:'Determining gyms to delete',data:{totalGyms:allGyms.length,incompleteCount:incompleteGyms.length,completeCount:completeGyms.length,incompleteGyms:incompleteGyms.map(g=>({id:g.id,name:g.name})),completeGyms:completeGyms.map(g=>({id:g.id,name:g.name})),currentGymId,activeGymId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      if (incompleteGyms.length === allGyms.length) {
+        // All gyms are incomplete - preserve oldest, delete the rest
+        const oldestGym = incompleteGyms[0];
+        gymsToDelete = incompleteGyms
+          .filter(g => g.id !== oldestGym.id)
+          .map(g => g.id);
+        console.log('[MyGymsCard] All gyms incomplete - preserving oldest:', oldestGym.id);
+      } else {
+        // Some gyms are complete - delete all incomplete gyms
+        // BUT: Don't delete:
+        // 1. The gym currently being set up (currentGymId)
+        // 2. The active gym (activeGymId) - preserve user's current gym
+        // 3. Always preserve at least TWO gyms if one is being set up (to prevent toggle from disappearing)
+        // 4. Always preserve at least one gym total
+        const gymsToFilter = incompleteGyms.filter(g => 
+          g.id !== currentGymId && // Never delete the gym being set up
+          g.id !== activeGymId     // Never delete the active gym
+        );
+        
+        // Calculate how many gyms would remain after deletion
+        const gymsRemainingAfterDelete = completeGyms.length + incompleteGyms.length - gymsToFilter.length;
+        
+        // If we're setting up a new gym (currentGymId exists), preserve at least 2 gyms total
+        // This prevents the gym toggle from disappearing during setup
+        const minGymsToPreserve = currentGymId ? 2 : 1;
+        
+        if (gymsRemainingAfterDelete < minGymsToPreserve && incompleteGyms.length > 0) {
+          // Don't delete any if it would leave fewer than minimum gyms
+          gymsToDelete = [];
+          console.log(`[MyGymsCard] Cannot delete incomplete gyms - would leave ${gymsRemainingAfterDelete} gym(s), need at least ${minGymsToPreserve}. Preserving incomplete gym(s).`);
+        } else {
+          gymsToDelete = gymsToFilter.map(g => g.id);
+        }
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:330',message:'Gyms to delete determined',data:{gymsToDelete,currentGymId,activeGymId,gymsRemainingAfterDelete,minGymsToPreserve,filteredOut:incompleteGyms.filter(g=>g.id===currentGymId||g.id===activeGymId).map(g=>({id:g.id,name:g.name,reason:g.id===currentGymId?'currentGym':g.id===activeGymId?'activeGym':''}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+      }
+
+      // Delete incomplete gyms
+      if (gymsToDelete.length > 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:349',message:'About to delete gyms',data:{gymsToDelete,activeGymId,currentGymId,allGymsCount:allGyms.length,gymsRemainingAfterDelete:allGyms.length-gymsToDelete.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        for (const gymId of gymsToDelete) {
+          console.log('[MyGymsCard] Deleting incomplete gym:', gymId);
+          await cleanupIncompleteGym(gymId, true); // forceCleanup = true
+        }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:354',message:'Cleanup completed',data:{deletedCount:gymsToDelete.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        console.log('[MyGymsCard] Cleanup completed - deleted', gymsToDelete.length, 'incomplete gym(s)');
+        return gymsToDelete.length;
+      }
+
+      return 0;
+    } catch (error) {
+      console.error('[MyGymsCard] Error cleaning up incomplete gyms:', error);
+      return 0;
+    }
+  };
+
+  // Clean up incomplete gyms on mount (in case user closed app mid-flow)
+  // Clean up ALL incomplete gyms regardless of age, but always preserve at least one
+  // A gym is incomplete if it has NO exercises, NO equipment, AND NO t_paths
+  useEffect(() => {
+    console.log('[MyGymsCard] Mount cleanup - checking for incomplete gyms');
+    cleanupIncompleteGyms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]); // Only run on mount and when userId changes
+
+  // Clean up on unmount if setup not completed
+  useEffect(() => {
+    return () => {
+      if (currentGymId && !setupCompleted) {
+        // Note: Async cleanup in useEffect return is not supported,
+        // but this ensures we track the state. Actual cleanup happens
+        // in the onClose handlers below.
+        console.log('[MyGymsCard] Component unmounting with incomplete gym:', currentGymId);
+      }
+    };
+  }, [currentGymId, setupCompleted]);
+
+  const handleStartAddGym = () => {
+    // Set flow step immediately to show dialog - don't wait for any async operations
+    // This ensures the dialog appears immediately when user clicks "Add New Gym"
+    console.log('[MyGymsCard] Starting add gym flow');
+    setFlowStep('name');
+    
+    // Clean up incomplete gyms in background (non-blocking, fire-and-forget)
+    // This handles old incomplete gyms that weren't cleaned on mount
+    // and ensures we have space for new gym if user is at 3-gym limit
+    // Don't await this - let it run in background
+    console.log('[MyGymsCard] Starting background cleanup of incomplete gyms');
+    cleanupIncompleteGyms()
+      .then((deletedCount) => {
+        if (deletedCount > 0) {
+          console.log('[MyGymsCard] Cleaned up', deletedCount, 'incomplete gym(s), refreshing list');
+          // Only refresh if we actually deleted something
+          onRefresh().catch((error) => {
+            console.error('[MyGymsCard] Error refreshing after cleanup:', error);
+          });
+        } else {
+          console.log('[MyGymsCard] No incomplete gyms to clean up');
+        }
+      })
+      .catch((error) => {
+        console.error('[MyGymsCard] Error during background cleanup:', error);
+        // Don't block user flow even if cleanup fails
+      });
+  };
+
+  // Create gym when entering setup step
+  const handleNameComplete = async (gymName: string) => {
+    try {
+      // Create gym only when entering setup step
+      const { data: newGym, error } = await supabase
+        .from('gyms')
+        .insert({
+          name: gymName,
+          user_id: userId,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      setCurrentGymId(newGym.id);
+      setCurrentGymName(newGym.name);
+      setSetupCompleted(false);
+      setFlowStep('setup');
+    } catch (error) {
+      console.error('[MyGymsCard] Error creating gym:', error);
+      Alert.alert('Error', 'Failed to create gym. Please try again.');
+      setFlowStep(null);
+    }
   };
 
   const handleSetupOption = async (option: 'ai' | 'copy' | 'defaults' | 'empty') => {
@@ -164,6 +517,12 @@ export function MyGymsCardNew({
     } catch (error) {
       console.error('[MyGymsCard] Error setting up defaults:', error);
       Alert.alert('Error', 'Failed to set up default equipment');
+      // Clean up incomplete gym on error
+      await cleanupIncompleteGym(currentGymId);
+      setFlowStep(null);
+      setCurrentGymId('');
+      setCurrentGymName('');
+      setSetupCompleted(false);
     }
   };
 
@@ -186,24 +545,6 @@ export function MyGymsCardNew({
     setProfileData({});
     
     await onRefresh();
-  };
-
-  // Clean up incomplete gym if user exits during AI flow
-  const cleanupIncompleteGym = async () => {
-    if (currentGymId && !setupCompleted && (flowStep === 'exercise-selection' || flowStep === 'profile-setup' || flowStep === 'generating-plan')) {
-      console.log('[MyGymsCard] Cleaning up incomplete gym:', currentGymId);
-      try {
-        // Delete gym if incomplete (no exercises linked or no t-path generated)
-        await supabase
-          .from('gyms')
-          .delete()
-          .eq('id', currentGymId);
-        
-        console.log('[MyGymsCard] Incomplete gym deleted');
-      } catch (error) {
-        console.error('[MyGymsCard] Error cleaning up incomplete gym:', error);
-      }
-    }
   };
 
   // Handler when exercises are generated from equipment
@@ -244,7 +585,12 @@ export function MyGymsCardNew({
     } catch (error) {
       console.error('[MyGymsCard] Error in exercise confirmation flow:', error);
       Alert.alert('Error', 'Failed to set up your gym. Please try again.');
-      setFlowStep('setup');
+      // Clean up incomplete gym on error
+      await cleanupIncompleteGym(currentGymId);
+      setFlowStep(null);
+      setCurrentGymId('');
+      setCurrentGymName('');
+      setSetupCompleted(false);
     }
   };
 
@@ -392,7 +738,12 @@ export function MyGymsCardNew({
       } catch (error) {
         console.error('[MyGymsCard] Failed to update profile:', error);
         Alert.alert('Error', 'Failed to save your preferences. Please try again.');
-        setFlowStep('profile-setup');
+        // Clean up incomplete gym on error
+        await cleanupIncompleteGym(currentGymId);
+        setFlowStep(null);
+        setCurrentGymId('');
+        setCurrentGymName('');
+        setSetupCompleted(false);
         return;
       }
     }
@@ -500,6 +851,100 @@ export function MyGymsCardNew({
       setGeneratedTPath(mainTPath);
       setGeneratedChildWorkouts(transformedChildWorkouts);
 
+      // CRITICAL: Sync T-paths and exercises to local database so Workout screen can find them
+      console.log('[MyGymsCard] Syncing T-paths to local database...');
+      try {
+        // Sync main T-path
+        if (mainTPath) {
+          const mainTPathRecord = {
+            id: mainTPath.id,
+            user_id: userId,
+            template_name: mainTPath.template_name,
+            description: mainTPath.description || null,
+            is_main_program: !mainTPath.parent_t_path_id,
+            parent_t_path_id: mainTPath.parent_t_path_id || null,
+            order_index: mainTPath.order_index || null,
+            is_ai_generated: mainTPath.is_ai_generated || false,
+            ai_generation_params: mainTPath.ai_generation_params ? JSON.stringify(mainTPath.ai_generation_params) : null,
+            is_bonus: mainTPath.is_bonus || false,
+            created_at: mainTPath.created_at,
+            updated_at: mainTPath.updated_at || mainTPath.created_at,
+            gym_id: mainTPath.gym_id || currentGymId,
+            settings: mainTPath.settings ? JSON.stringify(mainTPath.settings) : null,
+            progression_settings: mainTPath.progression_settings ? JSON.stringify(mainTPath.progression_settings) : null,
+            version: mainTPath.version || 1,
+          };
+          await addTPath(mainTPathRecord as any);
+          console.log('[MyGymsCard] Synced main T-path to local database:', mainTPath.id);
+        }
+
+        // Sync child workouts and their exercises
+        if (childWorkouts && childWorkouts.length > 0) {
+          for (const child of childWorkouts) {
+            const childRecord = {
+              id: child.id,
+              user_id: userId,
+              template_name: child.template_name,
+              description: child.description || null,
+              is_main_program: false,
+              parent_t_path_id: child.parent_t_path_id || mainTPathId,
+              order_index: child.order_index || null,
+              is_ai_generated: child.is_ai_generated || false,
+              ai_generation_params: child.ai_generation_params ? JSON.stringify(child.ai_generation_params) : null,
+              is_bonus: child.is_bonus || false,
+              created_at: child.created_at,
+              updated_at: child.updated_at || child.created_at,
+              gym_id: child.gym_id || currentGymId,
+              settings: child.settings ? JSON.stringify(child.settings) : null,
+              progression_settings: child.progression_settings ? JSON.stringify(child.progression_settings) : null,
+              version: child.version || 1,
+            };
+            await addTPath(childRecord as any);
+            console.log('[MyGymsCard] Synced child workout to local database:', child.id, child.template_name);
+
+            // Fetch and sync exercises for this workout from Supabase
+            const { data: workoutExercises, error: exercisesError } = await supabase
+              .from('t_path_exercises')
+              .select('id, template_id, exercise_id, order_index, is_bonus_exercise, created_at')
+              .eq('template_id', child.id)
+              .order('order_index', { ascending: true });
+
+            if (!exercisesError && workoutExercises && workoutExercises.length > 0) {
+              for (const ex of workoutExercises) {
+                const tPathExercise = {
+                  id: ex.id || `${child.id}-${ex.exercise_id}-${ex.order_index}`,
+                  template_id: ex.template_id || child.id,
+                  t_path_id: ex.template_id || child.id,
+                  exercise_id: ex.exercise_id,
+                  order_index: ex.order_index !== undefined ? ex.order_index : 0,
+                  is_bonus_exercise: ex.is_bonus_exercise || false,
+                  created_at: ex.created_at || new Date().toISOString(),
+                };
+                try {
+                  await addTPathExercise(tPathExercise as any);
+                  console.log('[MyGymsCard] Synced exercise to local database:', ex.exercise_id, 'for workout', child.template_name);
+                } catch (exError: any) {
+                  // Ignore duplicate errors
+                  if (!exError?.message?.includes('UNIQUE constraint') && !exError?.message?.includes('duplicate')) {
+                    console.warn('[MyGymsCard] Error syncing exercise:', exError);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        console.log('[MyGymsCard] T-path sync to local database completed');
+      } catch (syncError) {
+        console.error('[MyGymsCard] Error syncing T-paths to local database:', syncError);
+        // Don't fail the flow if sync fails - try to force dashboard refresh instead
+        try {
+          await loadDashboardSnapshot();
+        } catch (refreshError) {
+          console.error('[MyGymsCard] Error forcing dashboard refresh:', refreshError);
+        }
+      }
+
       // Show summary modal
       setFlowStep('summary');
     } catch (error) {
@@ -508,7 +953,22 @@ export function MyGymsCardNew({
         'Error',
         'Failed to generate your workout plan. You can set it up later in T-Path Management.',
         [
-          { text: 'OK', onPress: () => finishSetup() }
+          { 
+            text: 'Cancel', 
+            style: 'cancel',
+            onPress: async () => {
+              // Clean up incomplete gym if user cancels after error
+              await cleanupIncompleteGym(currentGymId);
+              setFlowStep(null);
+              setCurrentGymId('');
+              setCurrentGymName('');
+              setSetupCompleted(false);
+            }
+          },
+          { 
+            text: 'OK', 
+            onPress: () => finishSetup() 
+          }
         ]
       );
     }
@@ -638,16 +1098,8 @@ export function MyGymsCardNew({
         visible={flowStep === 'setup'}
         gymName={currentGymName}
         onClose={async () => {
-          // User closed setup without completing - delete the incomplete gym
-          if (currentGymId && !setupCompleted) {
-            console.log('[MyGymsCard] Setup cancelled - deleting incomplete gym:', currentGymId);
-            try {
-              await supabase.from('gyms').delete().eq('id', currentGymId);
-              await onRefresh();
-            } catch (error) {
-              console.error('[MyGymsCard] Error deleting incomplete gym:', error);
-            }
-          }
+          // Clean up incomplete gym when setup dialog is closed
+          await cleanupIncompleteGym(currentGymId);
           setFlowStep(null);
           setCurrentGymId('');
           setCurrentGymName('');
@@ -887,12 +1339,13 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
     marginTop: Spacing.md,
   },
   loadingSubtext: {
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     marginTop: Spacing.xs,
     textAlign: 'center',

@@ -4,14 +4,15 @@
  * Matches web version design with grid layout for stats
  */
 
-import React from 'react';
-import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
 import { WorkoutBadge } from './WorkoutBadge';
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { DeleteWorkoutDialog } from './DeleteWorkoutDialog';
 
 interface WorkoutSession {
   id: string;
@@ -21,6 +22,7 @@ interface WorkoutSession {
   exercise_count: number;
   total_volume_kg: number;
   has_prs?: boolean;
+  gym_name?: string | null;
 }
 
 interface WorkoutHistoryCardProps {
@@ -31,20 +33,19 @@ interface WorkoutHistoryCardProps {
 
 export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: WorkoutHistoryCardProps) {
   const workoutColors = getWorkoutColor(session.template_name || 'Ad Hoc Workout');
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Workout Session',
-      `Are you sure you want to delete "${session.template_name || 'Ad Hoc Workout'}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => onDelete?.(session.id, session.template_name),
-        },
-      ]
-    );
+    setDeleteDialogVisible(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    setDeleteDialogVisible(false);
+    onDelete?.(session.id, session.template_name);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogVisible(false);
   };
 
   const formatTimeAgo = (dateString: string): string => {
@@ -105,6 +106,12 @@ export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: Workout
           <Ionicons name="timer-outline" size={12} color={Colors.mutedForeground} />
           <Text style={styles.statText}>{session.duration_string || 'Less than a minute'}</Text>
         </View>
+        {session.gym_name && (
+          <View style={styles.stat}>
+            <Ionicons name="location" size={12} color={Colors.mutedForeground} />
+            <Text style={styles.statText}>{session.gym_name}</Text>
+          </View>
+        )}
         <View style={styles.stat}>
           <Ionicons name="stats-chart-outline" size={12} color={Colors.mutedForeground} />
           <Text style={styles.statText}>{session.total_volume_kg.toLocaleString()} kg</Text>
@@ -115,6 +122,14 @@ export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: Workout
         <Text style={[styles.viewSummaryText, { color: workoutColors.main }]}>View Summary</Text>
         <Ionicons name="arrow-forward" size={14} color={workoutColors.main} />
       </Pressable>
+
+      {/* Delete Workout Confirmation Dialog */}
+      <DeleteWorkoutDialog
+        visible={deleteDialogVisible}
+        workoutName={session.template_name || 'Ad Hoc Workout'}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </View>
   );
 }

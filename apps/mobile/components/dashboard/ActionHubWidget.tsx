@@ -37,7 +37,9 @@ export function ActionHubWidget({
     if (onLogActivity) {
       onLogActivity();
     } else {
-      console.log('Activity Log pressed');
+      if (__DEV__) {
+        console.log('[ActionHubWidget] Activity Log pressed');
+      }
     }
   };
 
@@ -45,7 +47,9 @@ export function ActionHubWidget({
     if (onAICoach) {
       onAICoach();
     } else {
-      console.log('AI Coach pressed');
+      if (__DEV__) {
+        console.log('[ActionHubWidget] AI Coach pressed');
+      }
     }
   };
 
@@ -61,7 +65,9 @@ export function ActionHubWidget({
     if (onConsistencyCalendar) {
       onConsistencyCalendar();
     } else {
-      console.log('Consistency Calendar pressed');
+      if (__DEV__) {
+        console.log('[ActionHubWidget] Consistency Calendar pressed');
+      }
     }
   };
 

@@ -43,8 +43,9 @@ const getWorkoutColor = (workoutType?: string): string => {
     case 'lower b':
       return '#6b21a8'; // Purple for Lower Body B
     case 'bonus':
+      return '#F59E0B'; // Orange for Bonus (same as Legs)
     case 'ad hoc workout':
-      return '#F59E0B'; // Orange for Bonus/Ad Hoc (same as Legs)
+      return '#64748B'; // Slate for Ad Hoc
     default:
       return '#8E8E93'; // Gray for unknown/other workouts
   }
@@ -55,14 +56,6 @@ export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
   // This ensures the chart always shows the latest data from the parent
   const chartData = data;
 
-  // DEBUG: Log when chart receives new data
-  React.useEffect(() => {
-    console.log('[SimpleVolumeChart] Data prop updated:', {
-      dataLength: data.length,
-      data: data.map(d => ({ date: d.date, volume: d.volume, type: d.workoutType })),
-      timestamp: new Date().toISOString()
-    });
-  }, [data]);
 
   const maxVolume = Math.max(...chartData.map(d => d.volume), 1);
 

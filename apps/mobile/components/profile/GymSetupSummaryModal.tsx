@@ -16,6 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { FontFamily } from '../../constants/Typography';
+import { getWorkoutColor } from '../../lib/workout-colors';
 
 interface DetectedExercise {
   name: string;
@@ -77,7 +79,7 @@ export const GymSetupSummaryModal: React.FC<GymSetupSummaryModalProps> = ({
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="barbell" size={20} color={Colors.success} />
-          <Text style={styles.detailLabel}>Exercises Added:</Text>
+          <Text style={styles.detailLabel}>Exercises Added from AI:</Text>
           <Text style={styles.detailValue}>{confirmedExerciseNames.size}</Text>
         </View>
       </View>
@@ -97,47 +99,50 @@ export const GymSetupSummaryModal: React.FC<GymSetupSummaryModalProps> = ({
         </Text>
 
         <View style={styles.workoutsContainer}>
-          {childWorkouts.map((workout, workoutIndex) => (
-          <View key={workout.id} style={styles.workoutCard}>
-            <View style={styles.workoutHeader}>
-              <Text style={styles.workoutTitle}>{workout.template_name}</Text>
-              {workout.exercises && (
-                <Text style={styles.workoutCount}>
-                  {workout.exercises.length} exercise{workout.exercises.length > 1 ? 's' : ''}
-                </Text>
-              )}
-            </View>
+          {childWorkouts.map((workout, workoutIndex) => {
+            const workoutColor = getWorkoutColor(workout.template_name);
+            return (
+              <View key={workout.id} style={[styles.workoutCard, { borderColor: workoutColor.main }]}>
+                <View style={styles.workoutHeader}>
+                  <Text style={styles.workoutTitle}>{workout.template_name}</Text>
+                  {workout.exercises && (
+                    <Text style={styles.workoutCount}>
+                      {workout.exercises.length} exercise{workout.exercises.length > 1 ? 's' : ''}
+                    </Text>
+                  )}
+                </View>
 
-            {workout.exercises && workout.exercises.length > 0 ? (
-              <View style={styles.exercisesList}>
-                {workout.exercises.map((exercise, exerciseIndex) => (
-                  <View key={exerciseIndex} style={styles.exerciseRow}>
-                    <Text style={styles.exerciseName}>{exercise.name}</Text>
-                    <View style={styles.exerciseBadges}>
-                      {exercise.is_bonus_exercise && (
-                        <View style={styles.bonusBadge}>
-                          <Text style={styles.bonusBadgeText}>Bonus</Text>
+                {workout.exercises && workout.exercises.length > 0 ? (
+                  <View style={styles.exercisesList}>
+                    {workout.exercises.map((exercise, exerciseIndex) => (
+                      <View key={exerciseIndex} style={styles.exerciseRow}>
+                        <Text style={styles.exerciseName}>{exercise.name}</Text>
+                        <View style={styles.exerciseBadges}>
+                          {exercise.is_bonus_exercise && (
+                            <View style={styles.bonusBadge}>
+                              <Text style={styles.bonusBadgeText}>Bonus</Text>
+                            </View>
+                          )}
+                          {confirmedExerciseNames.has(exercise.name) && (
+                            <View style={styles.aiBadge}>
+                              <Ionicons name="sparkles" size={10} color={Colors.white} />
+                              <Text style={styles.aiBadgeText}>AI Identified</Text>
+                            </View>
+                          )}
                         </View>
-                      )}
-                      {confirmedExerciseNames.has(exercise.name) && (
-                        <View style={styles.aiBadge}>
-                          <Ionicons name="sparkles" size={10} color={Colors.white} />
-                          <Text style={styles.aiBadgeText}>AI Identified</Text>
-                        </View>
-                      )}
-                    </View>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                ) : (
+                  <Text style={styles.noExercisesText}>
+                    No exercises assigned for this session length.
+                  </Text>
+                )}
               </View>
-            ) : (
-              <Text style={styles.noExercisesText}>
-                No exercises assigned for this session length.
-              </Text>
-            )}
-          </View>
-        ))}
+            );
+          })}
+        </View>
       </View>
-    </View>
     );
   };
 
@@ -260,11 +265,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: Colors.foreground,
   },
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
@@ -284,7 +290,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
     marginBottom: Spacing.md,
   },
@@ -301,13 +307,13 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
+    fontFamily: FontFamily.medium,
     color: Colors.mutedForeground,
-    fontWeight: '500',
   },
   detailValue: {
     fontSize: 14,
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
-    fontWeight: '600',
     flex: 1,
     textAlign: 'right',
   },
@@ -356,8 +362,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 2,
   },
   workoutHeader: {
     flexDirection: 'row',
@@ -367,11 +372,12 @@ const styles = StyleSheet.create({
   },
   workoutTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.foreground,
   },
   workoutCount: {
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
   },
   exercisesList: {
@@ -400,7 +406,7 @@ const styles = StyleSheet.create({
   },
   bonusBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: '#fff',
   },
   aiBadge: {
@@ -414,16 +420,18 @@ const styles = StyleSheet.create({
   },
   aiBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: Colors.white,
   },
   noExercisesText: {
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     fontStyle: 'italic',
   },
   explanationText: {
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: Colors.mutedForeground,
     lineHeight: 20,
   },

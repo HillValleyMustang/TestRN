@@ -43,25 +43,30 @@ export function WeeklyTargetWidget({
   loading,
   error,
 }: WeeklyTargetWidgetProps) {
-  // Use a ref to track the previous completedWorkouts length for debugging
-  const prevCompletedLengthRef = useRef(completedWorkouts.length);
+  // Use a ref to track the previous completedWorkouts for deep comparison
+  const prevCompletedWorkoutsRef = useRef<string>(JSON.stringify(completedWorkouts.map(w => ({ id: w.id, name: w.name }))));
   const [renderKey, setRenderKey] = useState(0);
 
   // Force re-render when completedWorkouts changes to ensure fresh data
+  // CRITICAL FIX: Use deep comparison instead of just length to detect actual changes
   useEffect(() => {
-    if (prevCompletedLengthRef.current !== completedWorkouts.length) {
+    const currentWorkoutsKey = JSON.stringify(completedWorkouts.map(w => ({ id: w.id, name: w.name })));
+    if (prevCompletedWorkoutsRef.current !== currentWorkoutsKey) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyTargetWidget.tsx:51',message:'WeeklyTargetWidget detected workout change',data:{oldKey:prevCompletedWorkoutsRef.current,newKey:currentWorkoutsKey,oldLength:JSON.parse(prevCompletedWorkoutsRef.current||'[]').length,newLength:completedWorkouts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       if (__DEV__) {
         console.log('🔄 WeeklyTargetWidget useEffect triggered:', {
-          oldLength: prevCompletedLengthRef.current,
-          newLength: completedWorkouts.length,
+          oldKey: prevCompletedWorkoutsRef.current,
+          newKey: currentWorkoutsKey,
           completedWorkouts: completedWorkouts.map(w => ({ id: w.id, name: w.name }))
         });
       }
-      prevCompletedLengthRef.current = completedWorkouts.length;
+      prevCompletedWorkoutsRef.current = currentWorkoutsKey;
       // Force a re-render by incrementing the render key
       setRenderKey(prev => prev + 1);
     }
-  }, [completedWorkouts.length, completedWorkouts]);
+  }, [completedWorkouts]);
 
   // Construct progress text safely
   const progressText = useMemo(() => {

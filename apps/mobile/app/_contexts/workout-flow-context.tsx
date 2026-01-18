@@ -26,6 +26,7 @@ import { database, addToSyncQueue } from '../_lib/database';
 import { fetchExerciseDefinitions } from '../_lib/supabase';
 import { supabase } from '../_lib/supabase';
 import { useAuth } from './auth-context';
+import { saveWorkoutState, loadWorkoutState, clearWorkoutState, type InFlightWorkoutState } from '../../lib/workoutStorage';
 
 // Define types for workout state
 interface SetLogState {
@@ -100,6 +101,10 @@ interface WorkoutFlowContextValue {
   requestNavigation: (action: () => void) => void;
   confirmLeave: (onLeave?: () => void) => void;
   cancelLeave: () => void;
+
+  // Resume functionality
+  loadSavedWorkoutState: () => Promise<InFlightWorkoutState | null>;
+  resumeWorkout: (state: InFlightWorkoutState) => Promise<void>;
 }
 
 const WorkoutFlowContext = createContext<WorkoutFlowContextValue | undefined>(
@@ -133,6 +138,55 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     return Object.values(exercisesWithSets).flat().some(set => !set.isSaved && hasUserInput(set));
   }, [isWorkoutActive, exercisesWithSets]);
 
+  // Auto-save workout state to AsyncStorage (debounced)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    // Only save if workout is active and we have a userId
+    if (!isWorkoutActive || !userId || !currentSessionId) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce save by 500ms
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const stateToSave: Omit<InFlightWorkoutState, 'savedAt'> = {
+          activeWorkout,
+          exercisesForSession,
+          exercisesWithSets,
+          currentSessionId,
+          sessionStartTime: sessionStartTime ? sessionStartTime.toISOString() : null,
+          completedExercises: Array.from(completedExercises),
+          expandedExerciseCards,
+        };
+        await saveWorkoutState(userId, stateToSave);
+      } catch (error) {
+        console.error('[WorkoutFlow] Error auto-saving workout state:', error);
+      }
+    }, 500);
+
+    // Cleanup timeout on unmount or dependency change
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [
+    isWorkoutActive,
+    userId,
+    activeWorkout,
+    exercisesForSession,
+    exercisesWithSets,
+    currentSessionId,
+    sessionStartTime,
+    completedExercises,
+    expandedExerciseCards,
+  ]);
+
   // Reset local state
   const _resetLocalState = useCallback(() => {
     setActiveWorkout(null);
@@ -148,7 +202,15 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
   // Reset workout session
   const resetWorkoutSession = useCallback(async () => {
     _resetLocalState();
-  }, [_resetLocalState]);
+    // Clear saved workout state from AsyncStorage
+    if (userId) {
+      try {
+        await clearWorkoutState(userId);
+      } catch (error) {
+        console.error('[WorkoutFlow] Error clearing workout state:', error);
+      }
+    }
+  }, [_resetLocalState, userId]);
 
   // Select workout
   const selectWorkout = useCallback(async (workoutId: string | null) => {
@@ -434,6 +496,15 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setIsCreatingSession(true);
     try {
+      // Get active gym_id from profile to associate workout with gym
+      let activeGymId: string | null = null;
+      try {
+        const profile = await database.getProfile(userId);
+        activeGymId = profile?.active_gym_id || null;
+      } catch (error) {
+        console.warn('[WorkoutFlow] Failed to get active_gym_id from profile:', error);
+      }
+
       const newSessionId = generateUUID();
       const sessionData: WorkoutSession = {
         id: newSessionId,
@@ -444,10 +515,11 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         rating: null,
         duration_string: null,
         t_path_id: activeWorkout.id === 'ad-hoc' ? null : activeWorkout.id,
+        gym_id: activeGymId,
         created_at: new Date().toISOString(),
       };
 
-      console.log('[WorkoutFlow] Creating session:', newSessionId);
+      console.log('[WorkoutFlow] Creating session:', newSessionId, 'with gym_id:', activeGymId);
       await database.addWorkoutSession(sessionData);
       await addToSyncQueue('create', 'workout_sessions', sessionData);
 
@@ -503,21 +575,23 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     // Allow time-based workout tracking - no longer require logged sets
     console.log('[WorkoutFlow] Allowing workout completion for time-based tracking');
 
-    // Save any sets that have user input but aren't marked as saved yet
+    // Save ALL sets that have user input (not just unsaved ones, since "Save Exercise" no longer saves to DB)
     const setsToSave: Array<{ exerciseId: string; set: SetLogState; setIndex: number }> = [];
     for (const [exerciseId, sets] of Object.entries(exercisesWithSets)) {
       sets.forEach((set, setIndex) => {
-        if (!set.isSaved && hasUserInput(set) && set.id && typeof set.id === 'string') {
+        if (hasUserInput(set)) {
           setsToSave.push({ exerciseId, set, setIndex });
         }
       });
     }
 
-    // Save the unsaved sets
+    // Save all sets with user input to database
     for (const { exerciseId, set, setIndex } of setsToSave) {
       try {
+        // Generate ID if set doesn't have one
+        const setId = set.id || generateUUID();
         const setData = {
-          id: set.id!,
+          id: setId,
           session_id: currentSessionId!,
           exercise_id: exerciseId,
           weight_kg: set.weight_kg,
@@ -525,18 +599,18 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           reps_l: set.reps_l,
           reps_r: set.reps_r,
           time_seconds: set.time_seconds,
-          is_pb: set.is_pb,
+          is_pb: set.is_pb || set.isPR || false,
           created_at: set.created_at || new Date().toISOString(),
         };
 
-        console.log('Saving unsaved set to database:', setData);
+        console.log('Saving set to database:', setData);
         await database.addSetLog(setData);
         await addToSyncQueue('create', 'set_logs', setData);
 
-        // Update the set as saved in local state
-        updateSet(exerciseId, setIndex, { isSaved: true });
+        // Update the set as saved in local state with the generated ID
+        updateSet(exerciseId, setIndex, { id: setId, isSaved: true, created_at: setData.created_at });
       } catch (error) {
-        console.error('Error saving unsaved set:', error);
+        console.error('Error saving set:', error);
       }
     }
 
@@ -583,6 +657,16 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const finishedSessionId = currentSessionId;
+
+      // Clear saved workout state from AsyncStorage after successful completion
+      if (userId) {
+        try {
+          await clearWorkoutState(userId);
+          console.log('[WorkoutFlow] Cleared workout state after completion');
+        } catch (error) {
+          console.error('[WorkoutFlow] Error clearing workout state after completion:', error);
+        }
+      }
 
       // Don't reset workout session here - let the summary screen handle it
       // await resetWorkoutSession();
@@ -861,6 +945,71 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     pendingActionRef.current = null;
   }, []);
 
+  // Load saved workout state from AsyncStorage
+  const loadSavedWorkoutState = useCallback(async (): Promise<InFlightWorkoutState | null> => {
+    if (!userId) {
+      return null;
+    }
+    try {
+      const savedState = await loadWorkoutState(userId);
+      return savedState;
+    } catch (error) {
+      console.error('[WorkoutFlow] Error loading saved workout state:', error);
+      return null;
+    }
+  }, [userId]);
+
+  // Resume workout from saved state
+  const resumeWorkout = useCallback(async (state: InFlightWorkoutState): Promise<void> => {
+    if (!userId) {
+      console.error('[WorkoutFlow] Cannot resume workout - no userId');
+      return;
+    }
+
+    try {
+      console.log('[WorkoutFlow] Resuming workout from saved state');
+
+      // Verify session still exists in database, create new one if not
+      let sessionId = state.currentSessionId;
+      if (sessionId) {
+        const existingSession = await database.getWorkoutSessionById(sessionId);
+        if (!existingSession) {
+          console.log('[WorkoutFlow] Saved session not found, creating new session');
+          // Create new session
+          const newSessionId = generateUUID();
+          const sessionData: WorkoutSession = {
+            id: newSessionId,
+            user_id: userId,
+            session_date: state.sessionStartTime || new Date().toISOString(),
+            template_name: state.activeWorkout?.template_name || 'Ad Hoc Workout',
+            completed_at: null,
+            rating: null,
+            duration_string: null,
+            t_path_id: state.activeWorkout?.id === 'ad-hoc' ? null : state.activeWorkout?.id || null,
+            created_at: new Date().toISOString(),
+          };
+          await database.addWorkoutSession(sessionData);
+          await addToSyncQueue('create', 'workout_sessions', sessionData);
+          sessionId = newSessionId;
+        }
+      }
+
+      // Restore all state
+      setActiveWorkout(state.activeWorkout);
+      setExercisesForSession(state.exercisesForSession);
+      setExercisesWithSets(state.exercisesWithSets);
+      setCurrentSessionId(sessionId);
+      setSessionStartTime(state.sessionStartTime ? new Date(state.sessionStartTime) : null);
+      setCompletedExercises(new Set(state.completedExercises));
+      setExpandedExerciseCards(state.expandedExerciseCards);
+
+      console.log('[WorkoutFlow] Workout resumed successfully');
+    } catch (error) {
+      console.error('[WorkoutFlow] Error resuming workout:', error);
+      ToastAndroid.show('Failed to resume workout.', ToastAndroid.SHORT);
+    }
+  }, [userId]);
+
   // Handle hardware back press
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -924,6 +1073,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       requestNavigation,
       confirmLeave,
       cancelLeave,
+
+      // Resume functionality
+      loadSavedWorkoutState,
+      resumeWorkout,
     }),
     [
       isWorkoutActive,
@@ -953,6 +1106,8 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       requestNavigation,
       confirmLeave,
       cancelLeave,
+      loadSavedWorkoutState,
+      resumeWorkout,
     ]
   );
 

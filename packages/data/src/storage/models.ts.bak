@@ -7,7 +7,6 @@ export interface WorkoutSession {
   rating: number | null;
   duration_string: string | null;
   t_path_id: string | null;
-  gym_id: string | null;
   created_at: string;
 }
 

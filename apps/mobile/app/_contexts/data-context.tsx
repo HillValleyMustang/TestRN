@@ -28,6 +28,10 @@ import type { TempStatusMessage } from '../../hooks/useRollingStatus';
 // Constants for gym management
 const MAX_GYMS_PER_USER = 3;
 
+// Workout order constants for sorting
+const ULUL_ORDER = ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+const PPL_ORDER = ['Push', 'Pull', 'Legs'];
+
 interface WorkoutStats {
   totalWorkouts: number;
   totalVolume: number;
@@ -98,6 +102,7 @@ export interface DashboardWorkoutSummary {
   completed_at: string | null;
   duration_string: string | null;
   exercise_count: number;
+  gym_name?: string | null;
 }
 
 export interface DashboardVolumePoint {
@@ -413,7 +418,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const firstWorkout = workouts[0];
       const workoutName = firstWorkout.session.template_name?.toLowerCase() || '';
       
-      console.log(`[buildVolumePoints] Date ${date}: Found ${workouts.length} workouts, first: "${workoutName}"`);
+      if (__DEV__) {
+        console.log(`[buildVolumePoints] Date ${date}: Found ${workouts.length} workouts, first: "${workoutName}"`);
+      }
       
       // Map workout names to types for color coding
       let workoutType = 'other';
@@ -456,7 +463,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const volume = Math.max(0, Number(map.get(key) ?? 0));
       const workoutType = workoutTypeByDate.get(key);
       
-      console.log(`[buildVolumePoints] Date: ${key}, Volume: ${volume}, WorkoutType: ${workoutType}, Should show color: ${volume > 0 && workoutType}`);
       
       points.push({
         date: key,
@@ -531,6 +537,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                               cacheAge > CACHE_DURATION ||
                               !dashboardCache;
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:535',message:'loadDashboardSnapshot - checking shouldForceRefresh',data:{shouldRefreshDashboard,cacheAge,hasDashboardCache:!!dashboardCache,shouldForceRefresh},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
     // Prevent concurrent loads first
     // BUT: Always bypass if shouldRefreshDashboard is true (deletion/completion needs fresh data)
     if (isLoading && !shouldRefreshDashboard) {
@@ -555,16 +565,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     
     if (dashboardCache && !shouldForceRefresh) {
       console.log('[DataContext] Using cached dashboard data (cache age:', cacheAge, 'ms)');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:561',message:'Using cached dashboard data',data:{cacheAge,cachedProfileActiveTPathId:dashboardCache.data?.profile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       return dashboardCache.data;
     }
     
     if (shouldForceRefresh) {
-      console.log('[DataContext] Forcing dashboard refresh - cache bypassed due to:', {
-        shouldRefreshDashboard,
-        cacheAge,
-        cacheExists: !!dashboardCache,
-        cacheDuration: CACHE_DURATION
-      });
+      if (__DEV__) {
+        console.log('[DataContext] Forcing dashboard refresh - cache bypassed due to:', {
+          shouldRefreshDashboard,
+          cacheAge,
+          cacheExists: !!dashboardCache,
+          cacheDuration: CACHE_DURATION
+        });
+      }
     }
 
     if (!userId) {
@@ -589,8 +604,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
 
     // If shouldRefreshDashboard is true, don't use cached profile - force fresh fetch
-    // This ensures we get the latest programme_type after T-Path regeneration
+    // This ensures we get the latest programme_type after T-Path regeneration or gym switch
     let latestProfile = shouldRefreshDashboard ? null : profileCache;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:605',message:'loadDashboardSnapshot - profile cache check',data:{shouldRefreshDashboard,hasProfileCache:!!profileCache,cachedActiveTPathId:profileCache?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
     let remoteActiveTPath: DashboardProgram | null = null;
     let remoteChildWorkouts: DashboardProgram[] = [];
 
@@ -637,6 +655,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             last_name: profileData.last_name,
             onboarding_completed: Boolean(profileData.onboarding_completed),
           };
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:633',message:'loadDashboardSnapshot - profile loaded from Supabase',data:{profileId:profileData.id,activeTPathId:profileData.active_t_path_id,programmeType:profileData.programme_type,shouldRefreshDashboard,oldCachedActiveTPathId:profileCache?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'F'})}).catch(()=>{});
+          // #endregion
           setProfileCache(latestProfile);
           
           // Also update local profile for offline access (profile storage not implemented in database yet)
@@ -910,7 +931,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             if (tPathExercisesError) {
               console.warn(`[DataContext] Failed to load exercises for workout ${workoutId}:`, tPathExercisesError);
             } else if (tPathExercisesData && tPathExercisesData.length > 0) {
-              console.log(`[DataContext] Syncing ${tPathExercisesData.length} exercises for workout ${workoutId}`);
+              if (__DEV__) {
+                console.log(`[DataContext] Syncing ${tPathExercisesData.length} exercises for workout ${workoutId}`);
+              }
               
               // Sync each exercise link to local database
               for (const exerciseRow of tPathExercisesData) {
@@ -963,7 +986,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         database.getRecentWorkoutSummaries(userId, 50), // Increased from 5 to capture all recent workouts including testing sessions
       ]);
 
-    console.log('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+    if (__DEV__) {
+      console.log('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+    }
 
     // Check gym activation cache first
     const cachedActiveGym = gymActivationCache[userId];
@@ -1011,7 +1036,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     const recentWorkouts: DashboardWorkoutSummary[] = recentWorkoutsRaw
       .filter(({ exercise_count }) => exercise_count > 0) // Only include completed workouts with exercises
-      .map(({ session, exercise_count, first_set_at, last_set_at }) => ({
+      .map(({ session, exercise_count, first_set_at, last_set_at, gym_name }) => ({
         id: session.id,
         template_name: session.template_name,
         session_date: session.session_date,
@@ -1022,6 +1047,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           last_set_at
         ),
         exercise_count,
+        gym_name: gym_name || null,
       }));
 
     // Filter workouts to only include those from the current week (Monday to Sunday) for weekly summary
@@ -1068,20 +1094,20 @@ if (__DEV__) {
     sessionId: w.id,
     date: w.completed_at || w.session_date
   })));
-}
-
-console.log('Weekly summary calculation:', {
-  totalRecentWorkouts: recentWorkouts.length,
-  currentWeekWorkouts: currentWeekWorkouts.length,
-  uniqueWorkouts: uniqueWorkouts.length,
-  startOfWeek: startOfWeek.toISOString(),
-  endOfWeek: endOfWeek.toISOString(),
-  programmeType: programmeType,
-  goalTotal: programmeType === 'ulul' ? 4 : 3,
-  completedWorkouts: uniqueWorkouts.map(w => ({ name: w.template_name, date: w.completed_at || w.session_date })),
-  rawSessionsThisWeek: currentWeekWorkouts.length, // Total raw sessions before deduplication
-  testingNote: 'If you see many sessions of same type, this is likely from testing'
-});
+  
+  console.log('Weekly summary calculation:', {
+    totalRecentWorkouts: recentWorkouts.length,
+    currentWeekWorkouts: currentWeekWorkouts.length,
+    uniqueWorkouts: uniqueWorkouts.length,
+    startOfWeek: startOfWeek.toISOString(),
+    endOfWeek: endOfWeek.toISOString(),
+    programmeType: programmeType,
+    goalTotal: programmeType === 'ulul' ? 4 : 3,
+    completedWorkouts: uniqueWorkouts.map(w => ({ name: w.template_name, date: w.completed_at || w.session_date })),
+    rawSessionsThisWeek: currentWeekWorkouts.length, // Total raw sessions before deduplication
+    testingNote: 'If you see many sessions of same type, this is likely from testing'
+  });
+  }
 
     const weeklySummary: DashboardWeeklySummary = {
       completed_workouts: uniqueWorkouts.map(workout => ({
@@ -1102,13 +1128,22 @@ console.log('Weekly summary calculation:', {
       return dateB.getTime() - dateA.getTime(); // Most recent first
     });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1124',message:'Looking up t-path in local DB',data:{hasLatestProfile:!!latestProfile,activeTPathId:latestProfile?.active_t_path_id,programmeType},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     const activeTPathRecord = latestProfile?.active_t_path_id
       ? await database.getTPath(latestProfile.active_t_path_id)
       : null;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1126',message:'getTPath result',data:{activeTPathId:latestProfile?.active_t_path_id,found:!!activeTPathRecord,tPathName:activeTPathRecord?.template_name},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
 
     const localChildWorkouts = latestProfile?.active_t_path_id
       ? await database.getTPathsByParent(latestProfile.active_t_path_id)
       : [];
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1131',message:'getTPathsByParent result',data:{activeTPathId:latestProfile?.active_t_path_id,workoutsCount:localChildWorkouts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
 
     // Ensure we have a consistent activeTPath - prefer remote if available, otherwise use local
     const activeTPath =
@@ -1116,9 +1151,32 @@ console.log('Weekly summary calculation:', {
       (activeTPathRecord ? mapTPathToProgram(activeTPathRecord) : null);
 
     // Use a consistent data source - prefer local data after initial remote load
-    const tPathWorkouts = localChildWorkouts.length > 0
+    let tPathWorkouts = localChildWorkouts.length > 0
       ? localChildWorkouts.map(mapTPathToProgram)
       : remoteChildWorkouts;
+
+    // Sort workouts based on programme type
+    if (programmeType === 'ulul') {
+      tPathWorkouts = [...tPathWorkouts].sort((a, b) => {
+        const indexA = ULUL_ORDER.indexOf(a.template_name);
+        const indexB = ULUL_ORDER.indexOf(b.template_name);
+        // If workout not found in order, put it at the end
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    } else if (programmeType === 'ppl') {
+      tPathWorkouts = [...tPathWorkouts].sort((a, b) => {
+        const indexA = PPL_ORDER.indexOf(a.template_name);
+        const indexB = PPL_ORDER.indexOf(b.template_name);
+        // If workout not found in order, put it at the end
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
 
     // Determine the next workout based on PPL program structure
     let nextWorkout: DashboardProgram | null = null;
@@ -1294,8 +1352,10 @@ console.log('Weekly summary calculation:', {
           const workoutType = lastWorkout.template_name?.toLowerCase() || '';
           const secondWorkoutType = secondLastWorkout?.template_name?.toLowerCase() || '';
           
-          console.log('ULUL progression - last workout:', workoutType);
-          console.log('ULUL progression - second last workout:', secondWorkoutType);
+          if (__DEV__) {
+            console.log('ULUL progression - last workout:', workoutType);
+            console.log('ULUL progression - second last workout:', secondWorkoutType);
+          }
           
           if (workoutType.includes('upper') && workoutType.includes('a') && !secondWorkoutType.includes('lower')) {
             // After Upper A and last wasn't Lower A, next should be Lower A
@@ -1344,13 +1404,15 @@ console.log('Weekly summary calculation:', {
       }
     }
 
-    console.log('Final nextWorkout determination:', {
-      programmeType,
-      totalRecentWorkouts: sortedRecentWorkouts.length,
-      lastWorkout: sortedRecentWorkouts[0]?.template_name,
-      nextWorkout: nextWorkout?.template_name,
-      availableWorkouts: tPathWorkouts.map(w => w.template_name)
-    });
+    if (__DEV__) {
+      console.log('Final nextWorkout determination:', {
+        programmeType,
+        totalRecentWorkouts: sortedRecentWorkouts.length,
+        lastWorkout: sortedRecentWorkouts[0]?.template_name,
+        nextWorkout: nextWorkout?.template_name,
+        availableWorkouts: tPathWorkouts.map(w => w.template_name)
+      });
+    }
 
     // Prevent inconsistent state by ensuring we don't return null activeTPath when we have tPathWorkouts
     const stableActiveTPath = activeTPath || (tPathWorkouts.length > 0 && latestProfile?.active_t_path_id ? {
@@ -1376,6 +1438,9 @@ console.log('Weekly summary calculation:', {
     setDataLoaded(true);
 
     // Cache the result
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1411',message:'Setting dashboard cache',data:{profileActiveTPathId:result.profile?.active_t_path_id,shouldRefreshDashboard},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     setDashboardCache({
       data: result,
       timestamp: Date.now()
@@ -1591,8 +1656,25 @@ console.log('Weekly summary calculation:', {
     // Update last workout completion time for debugging
     setLastWorkoutCompletionTime(Date.now());
 
-    // Show "Workout Complete!" message first (will be cleared after 2 seconds when sync box hides)
-    setTempStatusMessage({ message: 'Workout Complete!', type: 'success' });
+    // ENFORCEMENT: Only show "Workout Complete!" message once per session to prevent flickering
+    // Check if we've already shown the message for this session
+    const sessionMessageKey = session?.id ? `workout_complete_msg_${session.id}` : 'workout_complete_msg_general';
+    const messageAlreadyShown = (global as any)[sessionMessageKey];
+    
+    if (!messageAlreadyShown) {
+      // Mark that we've shown the message for this session
+      (global as any)[sessionMessageKey] = true;
+      // Clear the flag after 10 seconds to allow for future workouts
+      setTimeout(() => {
+        delete (global as any)[sessionMessageKey];
+      }, 10000);
+      
+      // Show "Workout Complete!" message first (will be cleared after 2 seconds when sync box hides)
+      setTempStatusMessage({ message: 'Workout Complete!', type: 'success' });
+      console.log('[DataContext] ENFORCEMENT: Showing "Workout Complete!" message for session:', session?.id || 'general');
+    } else {
+      console.log('[DataContext] ENFORCEMENT: Skipping "Workout Complete!" message - already shown for this session');
+    }
 
     // Update rolling workout status after workout completion
     if (userId && supabase) {
@@ -1642,7 +1724,9 @@ console.log('Weekly summary calculation:', {
     if (!userId || !supabase) return;
 
     try {
-      console.log('[DataContext] Checking for missed weekly completions for user:', userId);
+      if (__DEV__) {
+        console.log('[DataContext] Checking for missed weekly completions for user:', userId);
+      }
 
       // Invoke the edge function to check missed weekly completions
       // The edge function will determine which weeks need checking
@@ -1661,7 +1745,9 @@ console.log('Weekly summary calculation:', {
         return;
       }
 
-      console.log('[DataContext] Checked missed weekly completions successfully', data);
+      if (__DEV__) {
+        console.log('[DataContext] Checked missed weekly completions successfully', data);
+      }
       // Refresh profile to get updated points after weekly completion check
       // Use a small delay to ensure the points update has completed
       setTimeout(() => {
@@ -2020,7 +2106,9 @@ console.log('Weekly summary calculation:', {
   };
 
   const forceRefreshProfile = useCallback(async () => {
-    console.log('[DataContext] Forcing profile refresh...');
+    if (__DEV__) {
+      console.log('[DataContext] Forcing profile refresh...');
+    }
 
     // First, prioritize processing any pending sync items
     if (isInitialized && userId && isOnline) {

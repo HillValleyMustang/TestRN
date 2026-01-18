@@ -24,7 +24,7 @@ export const WORKOUT_COLORS: Record<string, WorkoutColorScheme> = {
   'Lower B': { main: '#6b21a8', light: '#9333ea' },
   
   'Bonus': { main: '#F59E0B', light: '#FBBF24' },
-  'Ad Hoc Workout': { main: '#F59E0B', light: '#FBBF24' },
+  'Ad Hoc Workout': { main: '#64748B', light: '#94A3B8' },
   
   '3-Day Push/Pull/Legs': { main: '#3B82F6', light: '#60A5FA' },
   '4-Day Upper/Lower': { main: '#1e3a8a', light: '#2563eb' },

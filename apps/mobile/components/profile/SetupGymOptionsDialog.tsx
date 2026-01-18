@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { TextStyles, FontFamily } from '../../constants/Typography';
 
 interface SetupOption {
   id: 'ai' | 'copy' | 'defaults' | 'empty';
@@ -157,18 +158,18 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 24,
     color: Colors.mutedForeground,
+    fontFamily: FontFamily.regular,
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: Colors.foreground,
     marginBottom: Spacing.sm,
   },
   description: {
-    fontSize: 14,
+    ...TextStyles.bodySmall,
     color: Colors.mutedForeground,
     marginBottom: Spacing.lg,
-    lineHeight: 20,
   },
   optionsContainer: {
     marginTop: Spacing.md,
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   },
   optionTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: Colors.gray900,
     marginRight: Spacing.xs,
   },
@@ -221,13 +222,12 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
     letterSpacing: 0.5,
   },
   optionDescription: {
-    fontSize: 12,
+    ...TextStyles.small,
     color: Colors.mutedForeground,
-    lineHeight: 16,
   },
 });

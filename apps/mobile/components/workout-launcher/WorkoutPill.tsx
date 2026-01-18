@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, Footprints, Plus } from 'lucide-react-native';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { getWorkoutColor } from '../../lib/workout-colors';
 
 export type WorkoutType = 'push-pull-legs' | 'upper-lower';
 export type WorkoutCategory = 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'ad-hoc';
@@ -19,7 +20,15 @@ interface WorkoutPillProps {
   hideLastCompleted?: boolean;
 }
 
-const getCategoryColor = (category: WorkoutCategory): string => {
+const getCategoryColor = (category: WorkoutCategory, workoutName?: string): string => {
+  // If we have a workout name, use getWorkoutColor to get the exact color
+  // This ensures ULUL workouts (Upper Body A, Upper Body B, Lower Body A, Lower Body B) get correct colors
+  if (workoutName) {
+    const colors = getWorkoutColor(workoutName);
+    return colors.main;
+  }
+  
+  // Fallback to category-based colors for backwards compatibility
   switch (category) {
     case 'push':
       return '#3B82F6'; // Blue
@@ -28,11 +37,11 @@ const getCategoryColor = (category: WorkoutCategory): string => {
     case 'legs':
       return '#F59E0B'; // Amber
     case 'upper':
-      return '#8B5CF6'; // Purple
+      return '#8B5CF6'; // Purple (fallback for generic upper)
     case 'lower':
-      return '#EF4444'; // Red
+      return '#EF4444'; // Red (fallback for generic lower)
     case 'ad-hoc':
-      return '#6B7280'; // Gray
+      return '#64748B'; // Slate (matches Ad Hoc Workout color)
     default:
       return Colors.primary;
   }
@@ -81,7 +90,8 @@ export const WorkoutPill: React.FC<WorkoutPillProps> = ({
   // className,
   hideLastCompleted = false,
 }) => {
-  const backgroundColor = getCategoryColor(category);
+  // Use workout name to get the exact color (important for ULUL workouts)
+  const backgroundColor = getCategoryColor(category, title);
   const IconComponent = getCategoryIcon(category);
   const lastCompletedText = formatLastCompleted(completedAt || null);
 
