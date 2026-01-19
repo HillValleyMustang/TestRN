@@ -110,10 +110,7 @@ export function MyGymsCardNew({
   // A gym is incomplete if it has NO exercises, NO equipment, AND NO t_paths
   const isGymIncomplete = async (gymId: string): Promise<boolean> => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:109',message:'isGymIncomplete called',data:{gymId,currentGymId,setupCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+            
       // Check exercises - gym_exercises table has gym_id, exercise_id (composite key), no id column
       const { data: exercises, error: exercisesError } = await supabase
         .from('gym_exercises')
@@ -154,10 +151,7 @@ export function MyGymsCardNew({
       // Incomplete if ALL three checks fail
       const isIncomplete = !hasExercises && !hasEquipment && !hasTPaths;
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:162',message:'isGymIncomplete result',data:{gymId,hasExercises,hasEquipment,hasTPaths,isIncomplete,exercisesError:exercisesError?.code,equipmentCount:equipment?.length,tPathsCount:tPaths?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+            
       console.log('[MyGymsCard] Gym completeness check:', {
         gymId,
         hasExercises,
@@ -251,10 +245,7 @@ export function MyGymsCardNew({
   // Reusable function to clean up incomplete gyms (used on mount and before adding new gym)
   const cleanupIncompleteGyms = async (): Promise<number> => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:242',message:'cleanupIncompleteGyms started',data:{userId,currentGymId,setupCompleted,activeGymId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      console.log('[MyGymsCard] Starting cleanup of incomplete gyms');
+            console.log('[MyGymsCard] Starting cleanup of incomplete gyms');
       
       // Find all gyms for this user
       const { data: allGyms } = await supabase
@@ -268,10 +259,7 @@ export function MyGymsCardNew({
         return 0;
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:258',message:'All gyms found',data:{totalGyms:allGyms.length,gyms:allGyms.map(g=>({id:g.id,name:g.name,created_at:g.created_at})),currentGymId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      console.log('[MyGymsCard] Found', allGyms.length, 'gym(s) to check');
+            console.log('[MyGymsCard] Found', allGyms.length, 'gym(s) to check');
 
       // Track which gyms are incomplete
       const incompleteGyms: Array<{ id: string; created_at: string }> = [];
@@ -325,10 +313,7 @@ export function MyGymsCardNew({
       // Determine which incomplete gyms to delete
       let gymsToDelete: string[] = [];
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:309',message:'Determining gyms to delete',data:{totalGyms:allGyms.length,incompleteCount:incompleteGyms.length,completeCount:completeGyms.length,incompleteGyms:incompleteGyms.map(g=>({id:g.id,name:g.name})),completeGyms:completeGyms.map(g=>({id:g.id,name:g.name})),currentGymId,activeGymId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      
+            
       if (incompleteGyms.length === allGyms.length) {
         // All gyms are incomplete - preserve oldest, delete the rest
         const oldestGym = incompleteGyms[0];
@@ -363,24 +348,15 @@ export function MyGymsCardNew({
           gymsToDelete = gymsToFilter.map(g => g.id);
         }
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:330',message:'Gyms to delete determined',data:{gymsToDelete,currentGymId,activeGymId,gymsRemainingAfterDelete,minGymsToPreserve,filteredOut:incompleteGyms.filter(g=>g.id===currentGymId||g.id===activeGymId).map(g=>({id:g.id,name:g.name,reason:g.id===currentGymId?'currentGym':g.id===activeGymId?'activeGym':''}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-      }
+              }
 
       // Delete incomplete gyms
       if (gymsToDelete.length > 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:349',message:'About to delete gyms',data:{gymsToDelete,activeGymId,currentGymId,allGymsCount:allGyms.length,gymsRemainingAfterDelete:allGyms.length-gymsToDelete.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        for (const gymId of gymsToDelete) {
+                for (const gymId of gymsToDelete) {
           console.log('[MyGymsCard] Deleting incomplete gym:', gymId);
           await cleanupIncompleteGym(gymId, true); // forceCleanup = true
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MyGymsCardNew.tsx:354',message:'Cleanup completed',data:{deletedCount:gymsToDelete.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        console.log('[MyGymsCard] Cleanup completed - deleted', gymsToDelete.length, 'incomplete gym(s)');
+                console.log('[MyGymsCard] Cleanup completed - deleted', gymsToDelete.length, 'incomplete gym(s)');
         return gymsToDelete.length;
       }
 

@@ -4,6 +4,9 @@
  */
 
 import { supabase } from '../../../packages/data/src/supabase/client-mobile';
+import { createTaggedLogger } from './logger';
+
+const log = createTaggedLogger('GlobalExerciseService');
 
 export interface GlobalExercise {
   id: string;
@@ -32,7 +35,7 @@ export class GlobalExerciseService {
     limit: number = 50
   ): Promise<GlobalExercise[]> {
     try {
-      console.log('[GlobalExerciseService] Fetching exercises for:', {
+      log.debug('[GlobalExerciseService] Fetching exercises for:', {
         muscleGroups,
         equipmentTypes,
         experienceLevel,
@@ -73,7 +76,7 @@ export class GlobalExerciseService {
     sessionLength: string
   ): Promise<ExerciseAugmentationResult> {
     try {
-      console.log('[GlobalExerciseService] Augmenting exercises:', {
+      log.debug('[GlobalExerciseService] Augmenting exercises:', {
         aiDetectedCount: aiDetectedExercises.length,
         preferredMuscles,
         equipmentTypes,
@@ -136,7 +139,7 @@ export class GlobalExerciseService {
         )).length,
       };
 
-      console.log('[GlobalExerciseService] Augmentation complete:', {
+      log.debug('[GlobalExerciseService] Augmentation complete:', {
         primaryCount: result.primaryExercises.length,
         bonusCount: result.bonusExercises.length,
         totalAvailable: result.totalAvailable,

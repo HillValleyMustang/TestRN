@@ -43,6 +43,9 @@ import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModa
 import { ActivityLoggingModal_new as ActivityLoggingModal } from '../../components/dashboard/ActivityLoggingModal_new';
 import { DeleteWorkoutDialog } from '../../components/ui/DeleteWorkoutDialog';
 import { SuccessDialog } from '../../components/ui/SuccessDialog';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('Dashboard');
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
@@ -167,7 +170,7 @@ export default function DashboardScreen() {
 
   // Enhanced cache invalidation function - now calls data context's handleWorkoutCompletion
   const dashboardInvalidateAllCaches = useCallback(async () => {
-    console.log('[Dashboard] Starting atomic cache invalidation');
+    log.info('[Dashboard] Starting atomic cache invalidation');
     
     // Invalidate all dashboard-related caches
     setDataCache({ lastFetch: 0, data: null });
@@ -183,22 +186,19 @@ export default function DashboardScreen() {
     
     // Call the data context's invalidateAllCaches to clear database-level caches
     try {
-      console.log('[Dashboard] Calling data context invalidateAllCaches');
+      log.debug('[Dashboard] Calling data context invalidateAllCaches');
       // Use the data context's invalidateAllCaches function
       await handleWorkoutCompletionRefresh();
-      console.log('[Dashboard] Data context cache invalidation completed successfully');
+      log.debug('[Dashboard] Data context cache invalidation completed successfully');
     } catch (error) {
-      console.error('[Dashboard] Error during data context cache invalidation:', error);
+      log.error('[Dashboard] Error during data context cache invalidation:', error);
     }
   }, [userId, setShouldRefreshDashboard, handleWorkoutCompletion, setLastWorkoutCompletionTime]);
 
   // Enhanced coordinated refresh function
   const triggerCoordinatedRefresh = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:178',message:'Starting coordinated refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    if (__DEV__) {
-      console.log('[Dashboard] Starting coordinated refresh');
+        if (__DEV__) {
+      log.debug('[Dashboard] Starting coordinated refresh');
     }
     
     // Clear any existing timeout
@@ -213,32 +213,20 @@ export default function DashboardScreen() {
     // Use debounced refresh to prevent multiple rapid calls
     refreshTimeoutRef.current = setTimeout(async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:192',message:'Executing fetchDashboardData',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        await fetchDashboardData();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:195',message:'Coordinated refresh completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        if (__DEV__) {
-          console.log('[Dashboard] Coordinated refresh completed');
+                await fetchDashboardData();
+                if (__DEV__) {
+          log.debug('[Dashboard] Coordinated refresh completed');
         }
       } catch (error) {
-        console.error('[Dashboard] Coordinated refresh failed:', error);
+        log.error('[Dashboard] Coordinated refresh failed:', error);
       }
     }, 100); // Small delay to ensure all caches are cleared
   }, [fetchDashboardData, setShouldRefreshDashboard]);
 
   const fetchDashboardData = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:197',message:'fetchDashboardData called',data:{hasUserId:!!userId,isRefreshing,shouldRefreshDashboard,hasCache:!!dataCache.data,cacheAge:dataCache.data?Date.now()-dataCache.lastFetch:Infinity},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    
+        
     if (!userId || isRefreshing) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:199',message:'fetchDashboardData skipped',data:{hasUserId:!!userId,isRefreshing},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return;
+            return;
     }
     
     // Additional safeguard: prevent rapid successive calls
@@ -246,10 +234,7 @@ export default function DashboardScreen() {
     const currentTimestamp = Date.now();
     const timeSinceLastRefresh = currentTimestamp - lastRefreshRef.current;
     if (timeSinceLastRefresh < 1000 && !shouldRefreshDashboard) { // Minimum 1 second between refreshes, unless forced
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:206',message:'fetchDashboardData rate-limited',data:{timeSinceLastRefresh},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return;
+            return;
     }
 
     const now = Date.now();
@@ -272,7 +257,7 @@ export default function DashboardScreen() {
           freshProgrammeType = freshProfile.programme_type || null;
         }
       } catch (error) {
-        console.error('[Dashboard] Error fetching fresh profile in fetchDashboardData:', error);
+        log.error('[Dashboard] Error fetching fresh profile in fetchDashboardData:', error);
       }
     }
     
@@ -284,7 +269,7 @@ export default function DashboardScreen() {
     // If T-path changed, immediately clear state and cache to prevent showing old data
     if (tPathOrTypeChanged) {
       if (__DEV__) {
-        console.log('[Dashboard] T-path change detected in fetchDashboardData - immediately clearing state:', {
+        log.debug('[Dashboard] T-path change detected in fetchDashboardData - immediately clearing state:', {
           oldTPathId: lastKnownTPathIdRef.current,
           newTPathId: freshTPathId,
           oldProgrammeType: lastKnownProgrammeTypeRef.current,
@@ -296,11 +281,8 @@ export default function DashboardScreen() {
       // Clear state immediately to prevent UI from showing old T-path data
       // CRITICAL: Also clear userProfile if it has the old t-path ID to prevent stale lookups
       if (userProfile?.active_t_path_id && userProfile.active_t_path_id !== freshTPathId) {
-        console.log('[Dashboard] Clearing stale userProfile with old t-path ID:', userProfile.active_t_path_id);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:275',message:'Clearing stale userProfile',data:{oldActiveTPathId:userProfile.active_t_path_id,newActiveTPathId:freshTPathId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
-        setUserProfile(null); // Clear to force fresh fetch
+        log.debug('[Dashboard] Clearing stale userProfile with old t-path ID:', userProfile.active_t_path_id);
+                setUserProfile(null); // Clear to force fresh fetch
       }
       setActiveTPath(null);
       setTpathWorkouts([]);
@@ -344,7 +326,7 @@ export default function DashboardScreen() {
                                !dataCache.data; // Cache is null/undefined
       
       if (__DEV__) {
-        console.log('[Dashboard] Cache check:', {
+        log.debug('[Dashboard] Cache check:', {
           hasCache: !!dataCache.data,
           cacheAge: currentTimestamp - dataCache.lastFetch,
           cacheLastFetch: dataCache.lastFetch,
@@ -368,7 +350,7 @@ export default function DashboardScreen() {
       // Update refs if T-path changed (will trigger refresh below)
       if (tPathOrTypeChangedFromState) {
         if (__DEV__) {
-          console.log('[Dashboard] T-path or programme type changed detected from state:', {
+          log.debug('[Dashboard] T-path or programme type changed detected from state:', {
             oldTPathId: lastKnownTPathIdRef.current,
             newTPathId: currentTPathId,
             oldProgrammeType: lastKnownProgrammeTypeRef.current,
@@ -382,7 +364,7 @@ export default function DashboardScreen() {
       if (shouldForceRefresh) {
         if (tPathOrTypeChangedFromState) {
           if (__DEV__) {
-            console.log('[Dashboard] T-path change detected from state - immediately clearing cache and state to prevent showing old data');
+            log.debug('[Dashboard] T-path change detected from state - immediately clearing cache and state to prevent showing old data');
           }
           // Clear cache immediately for T-path changes
           setDataCache({ lastFetch: 0, data: null });
@@ -395,69 +377,51 @@ export default function DashboardScreen() {
           // They will be updated from the fresh snapshot
         }
         if (__DEV__) {
-          console.log('[Dashboard] Bypassing cache due to force refresh conditions');
+          log.debug('[Dashboard] Bypassing cache due to force refresh conditions');
         }
         // Bypass cache due to recent workout completion, refresh flag, T-path change, or empty state
       } else if (!shouldRefreshDashboard) {
-        // Only update state if data has actually changed to prevent infinite loops
-        if (JSON.stringify(dataCache.data.profile) !== JSON.stringify(userProfile)) {
-          setUserProfile(dataCache.data.profile);
-        }
-        if (JSON.stringify(dataCache.data.gyms) !== JSON.stringify(gyms)) {
-          // Deduplicate gyms by name - keep only one gym per unique name
-          const uniqueGymsMap = new Map<string, Gym>();
-          (dataCache.data.gyms || []).forEach((gym: Gym) => {
-            const existing = uniqueGymsMap.get(gym.name);
-            if (!existing) {
-              uniqueGymsMap.set(gym.name, gym);
-            } else if (gym.is_active && !existing.is_active) {
-              uniqueGymsMap.set(gym.name, gym);
-            }
+        // Update state directly - React optimizes re-renders automatically
+        // Removed expensive JSON.stringify comparisons that were causing jagginess
+        setUserProfile(dataCache.data.profile);
+        
+        // Deduplicate gyms by name - keep only one gym per unique name
+        const uniqueGymsMap = new Map<string, Gym>();
+        (dataCache.data.gyms || []).forEach((gym: Gym) => {
+          const existing = uniqueGymsMap.get(gym.name);
+          if (!existing) {
+            uniqueGymsMap.set(gym.name, gym);
+          } else if (gym.is_active && !existing.is_active) {
+            uniqueGymsMap.set(gym.name, gym);
+          }
+        });
+        setGyms(Array.from(uniqueGymsMap.values()));
+        
+        if (__DEV__) {
+          log.debug('[Dashboard] Weekly summary updated from cache:', {
+            completedWorkoutsCount: dataCache.data.weeklySummary.completed_workouts.length,
+            totalSessions: dataCache.data.weeklySummary.total_sessions
           });
-          setGyms(Array.from(uniqueGymsMap.values()));
         }
-        if (JSON.stringify(dataCache.data.weeklySummary) !== JSON.stringify(weeklySummary)) {
-          if (__DEV__) {
-            console.log('[Dashboard] Weekly summary changed, updating state:', {
-              oldSummary: weeklySummary,
-              newSummary: dataCache.data.weeklySummary,
-              completedWorkoutsCount: dataCache.data.weeklySummary.completed_workouts.length,
-              totalSessions: dataCache.data.weeklySummary.total_sessions
-            });
-          }
-          setWeeklySummary(dataCache.data.weeklySummary);
+        setWeeklySummary(dataCache.data.weeklySummary);
+        setActiveGymState(dataCache.data.activeGym);
+        setActiveTPath(dataCache.data.activeTPath);
+        setIsWaitingForTPathData(false); // Clear waiting flag when using cached data
+        setTpathWorkouts(dataCache.data.tPathWorkouts);
+        
+        if (__DEV__) {
+          log.debug('[Dashboard] Volume data updated from cache:', {
+            dataPoints: dataCache.data.volumeHistory.length
+          });
         }
-        if (JSON.stringify(dataCache.data.activeGym) !== JSON.stringify(activeGym)) {
-          setActiveGymState(dataCache.data.activeGym);
-        }
-        if (JSON.stringify(dataCache.data.activeTPath) !== JSON.stringify(activeTPath)) {
-          setActiveTPath(dataCache.data.activeTPath);
-          setIsWaitingForTPathData(false); // Clear waiting flag when using cached data
-        }
-        if (JSON.stringify(dataCache.data.tPathWorkouts) !== JSON.stringify(tpathWorkouts)) {
-          setTpathWorkouts(dataCache.data.tPathWorkouts);
-        }
-        if (JSON.stringify(dataCache.data.volumeHistory) !== JSON.stringify(volumeData)) {
-          if (__DEV__) {
-            console.log('[Dashboard] Volume data changed, updating state:', {
-              oldVolumeData: volumeData,
-              newVolumeData: dataCache.data.volumeHistory,
-              difference: dataCache.data.volumeHistory.length - volumeData.length
-            });
-          }
-          setVolumeData(dataCache.data.volumeHistory);
-        }
-        if (JSON.stringify(dataCache.data.recentWorkouts) !== JSON.stringify(recentWorkouts)) {
-          setRecentWorkouts(dataCache.data.recentWorkouts);
-        }
-        if (JSON.stringify(dataCache.data.nextWorkout) !== JSON.stringify(nextWorkout)) {
-          setNextWorkout(dataCache.data.nextWorkout);
-        }
+        setVolumeData(dataCache.data.volumeHistory);
+        setRecentWorkouts(dataCache.data.recentWorkouts);
+        setNextWorkout(dataCache.data.nextWorkout);
         return;
       }
     } else {
       if (__DEV__) {
-        console.log('[Dashboard] No valid cache data available, proceeding with fetch');
+        log.debug('[Dashboard] No valid cache data available, proceeding with fetch');
       }
     }
 
@@ -477,7 +441,7 @@ export default function DashboardScreen() {
       
       if (tPathChangedFromSnapshot || programmeTypeChangedFromSnapshot) {
         if (__DEV__) {
-          console.log('[Dashboard] T-path change detected from fresh snapshot - immediately updating state:', {
+          log.debug('[Dashboard] T-path change detected from fresh snapshot - immediately updating state:', {
             oldTPathId: lastKnownTPathIdRef.current,
             newTPathId: snapshotTPathId,
             oldProgrammeType: lastKnownProgrammeTypeRef.current,
@@ -491,10 +455,7 @@ export default function DashboardScreen() {
         // IMMEDIATELY update all state from snapshot to show new T-path right away
         // Don't wait for the normal state update flow
         if (snapshot.profile) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:445',message:'Setting userProfile from snapshot',data:{profileId:snapshot.profile?.id,activeTPathId:snapshot.profile?.active_t_path_id,programmeType:snapshot.profile?.programme_type,oldActiveTPathId:userProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
-          // #endregion
-          setUserProfile(snapshot.profile);
+                    setUserProfile(snapshot.profile);
         }
         if (snapshot.activeTPath) {
           setActiveTPath(snapshot.activeTPath);
@@ -515,96 +476,65 @@ export default function DashboardScreen() {
         }
       }
 
-      // Only update state if data has actually changed to prevent infinite loops
-      if (JSON.stringify(snapshot.profile) !== JSON.stringify(userProfile)) {
-        setUserProfile(snapshot.profile);
-        
-        // Update T-path tracking refs when profile changes (backup check)
-        const newTPathId = snapshot.profile?.active_t_path_id || null;
-        const newProgrammeType = snapshot.profile?.programme_type || null;
-        if (newTPathId !== lastKnownTPathIdRef.current || newProgrammeType !== lastKnownProgrammeTypeRef.current) {
-          if (__DEV__) {
-            console.log('[Dashboard] Profile updated - T-path tracking:', {
-              oldTPathId: lastKnownTPathIdRef.current,
-              newTPathId,
-              oldProgrammeType: lastKnownProgrammeTypeRef.current,
-              newProgrammeType
-            });
-          }
-          lastKnownTPathIdRef.current = newTPathId;
-          lastKnownProgrammeTypeRef.current = newProgrammeType;
+      // Update state directly - React optimizes re-renders automatically
+      // Removed expensive JSON.stringify comparisons that were causing jagginess
+      setUserProfile(snapshot.profile);
+      
+      // Update T-path tracking refs when profile changes
+      const newTPathId = snapshot.profile?.active_t_path_id || null;
+      const newProgrammeType = snapshot.profile?.programme_type || null;
+      if (newTPathId !== lastKnownTPathIdRef.current || newProgrammeType !== lastKnownProgrammeTypeRef.current) {
+        if (__DEV__) {
+          log.debug('[Dashboard] Profile updated - T-path tracking:', {
+            oldTPathId: lastKnownTPathIdRef.current,
+            newTPathId,
+            oldProgrammeType: lastKnownProgrammeTypeRef.current,
+            newProgrammeType
+          });
         }
+        lastKnownTPathIdRef.current = newTPathId;
+        lastKnownProgrammeTypeRef.current = newProgrammeType;
       }
-      if (JSON.stringify(snapshot.gyms) !== JSON.stringify(gyms)) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:479',message:'Gyms state updating from snapshot',data:{oldGymsCount:gyms.length,newGymsCount:snapshot.gyms?.length||0,oldGyms:gyms.map(g=>({id:g.id,name:g.name,is_active:g.is_active})),newGyms:snapshot.gyms?.map((g:Gym)=>({id:g.id,name:g.name,is_active:g.is_active}))||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-        // Deduplicate gyms by name - keep only one gym per unique name
-        const uniqueGymsMap = new Map<string, Gym>();
-        (snapshot.gyms || []).forEach((gym: Gym) => {
-          const existing = uniqueGymsMap.get(gym.name);
-          if (!existing) {
-            uniqueGymsMap.set(gym.name, gym);
-          } else if (gym.is_active && !existing.is_active) {
-            uniqueGymsMap.set(gym.name, gym);
-          }
+      
+      // Deduplicate gyms by name - keep only one gym per unique name
+      const uniqueGymsMap = new Map<string, Gym>();
+      (snapshot.gyms || []).forEach((gym: Gym) => {
+        const existing = uniqueGymsMap.get(gym.name);
+        if (!existing) {
+          uniqueGymsMap.set(gym.name, gym);
+        } else if (gym.is_active && !existing.is_active) {
+          uniqueGymsMap.set(gym.name, gym);
+        }
+      });
+      setGyms(Array.from(uniqueGymsMap.values()));
+      
+      if (__DEV__) {
+        log.debug('[Dashboard] Weekly summary updated from snapshot:', {
+          completedWorkoutsCount: snapshot.weeklySummary.completed_workouts.length,
+          totalSessions: snapshot.weeklySummary.total_sessions
         });
-        const deduplicatedGyms = Array.from(uniqueGymsMap.values());
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:490',message:'Gyms state updated',data:{finalGymsCount:deduplicatedGyms.length,finalGyms:deduplicatedGyms.map(g=>({id:g.id,name:g.name,is_active:g.is_active})),toggleWillShow:deduplicatedGyms.length>1},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-        setGyms(deduplicatedGyms);
       }
-      if (JSON.stringify(snapshot.weeklySummary) !== JSON.stringify(weeklySummary)) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:456',message:'Weekly summary state update',data:{oldCount:weeklySummary.completed_workouts.length,newCount:snapshot.weeklySummary.completed_workouts.length,oldTotal:weeklySummary.total_sessions,newTotal:snapshot.weeklySummary.total_sessions},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-        if (__DEV__) {
-          console.log('[Dashboard] Weekly summary changed, updating state:', {
-            oldSummary: weeklySummary,
-            newSummary: snapshot.weeklySummary,
-            completedWorkoutsCount: snapshot.weeklySummary.completed_workouts.length,
-            totalSessions: snapshot.weeklySummary.total_sessions
-          });
-        }
-        setWeeklySummary(snapshot.weeklySummary);
+      setWeeklySummary(snapshot.weeklySummary);
+      setActiveGymState(snapshot.activeGym);
+      
+      if (__DEV__) {
+        log.debug('[Dashboard] Active T-path updated from snapshot:', {
+          id: snapshot.activeTPath?.id,
+          name: snapshot.activeTPath?.template_name
+        });
       }
-      if (JSON.stringify(snapshot.activeGym) !== JSON.stringify(activeGym)) {
-        setActiveGymState(snapshot.activeGym);
+      setActiveTPath(snapshot.activeTPath);
+      setIsWaitingForTPathData(false); // Clear waiting flag when t-path is updated
+      setTpathWorkouts(snapshot.tPathWorkouts);
+      
+      if (__DEV__) {
+        log.debug('[Dashboard] Volume data updated from snapshot:', {
+          dataPoints: snapshot.volumeHistory.length
+        });
       }
-      if (JSON.stringify(snapshot.activeTPath) !== JSON.stringify(activeTPath)) {
-        if (__DEV__) {
-          console.log('[Dashboard] Active T-path changed:', {
-            old: activeTPath?.id,
-            new: snapshot.activeTPath?.id,
-            oldName: activeTPath?.template_name,
-            newName: snapshot.activeTPath?.template_name
-          });
-        }
-        setActiveTPath(snapshot.activeTPath);
-        setIsWaitingForTPathData(false); // Clear waiting flag when t-path is updated
-      }
-      if (JSON.stringify(snapshot.tPathWorkouts) !== JSON.stringify(tpathWorkouts)) {
-        setTpathWorkouts(snapshot.tPathWorkouts);
-      }
-      if (JSON.stringify(snapshot.volumeHistory) !== JSON.stringify(volumeData)) {
-        if (__DEV__) {
-          console.log('[Dashboard] Volume data changed, updating state from snapshot:', {
-            oldVolumeData: volumeData,
-            newVolumeData: snapshot.volumeHistory,
-            difference: snapshot.volumeHistory.length - volumeData.length
-          });
-        }
-        setVolumeData(snapshot.volumeHistory);
-      } else if (__DEV__) {
-        console.log('[Dashboard] Volume data unchanged after snapshot fetch. Current:', volumeData.length, 'Snapshot:', snapshot.volumeHistory.length);
-      }
-      if (JSON.stringify(snapshot.recentWorkouts) !== JSON.stringify(recentWorkouts)) {
-        setRecentWorkouts(snapshot.recentWorkouts);
-      }
-      if (JSON.stringify(snapshot.nextWorkout) !== JSON.stringify(nextWorkout)) {
-        setNextWorkout(snapshot.nextWorkout);
-      }
+      setVolumeData(snapshot.volumeHistory);
+      setRecentWorkouts(snapshot.recentWorkouts);
+      setNextWorkout(snapshot.nextWorkout);
       
       // Cache the data
       setDataCache({
@@ -615,7 +545,7 @@ export default function DashboardScreen() {
       // Sync local state with cached data from data context
       if (snapshot.profile && !userProfile) {
         if (__DEV__) {
-          console.log('[Dashboard] Syncing userProfile from cached data');
+          log.debug('[Dashboard] Syncing userProfile from cached data');
         }
         setUserProfile(snapshot.profile);
         
@@ -624,7 +554,7 @@ export default function DashboardScreen() {
           lastKnownTPathIdRef.current = snapshot.profile?.active_t_path_id || null;
           lastKnownProgrammeTypeRef.current = snapshot.profile?.programme_type || null;
           if (__DEV__) {
-            console.log('[Dashboard] Initialized T-path tracking:', {
+            log.debug('[Dashboard] Initialized T-path tracking:', {
               tPathId: lastKnownTPathIdRef.current,
               programmeType: lastKnownProgrammeTypeRef.current
             });
@@ -636,27 +566,27 @@ export default function DashboardScreen() {
       if (userId) {
         try {
           if (__DEV__) {
-            console.log('[Dashboard] Updating rolling workout status on dashboard refresh');
+            log.debug('[Dashboard] Updating rolling workout status on dashboard refresh');
           }
           supabase?.functions.invoke('calculate-rolling-status', {
             body: { user_id: userId }
           }).then(({ data, error }) => {
             if (error) {
-              console.error('[Dashboard] Error updating rolling workout status:', error);
+              log.error('[Dashboard] Error updating rolling workout status:', error);
             } else {
               if (__DEV__) {
-                console.log('[Dashboard] Rolling workout status updated successfully:', data);
+                log.debug('[Dashboard] Rolling workout status updated successfully:', data);
               }
             }
           }).catch((error) => {
-            console.error('[Dashboard] Failed to update rolling workout status:', error);
+            log.error('[Dashboard] Failed to update rolling workout status:', error);
           });
         } catch (error) {
-          console.error('[Dashboard] Failed to trigger rolling workout status update:', error);
+          log.error('[Dashboard] Failed to trigger rolling workout status update:', error);
         }
       }
     } catch (error) {
-      console.error('[Dashboard] Failed to load data', error);
+      log.error('[Dashboard] Failed to load data', error);
       setIsWaitingForTPathData(false); // Clear waiting flag on error
     } finally {
       setIsWaitingForTPathData(false); // Always clear waiting flag when fetch completes
@@ -671,12 +601,12 @@ export default function DashboardScreen() {
   // Global refresh function that can be called from anywhere in the app
   const triggerDashboardRefresh = useCallback(() => {
     if (__DEV__) {
-      console.log('[Dashboard] Global triggerDashboardRefresh called');
+      log.debug('[Dashboard] Global triggerDashboardRefresh called');
     }
     
     // Check if refresh is already in progress
     if (refreshInProgressRef.current) {
-      console.log('[Dashboard] Refresh already in progress, skipping duplicate call');
+      log.debug('[Dashboard] Refresh already in progress, skipping duplicate call');
       return;
     }
     
@@ -692,16 +622,16 @@ export default function DashboardScreen() {
     // Trigger coordinated refresh after cache clear
     setTimeout(() => {
       fetchDashboardData().then(() => {
-        console.log('[Dashboard] Dashboard refresh completed after trigger');
+        log.debug('[Dashboard] Dashboard refresh completed after trigger');
       }).catch((error) => {
-        console.error('[Dashboard] Dashboard refresh failed:', error);
+        log.error('[Dashboard] Dashboard refresh failed:', error);
       }).finally(() => {
         // Release the mutex
         refreshInProgressRef.current = false;
         
         // Check if there's a pending refresh that was queued
         if (pendingRefreshRef.current) {
-          console.log('[Dashboard] Processing queued refresh after current one completed');
+          log.debug('[Dashboard] Processing queued refresh after current one completed');
           pendingRefreshRef.current = false;
           // Trigger another refresh
           setTimeout(() => triggerDashboardRefresh(), 50);
@@ -718,7 +648,7 @@ export default function DashboardScreen() {
     const originalTrigger = (global as any).triggerDashboardRefresh;
     (global as any).triggerDashboardRefresh = function() {
       if (__DEV__) {
-        console.log('[Dashboard] Global triggerDashboardRefresh INTERCEPTED at', new Date().toISOString());
+        log.debug('[Dashboard] Global triggerDashboardRefresh INTERCEPTED at', new Date().toISOString());
       }
       return originalTrigger.apply(this, arguments);
     };
@@ -730,14 +660,11 @@ export default function DashboardScreen() {
 
   // Enhanced function to handle workout completion and cache invalidation
   const handleWorkoutCompletionRefresh = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:635',message:'handleWorkoutCompletionRefresh called',data:{isInProgress:refreshInProgressRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    console.log('[Dashboard] Handling workout completion refresh');
+        log.debug('[Dashboard] Handling workout completion refresh');
     
     // Check if refresh is already in progress
     if (refreshInProgressRef.current) {
-      console.log('[Dashboard] Refresh already in progress, queueing workout completion refresh');
+      log.debug('[Dashboard] Refresh already in progress, queueing workout completion refresh');
       pendingRefreshRef.current = true;
       return;
     }
@@ -756,28 +683,22 @@ export default function DashboardScreen() {
     // CRITICAL FIX: Only invalidate caches, don't call handleWorkoutCompletion which sets status messages
     // handleWorkoutCompletion should only be called when a workout is actually completed, not on navigation refresh
     try {
-      console.log('[Dashboard] Calling invalidateAllCaches for cache invalidation (no status message)');
+      log.debug('[Dashboard] Calling invalidateAllCaches for cache invalidation (no status message)');
       // Use the data context's invalidateAllCaches function directly - this only clears caches
       invalidateAllCaches();
-      console.log('[Dashboard] Cache invalidation completed');
+      log.debug('[Dashboard] Cache invalidation completed');
       
       // CRITICAL FIX: Call fetchDashboardData directly instead of via triggerCoordinatedRefresh
       // This ensures immediate refresh without delays
       setIsRefreshing(true);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:655',message:'Calling fetchDashboardData after cache invalidation',data:{shouldRefreshDashboard},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      await fetchDashboardData();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:659',message:'Workout completion refresh completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      console.log('[Dashboard] Workout completion refresh completed');
+            await fetchDashboardData();
+            log.debug('[Dashboard] Workout completion refresh completed');
       setIsRefreshing(false);
       lastRefreshRef.current = Date.now();
       // CRITICAL FIX: Reset refresh flag AFTER data has been fetched and state updated
       setShouldRefreshDashboard(false);
     } catch (error) {
-      console.error('[Dashboard] Error during workout completion refresh:', error);
+      log.error('[Dashboard] Error during workout completion refresh:', error);
       setIsRefreshing(false);
     } finally {
       // Release the mutex
@@ -785,7 +706,7 @@ export default function DashboardScreen() {
       
       // Check if there's a pending refresh that was queued
       if (pendingRefreshRef.current) {
-        console.log('[Dashboard] Processing queued refresh after workout completion');
+        log.debug('[Dashboard] Processing queued refresh after workout completion');
         pendingRefreshRef.current = false;
         // Trigger another refresh
         setTimeout(() => triggerDashboardRefresh(), 50);
@@ -795,7 +716,7 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     if (!authLoading && !session && !AUTO_LOGIN_FOR_DEVELOPMENT) {
-      console.log('[Dashboard] No session, redirecting to login');
+      log.debug('[Dashboard] No session, redirecting to login');
       router.replace('/login');
       return;
     }
@@ -806,7 +727,7 @@ export default function DashboardScreen() {
     if (userProfile && lastKnownTPathIdRef.current === null) {
       lastKnownTPathIdRef.current = userProfile.active_t_path_id || null;
       lastKnownProgrammeTypeRef.current = userProfile.programme_type || null;
-      console.log('[Dashboard] Initialized T-path tracking from userProfile:', {
+      log.debug('[Dashboard] Initialized T-path tracking from userProfile:', {
         tPathId: lastKnownTPathIdRef.current,
         programmeType: lastKnownProgrammeTypeRef.current
       });
@@ -829,13 +750,20 @@ export default function DashboardScreen() {
   useEffect(() => {
     const wasLoading = prevLoadingState.current.loading || prevLoadingState.current.isRefreshing || prevLoadingState.current.isWaitingForTPathData;
     const isLoading = loading || isRefreshing || isWaitingForTPathData;
-    if (wasLoading && !isLoading) {
-      // Widgets finished loading - save current scroll position to restore
-      // Save scroll position if user had scrolled down (> 50px)
-      if (currentScrollY.current > 50) {
+    
+    // CRITICAL FIX: Save scroll position WHILE loading (before it finishes)
+    // This prevents scroll reset when content size changes during loading transitions
+    if (isLoading && currentScrollY.current > 50) {
+      // Save scroll position proactively while loading is happening
+      scrollPositionToRestore.current = currentScrollY.current;
+    } else if (wasLoading && !isLoading) {
+      // Loading just finished - ensure we have a saved position to restore
+      // If we don't have one yet, use the current position (though it might already be reset)
+      if (scrollPositionToRestore.current === null && currentScrollY.current > 50) {
         scrollPositionToRestore.current = currentScrollY.current;
       }
     }
+    
     prevLoadingState.current = { loading, isRefreshing, isWaitingForTPathData };
   }, [loading, isRefreshing, isWaitingForTPathData]);
   
@@ -868,7 +796,7 @@ export default function DashboardScreen() {
       
       // Reset loading start time when profile is loaded
       if (loadingStartTimeRef.current > 0) {
-        console.log('[Dashboard] Profile loaded, resetting loading timeout');
+        log.debug('[Dashboard] Profile loaded, resetting loading timeout');
         loadingStartTimeRef.current = 0;
       }
     }
@@ -882,10 +810,7 @@ export default function DashboardScreen() {
     const recentWorkoutCompletion = timeSinceCompletion < 5000; // Within 5 seconds of completion (extended window)
     const timeSinceShow = syncBoxShownAtRef.current ? Date.now() - syncBoxShownAtRef.current : null;
     const isWithinTwoSecondWindow = timeSinceShow !== null && timeSinceShow < 2000;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:692',message:'Sync box visibility check',data:{hasSyncActivity,isSyncing,queueLength,timeSinceCompletion,recentWorkoutCompletion,showSyncBox,syncBoxShownAt:syncBoxShownAtRef.current,timeSinceShow,isWithinTwoSecondWindow,syncBoxHidden:syncBoxHiddenRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
+        
     // Show sync box ONLY if workout just completed (not for other sync operations like deletions)
     // This ensures background syncs (like workout deletion) happen silently without showing the banner
     const shouldShowSyncBox = recentWorkoutCompletion && 
@@ -922,7 +847,7 @@ export default function DashboardScreen() {
         setShowSyncBox(false);
         syncBoxHiddenRef.current = true; // Mark that we've hidden the sync box
         syncBoxTimeoutRef.current = null;
-        console.log('[Dashboard] Sync box hidden after 2 seconds', {
+        log.debug('[Dashboard] Sync box hidden after 2 seconds', {
           isSyncing,
           queueLength,
           showSyncBox: 'will be false'
@@ -935,7 +860,7 @@ export default function DashboardScreen() {
       const timeSinceShow = Date.now() - syncBoxShownAtRef.current;
       if (timeSinceShow >= 2000) {
         // Force hide immediately if 2 seconds have passed
-        console.log('[Dashboard] ENFORCEMENT: Force hiding sync box after 2 seconds');
+        log.debug('[Dashboard] ENFORCEMENT: Force hiding sync box after 2 seconds');
         setShowSyncBox(false);
         syncBoxHiddenRef.current = true;
         if (syncBoxTimeoutRef.current) {
@@ -973,7 +898,7 @@ export default function DashboardScreen() {
           tempMessageClearedRef.current = false;
           syncCompletedTimeoutRef.current = null;
           // Don't set showSyncBox to false here - let the 2-second timeout handle it
-          console.log('[Dashboard] Sync completed - state reset (sync box will hide via its own timeout)');
+          log.debug('[Dashboard] Sync completed - state reset (sync box will hide via its own timeout)');
       }, 500); // Wait 500ms to ensure sync is truly done
     } else if (hasSyncActivity && syncCompletedTimeoutRef.current) {
       // Sync restarted - cancel the completion check
@@ -988,18 +913,15 @@ export default function DashboardScreen() {
       if (!stableIsSyncingRef.current) {
         stableIsSyncingRef.current = true;
         setStableIsSyncing(true);
-        console.log('[Dashboard] Sync activity detected - setting stable sync state');
+        log.debug('[Dashboard] Sync activity detected - setting stable sync state');
       }
       // If 2 seconds have elapsed and temp message is still showing, clear it so "Syncing" can show
       // This prevents flickering by ensuring we transition directly from "Workout Complete!" to "Syncing"
       if (tempMessageMinDurationElapsedRef.current && !tempMessageClearedRef.current) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:811',message:'Clearing temp status message after 2s minimum',data:{hasSyncActivity,isSyncing,queueLength},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
-        setTempStatusMessage(null);
+                setTempStatusMessage(null);
         tempMessageClearedRef.current = true;
         if (__DEV__) {
-          console.log('[Dashboard] Clearing temp message after 2s minimum - showing "Syncing"');
+          log.debug('[Dashboard] Clearing temp message after 2s minimum - showing "Syncing"');
         }
       }
       // Clear any inactive timeout
@@ -1013,10 +935,7 @@ export default function DashboardScreen() {
         // Re-check if sync is still inactive
         const stillInactive = !isSyncing && queueLength === 0;
         if (stillInactive) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:825',message:'Clearing stable sync state',data:{isSyncing,queueLength},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
-          stableIsSyncingRef.current = false;
+                    stableIsSyncingRef.current = false;
           setStableIsSyncing(false);
         }
         stableSyncInactiveTimeoutRef.current = null;
@@ -1047,19 +966,10 @@ export default function DashboardScreen() {
   // Enhanced focus effect to handle both regular refresh and workout completion refresh
   useFocusEffect(
     useCallback(() => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:850',message:'Dashboard focus effect triggered',data:{hasUserProfile:!!userProfile,onboardingCompleted:userProfile?.onboarding_completed,initialLoadComplete,shouldRefreshDashboard,lastWorkoutCompletionTime,timeSinceCompletion:Date.now()-lastWorkoutCompletionTime},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      // Reset scroll position to top only on initial focus (not when data loads)
+            // Reset scroll position to top only on initial focus (not when data loads)
       // This prevents jarring scroll when cards finish loading
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:970',message:'Scroll-to-top check',data:{hasScrolledToTop:hasScrolledToTopThisFocus.current,hasScrollViewRef:!!scrollViewRef.current,hasSecondaryRef:!!scrollViewRefSecondary.current,dataCacheExists:!!dataCache.data,recentWorkoutsLength:recentWorkouts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      if (!hasScrolledToTopThisFocus.current) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:972',message:'Executing scroll-to-top',data:{hasScrollViewRef:!!scrollViewRef.current,hasSecondaryRef:!!scrollViewRefSecondary.current},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        if (scrollViewRef.current) {
+            if (!hasScrolledToTopThisFocus.current) {
+                if (scrollViewRef.current) {
           scrollViewRef.current.scrollTo({ y: 0, animated: false });
         }
         if (scrollViewRefSecondary.current) {
@@ -1067,10 +977,7 @@ export default function DashboardScreen() {
         }
         hasScrolledToTopThisFocus.current = true;
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:978',message:'Skipping scroll-to-top - already scrolled',data:{hasScrolledToTop:hasScrolledToTopThisFocus.current},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-      }
+              }
       
       // Check if we're returning from workout completion and trigger sync box if needed
       // But don't re-show if we've already hidden it - the main effect handles this now
@@ -1100,7 +1007,7 @@ export default function DashboardScreen() {
                 freshProgrammeType = freshProfile.programme_type || null;
               }
             } catch (error) {
-              console.error('[Dashboard] Error fetching fresh profile for T-path check:', error);
+              log.error('[Dashboard] Error fetching fresh profile for T-path check:', error);
             }
           }
           
@@ -1122,7 +1029,7 @@ export default function DashboardScreen() {
           // Update refs if T-path changed
           if (tPathOrTypeChanged && freshTPathId) {
             if (__DEV__) {
-              console.log('[Dashboard] Focus effect - T-path change detected from fresh profile, immediately clearing state:', {
+              log.debug('[Dashboard] Focus effect - T-path change detected from fresh profile, immediately clearing state:', {
                 oldTPathId: lastKnownTPathIdRef.current,
                 newTPathId: freshTPathId,
                 oldProgrammeType: lastKnownProgrammeTypeRef.current,
@@ -1147,17 +1054,14 @@ export default function DashboardScreen() {
               freshRecentWorkoutsCount = freshSessions.length;
               // Calculate timeSinceCompletion for logging
               const timeSinceCompletion = lastWorkoutCompletionTime > 0 ? now - lastWorkoutCompletionTime : Infinity;
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:966',message:'Fetched fresh workout count',data:{freshCount:freshRecentWorkoutsCount,oldCount:recentWorkouts.length,timeSinceCompletion},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-              // #endregion
-              console.log('[Dashboard] Fresh recentWorkouts count from DB:', freshRecentWorkoutsCount, 'old count:', recentWorkouts.length);
+                            log.debug('[Dashboard] Fresh recentWorkouts count from DB:', freshRecentWorkoutsCount, 'old count:', recentWorkouts.length);
             } catch (error) {
-              console.error('[Dashboard] Failed to fetch fresh workouts count:', error);
+              log.error('[Dashboard] Failed to fetch fresh workouts count:', error);
             }
           }
 
           if (__DEV__) {
-            console.log('[Dashboard] Focus effect refresh check:', {
+            log.debug('[Dashboard] Focus effect refresh check:', {
               shouldForceRefresh,
               recentWorkoutCompletion,
               tPathOrTypeChanged,
@@ -1185,7 +1089,7 @@ export default function DashboardScreen() {
             
             if (canRefresh) {
               if (__DEV__) {
-                console.log('[Dashboard] Focus effect triggering refresh due to:', {
+                log.debug('[Dashboard] Focus effect triggering refresh due to:', {
                   shouldForceRefresh,
                   recentWorkoutCompletion,
                   isTPathChange,
@@ -1198,7 +1102,7 @@ export default function DashboardScreen() {
               // If this is a T-path change, immediately clear cache and force refresh
               if (isTPathChange || tPathOrTypeChanged) {
                 if (__DEV__) {
-                  console.log('[Dashboard] T-path change detected, immediately clearing cache and refreshing');
+                  log.debug('[Dashboard] T-path change detected, immediately clearing cache and refreshing');
                 }
                 setDataCache({ lastFetch: 0, data: null });
                 setModalDataCache({});
@@ -1206,29 +1110,17 @@ export default function DashboardScreen() {
               
               // If this is a recent workout completion, use the enhanced refresh function
               if (recentWorkoutCompletion) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:978',message:'Recent workout completion - triggering enhanced refresh',data:{timeSinceLastCompletion:now-lastWorkoutCompletionTime,shouldRefreshDashboard},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-                console.log('[Dashboard] Recent workout completion detected, using enhanced refresh');
+                                log.debug('[Dashboard] Recent workout completion detected, using enhanced refresh');
                 handleWorkoutCompletionRefresh().finally(() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:981',message:'Enhanced refresh completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-                  // #endregion
-                  lastRefreshRef.current = Date.now();
+                                    lastRefreshRef.current = Date.now();
                   // Reset the flag only after refresh completes
                   setShouldRefreshDashboard(false);
                 });
               } else {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:986',message:'Regular refresh triggered',data:{shouldForceRefresh,isTPathChange},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
-                // Don't reset the flag immediately - wait until refresh completes
+                                // Don't reset the flag immediately - wait until refresh completes
                 setIsRefreshing(true);
                 fetchDashboardData().finally(() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:990',message:'Regular refresh completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-                  // #endregion
-                  setIsRefreshing(false);
+                                    setIsRefreshing(false);
                   lastRefreshRef.current = Date.now();
                   // Reset the flag only after refresh completes
                   setShouldRefreshDashboard(false);
@@ -1256,16 +1148,13 @@ export default function DashboardScreen() {
       
       // Call the async function and discard the returned Promise to avoid TypeScript errors
       fetchOnFocus().catch((error) => {
-        console.error('[Dashboard] Error in fetchOnFocus:', error);
+        log.error('[Dashboard] Error in fetchOnFocus:', error);
       });
       
       // Cleanup: Reset scroll flag when screen loses focus
       // This ensures we scroll to top again when user returns to the tab
       return () => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:1158',message:'useFocusEffect cleanup - resetting scroll flag',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-        // #endregion
-        hasScrolledToTopThisFocus.current = false;
+                hasScrolledToTopThisFocus.current = false;
       };
     }, [userProfile?.onboarding_completed, initialLoadComplete, isRefreshing, fetchDashboardData, shouldRefreshDashboard, setShouldRefreshDashboard, lastWorkoutCompletionTime, dataCache.data, recentWorkouts.length, lastDeletionTimeRef.current, handleWorkoutCompletionRefresh, getWorkoutSessions, userId])
   );
@@ -1274,13 +1163,13 @@ export default function DashboardScreen() {
     setRefreshing(true);
     try {
       // Force clear any cached data and refresh using the data context
-      console.log('[Dashboard] Manual refresh triggered - forcing data context refresh');
+      log.debug('[Dashboard] Manual refresh triggered - forcing data context refresh');
       forceRefreshProfile();
        
       // Small delay to let the cache clear, then fetch fresh data
       setTimeout(() => {
         fetchDashboardData();
-        console.log('[Dashboard] Refresh completed');
+        log.debug('[Dashboard] Refresh completed');
       }, 200);
     } finally {
       setRefreshing(false);
@@ -1315,18 +1204,18 @@ export default function DashboardScreen() {
       try {
         // Check if Supabase client is available
         if (!supabase) {
-          console.error('[Dashboard] Supabase client not available');
+          log.error('[Dashboard] Supabase client not available');
           return null;
         }
         
         // Check if user is authenticated
         const { data: { session }, error: authError } = await supabase.auth.getSession();
         if (authError) {
-          console.error('[Dashboard] Auth error:', authError);
+          log.error('[Dashboard] Auth error:', authError);
           return null;
         }
         if (!session) {
-          console.error('[Dashboard] No active session found');
+          log.error('[Dashboard] No active session found');
           return null;
         }
         
@@ -1351,7 +1240,7 @@ export default function DashboardScreen() {
           .limit(2); // Get current + previous
 
         if (error) {
-          console.error('[Dashboard] Error fetching historical workouts:', error);
+          log.error('[Dashboard] Error fetching historical workouts:', error);
           return null;
         }
 
@@ -1361,7 +1250,7 @@ export default function DashboardScreen() {
         
         // Additional validation
         if (!Array.isArray(sessions)) {
-          console.error('[Dashboard] Invalid sessions data type:', typeof sessions);
+          log.error('[Dashboard] Invalid sessions data type:', typeof sessions);
           return null;
         }
 
@@ -1413,7 +1302,7 @@ export default function DashboardScreen() {
           return result;
         }
       } catch (error) {
-        console.error('[Dashboard] Error getting historical workout:', error);
+        log.error('[Dashboard] Error getting historical workout:', error);
       }
       
       return null;
@@ -1432,7 +1321,7 @@ export default function DashboardScreen() {
 
     // Update the clear function reference
     (global as any).clearWeeklyVolumeCache = () => {
-      console.log('[Dashboard] Clearing weekly volume cache');
+      log.debug('[Dashboard] Clearing weekly volume cache');
       cache.clear();
     };
 
@@ -1457,13 +1346,13 @@ export default function DashboardScreen() {
 
       try {
         if (!supabase) {
-          console.error('[Dashboard] Supabase client not available');
+          log.error('[Dashboard] Supabase client not available');
           return {};
         }
         
         const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
         if (authError || !authSession) {
-          console.error('[Dashboard] Not authenticated, cannot fetch weekly volume');
+          log.error('[Dashboard] Not authenticated, cannot fetch weekly volume');
           return {};
         }
 
@@ -1483,7 +1372,7 @@ export default function DashboardScreen() {
           .gte('session_date', startOfWeek.toISOString());
 
         if (error) {
-          console.error('[Dashboard] Error fetching weekly volume data:', error);
+          log.error('[Dashboard] Error fetching weekly volume data:', error);
           return {};
         }
 
@@ -1498,7 +1387,7 @@ export default function DashboardScreen() {
           .or(`user_id.eq.${userId},user_id.is.null`);
 
         if (exError) {
-          console.error('[Dashboard] Error fetching exercise definitions:', exError);
+          log.error('[Dashboard] Error fetching exercise definitions:', exError);
           return {};
         }
 
@@ -1539,7 +1428,7 @@ export default function DashboardScreen() {
         
         return weeklyVolume;
       } catch (error) {
-        console.error('[Dashboard] Error getting weekly volume data:', error);
+        log.error('[Dashboard] Error getting weekly volume data:', error);
         return {};
       }
     };
@@ -1583,7 +1472,7 @@ export default function DashboardScreen() {
         cache.set(cacheKey, { data: result, timestamp: Date.now() });
         return result;
       } catch (error) {
-        console.error('[Dashboard] Error fetching muscle groups:', error);
+        log.error('[Dashboard] Error fetching muscle groups:', error);
         return ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
       }
     };
@@ -1601,7 +1490,7 @@ export default function DashboardScreen() {
       const cached = cache.get(cacheKey);
       
       if (cached && (Date.now() - cached.timestamp < cacheTimeout)) {
-        console.log('[Dashboard] Using cached next workout suggestion');
+        log.debug('[Dashboard] Using cached next workout suggestion');
         return cached.data;
       }
 
@@ -1614,7 +1503,7 @@ export default function DashboardScreen() {
           .order('created_at', { ascending: true });
 
         if (error) {
-          console.error('[Dashboard] Error fetching T-path workouts:', error);
+          log.error('[Dashboard] Error fetching T-path workouts:', error);
           return null;
         }
 
@@ -1624,7 +1513,7 @@ export default function DashboardScreen() {
         
         // Additional validation
         if (!Array.isArray(childWorkouts)) {
-          console.error('[Dashboard] Invalid childWorkouts data type:', typeof childWorkouts);
+          log.error('[Dashboard] Invalid childWorkouts data type:', typeof childWorkouts);
           return null;
         }
 
@@ -1651,7 +1540,7 @@ export default function DashboardScreen() {
           return result;
         }
       } catch (error) {
-        console.error('[Dashboard] Error getting next workout suggestion:', error);
+        log.error('[Dashboard] Error getting next workout suggestion:', error);
       }
 
       return null;
@@ -1681,10 +1570,7 @@ export default function DashboardScreen() {
   };
 
   const handleViewSummary = useCallback(async (sessionId: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:1453',message:'handleViewSummary called',data:{sessionId,currentlyVisible:workoutSummaryModalVisible,selectedSessionId:selectedSessionData?.sessionId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    console.log('[Dashboard] handleViewSummary called with sessionId:', sessionId);
+        log.debug('[Dashboard] handleViewSummary called with sessionId:', sessionId);
     
     // CRITICAL: Prevent modal from opening if we just completed a workout (within last 2 seconds)
     // This prevents the modal from reappearing after user closes it
@@ -1700,45 +1586,42 @@ export default function DashboardScreen() {
           .sort((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime())[0];
         
         if (mostRecentSession && mostRecentSession.id === sessionId) {
-          console.log('[Dashboard] Blocking modal open - just completed this workout, preventing auto-open');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:1462',message:'Blocked modal auto-open after workout completion',data:{sessionId,timeSinceCompletion},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
-          return;
+          log.debug('[Dashboard] Blocking modal open - just completed this workout, preventing auto-open');
+                    return;
         }
       } catch (error) {
-        console.error('[Dashboard] Error checking recent session:', error);
+        log.error('[Dashboard] Error checking recent session:', error);
         // Continue with normal flow if check fails
       }
     }
     
     // Prevent duplicate modal openings for the same session
     if (workoutSummaryModalVisible && selectedSessionData?.sessionId === sessionId) {
-      console.log('[Dashboard] Modal already open for this session, ignoring duplicate call');
+      log.debug('[Dashboard] Modal already open for this session, ignoring duplicate call');
       return;
     }
     
     if (!userId) {
-      console.log('[Dashboard] No userId, returning');
+      log.debug('[Dashboard] No userId, returning');
       return;
     }
 
     try {
-      console.log('[Dashboard] Loading session data for sessionId:', sessionId);
+      log.debug('[Dashboard] Loading session data for sessionId:', sessionId);
       
       // Use direct database lookup to ensure we get the session data regardless of cache state
       const foundSession = await database.getWorkoutSessionById(sessionId);
-      console.log('[Dashboard] Found session via direct lookup:', !!foundSession);
+      log.debug('[Dashboard] Found session via direct lookup:', !!foundSession);
       
       if (!foundSession) {
-        console.log('[Dashboard] Session not found via direct lookup, showing error');
+        log.debug('[Dashboard] Session not found via direct lookup, showing error');
         Alert.alert('Error', 'Workout session not found. Please try again.');
         return;
       }
 
       if (foundSession) {
         // Debug: Log the found session data including rating
-        console.log('[Dashboard] Found session data:', {
+        log.debug('[Dashboard] Found session data:', {
           sessionId: foundSession.id,
           workoutName: foundSession.template_name,
           rating: foundSession.rating,
@@ -1758,13 +1641,13 @@ export default function DashboardScreen() {
             .or(`user_id.eq.${userId},user_id.is.null`); // Get user's exercises + global exercises
 
           if (error) {
-            console.error('[Dashboard] Failed to load exercise definitions from Supabase:', error);
+            log.error('[Dashboard] Failed to load exercise definitions from Supabase:', error);
           } else {
             exerciseDefinitions = data || [];
-            console.log('[Dashboard] Loaded exercise definitions from Supabase:', exerciseDefinitions.length);
+            log.debug('[Dashboard] Loaded exercise definitions from Supabase:', exerciseDefinitions.length);
           }
         } catch (error) {
-          console.error('[Dashboard] Failed to load exercise definitions:', error);
+          log.error('[Dashboard] Failed to load exercise definitions:', error);
         }
         const exerciseLookup = new Map();
         exerciseDefinitions.forEach((ex: any) => {
@@ -1808,7 +1691,7 @@ export default function DashboardScreen() {
 
         if (cachedModalData && (Date.now() - cachedModalData.timestamp < 5 * 60 * 1000)) {
           // Use cached data
-          console.log('[Dashboard] Using cached modal data');
+          log.debug('[Dashboard] Using cached modal data');
           historicalWorkout = cachedModalData.historicalWorkout;
           weeklyVolumeData = cachedModalData.weeklyVolumeData;
           nextWorkoutSuggestion = cachedModalData.nextWorkoutSuggestion;
@@ -1816,50 +1699,50 @@ export default function DashboardScreen() {
           allAvailableMuscleGroups = cachedModalData.allAvailableMuscleGroups || allAvailableMuscleGroups;
         } else {
           // Fetch data and cache it
-          console.log('[Dashboard] Fetching advanced modal data...');
+          log.debug('[Dashboard] Fetching advanced modal data...');
           
           // First, verify Supabase is working
           try {
             const { data: { session }, error: authError } = await supabase.auth.getSession();
-            console.log('[Dashboard] Supabase auth check:', { hasSession: !!session, authError });
+            log.debug('[Dashboard] Supabase auth check:', { hasSession: !!session, authError });
             
             if (authError) {
-              console.error('[Dashboard] Auth error:', authError);
+              log.error('[Dashboard] Auth error:', authError);
               return;
             }
             if (!session) {
-              console.error('[Dashboard] No active session found');
+              log.error('[Dashboard] No active session found');
               return;
             }
           } catch (authCheckError) {
-            console.error('[Dashboard] Auth check failed:', authCheckError);
+            log.error('[Dashboard] Auth check failed:', authCheckError);
             return;
           }
           
-          console.log('[Dashboard] Starting data fetch calls...');
+          log.debug('[Dashboard] Starting data fetch calls...');
           
           // Call each function individually to see which one fails
-          console.log('[Dashboard] Calling getHistoricalWorkout...');
+          log.debug('[Dashboard] Calling getHistoricalWorkout...');
           historicalWorkout = await getHistoricalWorkout(foundSession.template_name || 'Workout');
-          console.log('[Dashboard] getHistoricalWorkout result:', !!historicalWorkout);
+          log.debug('[Dashboard] getHistoricalWorkout result:', !!historicalWorkout);
           
-          console.log('[Dashboard] Calling getWeeklyVolumeData...');
+          log.debug('[Dashboard] Calling getWeeklyVolumeData...');
           weeklyVolumeData = await getWeeklyVolumeData();
-          console.log('[Dashboard] getWeeklyVolumeData result:', Object.keys(weeklyVolumeData || {}));
+          log.debug('[Dashboard] getWeeklyVolumeData result:', Object.keys(weeklyVolumeData || {}));
           
-          console.log('[Dashboard] Calling getNextWorkoutSuggestion...');
+          log.debug('[Dashboard] Calling getNextWorkoutSuggestion...');
           nextWorkoutSuggestion = await getNextWorkoutSuggestion(foundSession.template_name || 'Workout');
-          console.log('[Dashboard] getNextWorkoutSuggestion result:', !!nextWorkoutSuggestion);
+          log.debug('[Dashboard] getNextWorkoutSuggestion result:', !!nextWorkoutSuggestion);
           
-          console.log('[Dashboard] Calling checkIfOnTPath...');
+          log.debug('[Dashboard] Calling checkIfOnTPath...');
           isOnTPath = await checkIfOnTPath();
-          console.log('[Dashboard] checkIfOnTPath result:', isOnTPath);
+          log.debug('[Dashboard] checkIfOnTPath result:', isOnTPath);
           
-          console.log('[Dashboard] Calling getAvailableMuscleGroups...');
+          log.debug('[Dashboard] Calling getAvailableMuscleGroups...');
           allAvailableMuscleGroups = await getAvailableMuscleGroups();
-          console.log('[Dashboard] getAvailableMuscleGroups result:', allAvailableMuscleGroups);
+          log.debug('[Dashboard] getAvailableMuscleGroups result:', allAvailableMuscleGroups);
           
-          console.log('[Dashboard] Data fetch completed, results:', {
+          log.debug('[Dashboard] Data fetch completed, results:', {
             historicalWorkout: !!historicalWorkout,
             weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
             nextWorkoutSuggestion: !!nextWorkoutSuggestion,
@@ -1881,7 +1764,7 @@ export default function DashboardScreen() {
         }
 
         // Debug: Log the data being passed to modal
-        console.log('[Dashboard] Setting modal data with:', {
+        log.debug('[Dashboard] Setting modal data with:', {
           exercisesCount: exercises.length,
           workoutName: foundSession.template_name || 'Workout',
           historicalWorkout: !!historicalWorkout,
@@ -1891,7 +1774,7 @@ export default function DashboardScreen() {
         });
 
         // Debug: Log what we're about to set
-        console.log('[Dashboard] About to set session data:', {
+        log.debug('[Dashboard] About to set session data:', {
           exercisesCount: exercises.length,
           workoutName: foundSession.template_name || 'Workout',
           historicalWorkout: !!historicalWorkout,
@@ -1914,7 +1797,7 @@ export default function DashboardScreen() {
           sessionId: foundSession.id,
         });
 
-        console.log('[Dashboard] Session data set successfully');
+        log.debug('[Dashboard] Session data set successfully');
 
         // CRITICAL FIX: Prevent auto-opening modal if we just completed a workout
         // Check if this session was just completed (within last 3 seconds)
@@ -1930,31 +1813,28 @@ export default function DashboardScreen() {
               .sort((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime())[0];
             
             if (mostRecentSession && mostRecentSession.id === sessionId) {
-              console.log('[Dashboard] Blocking auto-open of modal - user just closed summary modal for this workout');
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:1665',message:'Blocked modal auto-open after workout completion',data:{sessionId,timeSinceCompletion},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-              // #endregion
-              return; // Don't open the modal
+              log.debug('[Dashboard] Blocking auto-open of modal - user just closed summary modal for this workout');
+                            return; // Don't open the modal
             }
           } catch (error) {
-            console.error('[Dashboard] Error checking recent session:', error);
+            log.error('[Dashboard] Error checking recent session:', error);
             // Continue with normal flow if check fails
           }
         }
         
         // CRITICAL FIX: Only set modal data if we have exercises to prevent empty modal
         if (!exercises || exercises.length === 0) {
-          console.log('[Dashboard] No exercises found, not opening modal');
+          log.debug('[Dashboard] No exercises found, not opening modal');
           return;
         }
         
-        console.log('[Dashboard] Setting modal visible to true');
+        log.debug('[Dashboard] Setting modal visible to true');
         setWorkoutSummaryModalVisible(true);
       } else {
-        console.log('[Dashboard] No session found, not opening modal');
+        log.debug('[Dashboard] No session found, not opening modal');
       }
     } catch (error) {
-      console.error('Failed to load workout summary:', error);
+      log.error('Failed to load workout summary:', error);
       Alert.alert('Error', 'Failed to load workout summary');
     }
   }, [userId, workoutSummaryModalVisible, selectedSessionData?.sessionId, modalDataCache, getHistoricalWorkout, getWeeklyVolumeData, getNextWorkoutSuggestion, checkIfOnTPath, getAvailableMuscleGroups]);
@@ -1986,14 +1866,14 @@ export default function DashboardScreen() {
     setDeletionInProgress(sessionId);
     
     try {
-      console.log('[Dashboard] Starting atomic workout deletion:', sessionId);
+      log.debug('[Dashboard] Starting atomic workout deletion:', sessionId);
         
       // Step 1: Remove from local state immediately for instant UI feedback
       const deletedWorkoutDate = getWorkoutDate(sessionId);
       const deletedWorkout = recentWorkouts.find(w => w.id === sessionId);
       const wasCompleted = deletedWorkout?.completed_at !== null;
       
-      console.log('[Dashboard] DEBUG: Deletion date comparison:', {
+      log.debug('[Dashboard] DEBUG: Deletion date comparison:', {
         sessionId,
         deletedWorkoutDate,
         deletedWorkoutDateType: typeof deletedWorkoutDate,
@@ -2008,7 +1888,7 @@ export default function DashboardScreen() {
       };
       const normalizedDeletedDate = normalizeDate(deletedWorkoutDate);
       
-      console.log('[Dashboard] DEBUG: Normalized date comparison:', {
+      log.debug('[Dashboard] DEBUG: Normalized date comparison:', {
         originalDate: deletedWorkoutDate,
         normalizedDate: normalizedDeletedDate,
         volumeDataNormalized: volumeData.map(v => ({ date: normalizeDate(v.date), volume: v.volume })),
@@ -2019,7 +1899,7 @@ export default function DashboardScreen() {
       // Clear volume data to force recalculation after deletion
       // This ensures correct volume totals if multiple workouts occurred on the same day
       setVolumeData([]);
-      console.log('[Dashboard] Cleared volume data for recalculation after deletion:', {
+      log.debug('[Dashboard] Cleared volume data for recalculation after deletion:', {
         deletedWorkoutId: sessionId,
         deletedDate: normalizedDeletedDate
       });
@@ -2028,7 +1908,7 @@ export default function DashboardScreen() {
       setWeeklySummary(prev => {
         const newCompletedWorkouts = prev.completed_workouts.filter(w => w.sessionId !== sessionId);
         const newTotalSessions = wasCompleted ? Math.max(0, prev.total_sessions - 1) : prev.total_sessions;
-        console.log('[Dashboard] Immediate weeklySummary update:', {
+        log.debug('[Dashboard] Immediate weeklySummary update:', {
           oldCount: prev.completed_workouts.length,
           newCount: newCompletedWorkouts.length,
           oldTotalSessions: prev.total_sessions,
@@ -2047,13 +1927,13 @@ export default function DashboardScreen() {
       
       // Step 2: Perform database deletion
       await deleteWorkoutSession(sessionId);
-      console.log('[Dashboard] Workout session deleted from database');
+      log.debug('[Dashboard] Workout session deleted from database');
       
       // Step 3: Wait for database operations to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Step 4: Enhanced cache invalidation for deletion scenarios
-      console.log('[Dashboard] Starting enhanced cache invalidation for deletion');
+      log.debug('[Dashboard] Starting enhanced cache invalidation for deletion');
       
       // Clear dashboard cache immediately to prevent stale data
       setDataCache({ lastFetch: 0, data: null });
@@ -2068,7 +1948,7 @@ export default function DashboardScreen() {
       
       // CRITICAL FIX: Clear weekly volume cache to ensure volume chart updates
       if ((global as any).clearWeeklyVolumeCache) {
-        console.log('[Dashboard] Clearing weekly volume cache after deletion');
+        log.debug('[Dashboard] Clearing weekly volume cache after deletion');
         (global as any).clearWeeklyVolumeCache();
       }
       
@@ -2077,7 +1957,7 @@ export default function DashboardScreen() {
       // Deletions should sync silently in the background
       
       // Step 5: Trigger immediate dashboard refresh with forced cache bypass
-      console.log('[Dashboard] Triggering immediate dashboard refresh after deletion');
+      log.debug('[Dashboard] Triggering immediate dashboard refresh after deletion');
       
       // Force refresh by bypassing cache check
       const currentTimestamp = Date.now();
@@ -2095,9 +1975,9 @@ export default function DashboardScreen() {
           setDataCache({ lastFetch: 0, data: null });
           setShouldRefreshDashboard(true);
           
-          console.log('[Dashboard] Calling fetchDashboardData after deletion, current volumeData:', volumeData.length);
+          log.debug('[Dashboard] Calling fetchDashboardData after deletion, current volumeData:', volumeData.length);
           await fetchDashboardData();
-          console.log('[Dashboard] Dashboard refresh completed after deletion, new volumeData:', volumeData.length);
+          log.debug('[Dashboard] Dashboard refresh completed after deletion, new volumeData:', volumeData.length);
           
           // CRITICAL FIX: Force widget re-render by incrementing a key or triggering state sync
           // This ensures the WeeklyTargetWidget receives the updated weeklySummary immediately
@@ -2112,7 +1992,7 @@ export default function DashboardScreen() {
               return sessionDate >= startOfWeek;
             }).length;
             
-            console.log('[Dashboard] Post-refresh session count verification:', {
+            log.debug('[Dashboard] Post-refresh session count verification:', {
               totalSessions: updatedSessions.length,
               weeklySessions: newWeeklyCount,
               expectedWidgetCount: newWeeklyCount
@@ -2123,15 +2003,15 @@ export default function DashboardScreen() {
           setSuccessMessage('Workout deleted successfully');
           setSuccessDialogVisible(true);
         } catch (error) {
-          console.error('[Dashboard] Dashboard refresh failed after deletion:', error);
+          log.error('[Dashboard] Dashboard refresh failed after deletion:', error);
           Alert.alert('Error', 'Workout deleted but dashboard refresh failed');
         }
       }, 100); // Short delay to ensure all caches are cleared
       
-      console.log('[Dashboard] Workout deletion process initiated successfully');
+      log.debug('[Dashboard] Workout deletion process initiated successfully');
       
     } catch (error) {
-      console.error('[Dashboard] Failed to delete workout session:', error);
+      log.error('[Dashboard] Failed to delete workout session:', error);
       Alert.alert('Error', 'Failed to delete workout session');
     } finally {
       setDeletionInProgress(null);
@@ -2149,7 +2029,7 @@ export default function DashboardScreen() {
   // Handle session rating updates and refresh dashboard
   const handleSessionRatingUpdate = useCallback(async (sessionId: string, rating: number) => {
     try {
-      console.log('[Dashboard] Updating session rating:', sessionId, rating);
+      log.debug('[Dashboard] Updating session rating:', sessionId, rating);
       
       // Update the session rating in the local database
       await database.updateWorkoutSession(sessionId, {
@@ -2164,7 +2044,7 @@ export default function DashboardScreen() {
         .single();
       
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('[Dashboard] Failed to check session existence in Supabase:', checkError);
+        log.error('[Dashboard] Failed to check session existence in Supabase:', checkError);
         // Don't show error to user since local update succeeded, but log it for debugging
       } else if (sessionData) {
         // Session exists in Supabase, update the rating
@@ -2175,27 +2055,27 @@ export default function DashboardScreen() {
           .select();
         
         if (supabaseError) {
-          console.error('[Dashboard] Failed to update rating in Supabase:', supabaseError);
+          log.error('[Dashboard] Failed to update rating in Supabase:', supabaseError);
         } else {
-          console.log('[Dashboard] Successfully updated rating in Supabase:', data);
+          log.debug('[Dashboard] Successfully updated rating in Supabase:', data);
         }
       } else {
-        console.log('[Dashboard] Session not yet synced to Supabase, rating will be synced later');
+        log.debug('[Dashboard] Session not yet synced to Supabase, rating will be synced later');
       }
       
       // Force refresh the dashboard data to update the cache
       await fetchDashboardData();
       
-      console.log('[Dashboard] Session rating updated and dashboard refreshed');
+      log.debug('[Dashboard] Session rating updated and dashboard refreshed');
     } catch (error) {
-      console.error('[Dashboard] Failed to update session rating:', error);
+      log.error('[Dashboard] Failed to update session rating:', error);
       Alert.alert('Error', 'Failed to update workout rating');
     }
   }, [fetchDashboardData]);
 
   // Helper function to render dashboard with cached data when loading is stuck
   const renderDashboardWithData = useCallback((cachedData: any) => {
-    console.log('[Dashboard] Rendering with cached data due to stuck loading');
+    log.debug('[Dashboard] Rendering with cached data due to stuck loading');
     
     return (
       <>
@@ -2213,18 +2093,44 @@ export default function DashboardScreen() {
               const scrollY = event.nativeEvent.contentOffset.y;
               // Always update current scroll position (no threshold check)
               currentScrollY.current = scrollY;
-              // Clear restore flag if user manually scrolls
-              if (scrollPositionToRestore.current !== null) {
+              
+              // CRITICAL FIX: Only clear restore flag if we're not loading
+              // During loading, we want to preserve the scroll position for restoration
+              const isLoading = loading || isRefreshing || isWaitingForTPathData;
+              if (!isLoading && scrollPositionToRestore.current !== null) {
+                // Only clear if user manually scrolls after loading is complete
                 scrollPositionToRestore.current = null;
+              }
+              
+              // Save scroll position while loading to restore later
+              if (isLoading && scrollY > 50) {
+                scrollPositionToRestore.current = scrollY;
               }
             }}
             onContentSizeChange={(contentWidth, contentHeight) => {
-              // If content height increased and we have a scroll position to restore, restore it immediately
-              if (contentHeight > previousContentHeight.current && scrollPositionToRestore.current !== null && scrollPositionToRestore.current > 0) {
+              // CRITICAL FIX: Save current scroll position BEFORE content size changes
+              // This prevents scroll-to-top when NextWorkoutCard finishes loading while user is scrolling
+              const currentScrollYValue = currentScrollY.current;
+              const isLoading = loading || isRefreshing || isWaitingForTPathData;
+              
+              // If user has scrolled and we don't have a saved position, save the current one now
+              // This handles the case where NextWorkoutCard finishes loading while user is scrolling
+              if (currentScrollYValue > 50 && scrollPositionToRestore.current === null) {
+                scrollPositionToRestore.current = currentScrollYValue;
+              }
+              
+              // Restore scroll position whenever content size changes if we have a saved position
+              if (scrollPositionToRestore.current !== null && scrollPositionToRestore.current > 0) {
                 // Restore scroll position immediately when content size changes
-                if (scrollViewRef.current) {
-                  scrollViewRef.current.scrollTo({ y: scrollPositionToRestore.current, animated: false });
-                }
+                // This prevents jarring scroll-to-top when loading spinners finish
+                requestAnimationFrame(() => {
+                  if (scrollViewRef.current && scrollPositionToRestore.current !== null) {
+                    scrollViewRef.current.scrollTo({ 
+                      y: scrollPositionToRestore.current, 
+                      animated: false 
+                    });
+                  }
+                });
               }
               previousContentHeight.current = contentHeight;
             }}
@@ -2286,9 +2192,9 @@ export default function DashboardScreen() {
                   gyms={cachedData.gyms || []}
                   activeGym={cachedData.activeGym}
                   onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
-                    console.log('[Dashboard] onGymChange called with:', gymId, newActiveGym?.name);
+                    log.debug('[Dashboard] onGymChange called with:', gymId, newActiveGym?.name);
                     if (userId) {
-                      console.log('[Dashboard] Updating active gym state...');
+                      log.debug('[Dashboard] Updating active gym state...');
                       setActiveGymState(newActiveGym);
                       
                       // Update gyms array to reflect the new active gym
@@ -2297,9 +2203,9 @@ export default function DashboardScreen() {
                         is_active: g.id === gymId
                       })));
                       
-                    console.log('[Dashboard] Setting active gym in database...');
+                    log.debug('[Dashboard] Setting active gym in database...');
                     await setActiveGym(userId, gymId);
-                    console.log('[Dashboard] Active gym set in database');
+                    log.debug('[Dashboard] Active gym set in database');
                     
                     // Update cached data AFTER database update to ensure consistency
                     setDataCache(prev => {
@@ -2424,36 +2330,20 @@ export default function DashboardScreen() {
     // Track loading start time to prevent infinite loading
     if (loading && loadingStartTimeRef.current === 0) {
       loadingStartTimeRef.current = Date.now();
-      if (__DEV__) {
-        console.log('[Dashboard] Started tracking loading time:', loadingStartTimeRef.current);
-      }
+      // Loading time tracking removed - too verbose
     }
     
     const loadingDuration = loadingStartTimeRef.current > 0 ? Date.now() - loadingStartTimeRef.current : 0;
     const hasLoadingTimeout = loadingDuration > LOADING_TIMEOUT;
     
-    if (__DEV__) {
-      console.log('[Dashboard] Profile loading or data fetching, showing loading screen...', {
-        hasUserProfile: !!userProfile,
-        hasDataContextProfile: !!hasDataContextProfile,
-        isLoading: loading,
-        authLoading,
-        hasSession: !!session,
-        hasUserId: !!userId,
-        hasDataCache: !!dataCache.data,
-        loadingDuration,
-        hasLoadingTimeout,
-        loadingStartTime: loadingStartTimeRef.current,
-        needsLoading
-      });
-    }
+    // Loading state logging removed - too verbose
     
     // Force render with cached data if:
     // 1. We're still loading but have cached data, OR
     // 2. We've been loading for too long (timeout)
     if ((loading && dataCache.data) || hasLoadingTimeout) {
       if (__DEV__) {
-        console.log('[Dashboard] Forcing render with cached data:', {
+        log.debug('[Dashboard] Forcing render with cached data:', {
           hasCachedData: !!dataCache.data,
           loadingTimeout: hasLoadingTimeout,
           loadingDuration
@@ -2503,7 +2393,7 @@ export default function DashboardScreen() {
   // Show loading screen if we have profile but no dashboard data yet
   if (!authLoading && session && userId && userProfile && !userProfile.onboarding_completed) {
     if (__DEV__) {
-      console.log('[Dashboard] User needs onboarding, redirecting...');
+      log.debug('[Dashboard] User needs onboarding, redirecting...');
     }
     return (
       <View style={styles.loadingContainer}>
@@ -2531,18 +2421,44 @@ export default function DashboardScreen() {
             const scrollY = event.nativeEvent.contentOffset.y;
             // Always update current scroll position (no threshold check)
             currentScrollY.current = scrollY;
-            // Clear restore flag if user manually scrolls
-            if (scrollPositionToRestore.current !== null) {
+            
+            // CRITICAL FIX: Only clear restore flag if we're not loading
+            // During loading, we want to preserve the scroll position for restoration
+            const isLoading = loading || isRefreshing || isWaitingForTPathData;
+            if (!isLoading && scrollPositionToRestore.current !== null) {
+              // Only clear if user manually scrolls after loading is complete
               scrollPositionToRestore.current = null;
+            }
+            
+            // Save scroll position while loading to restore later
+            if (isLoading && scrollY > 50) {
+              scrollPositionToRestore.current = scrollY;
             }
           }}
           onContentSizeChange={(contentWidth, contentHeight) => {
-            // If content height increased and we have a scroll position to restore, restore it immediately
-            if (contentHeight > previousContentHeight.current && scrollPositionToRestore.current !== null && scrollPositionToRestore.current > 0) {
+            // CRITICAL FIX: Save current scroll position BEFORE content size changes
+            // This prevents scroll-to-top when NextWorkoutCard finishes loading while user is scrolling
+            const currentScrollYValue = currentScrollY.current;
+            const isLoading = loading || isRefreshing || isWaitingForTPathData;
+            
+            // If user has scrolled and we don't have a saved position, save the current one now
+            // This handles the case where NextWorkoutCard finishes loading while user is scrolling
+            if (currentScrollYValue > 50 && scrollPositionToRestore.current === null) {
+              scrollPositionToRestore.current = currentScrollYValue;
+            }
+            
+            // Restore scroll position whenever content size changes if we have a saved position
+            if (scrollPositionToRestore.current !== null && scrollPositionToRestore.current > 0) {
               // Restore scroll position immediately when content size changes
-              if (scrollViewRefSecondary.current) {
-                scrollViewRefSecondary.current.scrollTo({ y: scrollPositionToRestore.current, animated: false });
-              }
+              // This prevents jarring scroll-to-top when loading spinners finish
+              requestAnimationFrame(() => {
+                if (scrollViewRefSecondary.current && scrollPositionToRestore.current !== null) {
+                  scrollViewRefSecondary.current.scrollTo({ 
+                    y: scrollPositionToRestore.current, 
+                    animated: false 
+                  });
+                }
+              });
             }
             previousContentHeight.current = contentHeight;
           }}
@@ -2576,12 +2492,6 @@ export default function DashboardScreen() {
           {/* 2. Weekly Target */}
           {/* CRITICAL FIX: Use stable key based on actual data, not timestamp */}
           <View key={`weekly-target-${weeklySummary.completed_workouts.map(w => w.id).join('-')}-${weeklySummary.total_sessions}`}>
-            {/* #region agent log */}
-            {(() => {
-              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:2204',message:'Rendering WeeklyTargetWidget',data:{completedCount:weeklySummary.completed_workouts.length,goalTotal:weeklySummary.goal_total,programmeType:weeklySummary.programme_type,totalSessions:weeklySummary.total_sessions,completedIds:weeklySummary.completed_workouts.map(w=>w.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-              return null;
-            })()}
-            {/* #endregion */}
             <WeeklyTargetWidget
               completedWorkouts={weeklySummary.completed_workouts}
               goalTotal={weeklySummary.goal_total}
@@ -2609,10 +2519,7 @@ export default function DashboardScreen() {
               Currently gym switching is available on the workout page where it's contextually relevant.
               Uncomment when implementing dashboard data filtering by active gym.
           {(() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:2394',message:'GymToggle render check',data:{gymsCount:gyms.length,willRender:gyms.length>1,gyms:gyms.map(g=>({id:g.id,name:g.name,is_active:g.is_active})),activeGymId:activeGym?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
-            return null;
+                        return null;
           })()}
           {gyms.length > 1 && (
             <View>
@@ -2620,9 +2527,9 @@ export default function DashboardScreen() {
                 gyms={gyms}
                 activeGym={activeGym}
                 onGymChange={async (gymId: string, newActiveGym: Gym | null) => {
-                  console.log('[Dashboard] onGymChange called with:', gymId, newActiveGym?.name);
+                  log.debug('[Dashboard] onGymChange called with:', gymId, newActiveGym?.name);
                   if (userId) {
-                    console.log('[Dashboard] Updating active gym state...');
+                    log.debug('[Dashboard] Updating active gym state...');
                     // Update dashboard state immediately for UI consistency
                     setActiveGymState(newActiveGym);
                     
@@ -2633,9 +2540,9 @@ export default function DashboardScreen() {
                     })));
 
                     // Update the database
-                    console.log('[Dashboard] Setting active gym in database...');
+                    log.debug('[Dashboard] Setting active gym in database...');
                     await setActiveGym(userId, gymId);
-                    console.log('[Dashboard] Active gym set in database');
+                    log.debug('[Dashboard] Active gym set in database');
                     
                     // Don't trigger immediate refresh - state is already updated above
                     // The next natural refresh will sync with Supabase
@@ -2702,10 +2609,7 @@ export default function DashboardScreen() {
       <WorkoutSummaryModal
         visible={workoutSummaryModalVisible && selectedSessionData && selectedSessionData.exercises && selectedSessionData.exercises.length > 0}
         onClose={() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard.tsx:2337',message:'Dashboard modal onClose called',data:{wasVisible:workoutSummaryModalVisible,hasExercises:selectedSessionData?.exercises?.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
-          setWorkoutSummaryModalVisible(false);
+                    setWorkoutSummaryModalVisible(false);
           // CRITICAL FIX: Clear selected session data to prevent modal from reappearing
           setSelectedSessionData(null);
         }}
@@ -2724,14 +2628,14 @@ export default function DashboardScreen() {
           if (!selectedSessionData || !selectedSessionData.sessionId) return;
           
           try {
-            console.log('[Dashboard] Saving workout rating:', rating);
+            log.debug('[Dashboard] Saving workout rating:', rating);
             
             // Use the new refresh function
             await handleSessionRatingUpdate(selectedSessionData.sessionId, rating);
             
-            console.log('[Dashboard] Workout rating saved successfully');
+            log.debug('[Dashboard] Workout rating saved successfully');
           } catch (error) {
-            console.error('[Dashboard] Failed to save workout rating:', error);
+            log.error('[Dashboard] Failed to save workout rating:', error);
             Alert.alert('Error', 'Failed to save workout rating');
           }
         }}

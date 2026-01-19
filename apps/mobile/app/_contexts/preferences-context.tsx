@@ -10,6 +10,9 @@ import { View } from 'react-native';
 import { database } from '../_lib/database';
 import { useAuth } from './auth-context';
 import { Skeleton } from '../_components/ui/Skeleton';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('PreferencesContext');
 
 type UnitSystem = 'metric' | 'imperial';
 type Theme = 'dark' | 'light';
@@ -51,7 +54,7 @@ const PreferencesProviderInner = ({
         setIsDbReady(true);
       } catch (err) {
         // If initialization fails, retry after a delay
-        console.error('[Preferences] Database initialization check failed:', err);
+        log.error('[Preferences] Database initialization check failed:', err);
         setTimeout(checkDbReady, 200);
       }
     };
@@ -82,7 +85,7 @@ const PreferencesProviderInner = ({
           setThemeState(prefs.theme as Theme);
         }
       } catch (error) {
-        console.error('Failed to load preferences:', error);
+        log.error('Failed to load preferences:', error);
       } finally {
         setLoading(false);
       }
@@ -101,7 +104,7 @@ const PreferencesProviderInner = ({
       try {
         await database.saveUserPreferences(userId, { unit_system: system });
       } catch (error) {
-        console.error('Failed to save unit system:', error);
+        log.error('Failed to save unit system:', error);
       }
     },
     [userId]
@@ -117,7 +120,7 @@ const PreferencesProviderInner = ({
       try {
         await database.saveUserPreferences(userId, { theme: newTheme });
       } catch (error) {
-        console.error('Failed to save theme:', error);
+        log.error('Failed to save theme:', error);
       }
     },
     [userId]

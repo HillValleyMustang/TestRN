@@ -24,6 +24,9 @@ import type {
 } from '@data/storage/models';
 import NetInfo from '@react-native-community/netinfo';
 import type { TempStatusMessage } from '../../hooks/useRollingStatus';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('DataContext');
 
 // Constants for gym management
 const MAX_GYMS_PER_USER = 3;
@@ -317,7 +320,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       // Use a small delay to ensure profile data is loaded first
       const checkTimer = setTimeout(() => {
         checkMissedWeeklyCompletions().catch(error => {
-          console.error('[DataContext] Error in missed weekly completions check:', error);
+          log.error('[DataContext] Error in missed weekly completions check:', error);
         });
       }, 3000); // 3 second delay to allow profile to load
 
@@ -419,7 +422,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const workoutName = firstWorkout.session.template_name?.toLowerCase() || '';
       
       if (__DEV__) {
-        console.log(`[buildVolumePoints] Date ${date}: Found ${workouts.length} workouts, first: "${workoutName}"`);
+        log.log(`[buildVolumePoints] Date ${date}: Found ${workouts.length} workouts, first: "${workoutName}"`);
       }
       
       // Map workout names to types for color coding
@@ -478,7 +481,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Enhanced cache invalidation for workout completions
   const invalidateDashboardCache = useCallback(() => {
-    console.log('[DataContext] Invalidating dashboard cache due to workout completion');
+    log.info('[DataContext] Invalidating dashboard cache due to workout completion');
     setDashboardCache(null);
     // Note: shouldRefreshDashboard is set to true in deleteWorkoutSession
     // and will be reset to false after loadDashboardSnapshot completes
@@ -486,7 +489,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Enhanced cache invalidation for all related caches
   const invalidateAllCaches = useCallback(() => {
-    console.log('[DataContext] Starting atomic cache invalidation');
+    log.info('[DataContext] Starting atomic cache invalidation');
     
     // Invalidate all dashboard-related caches
     setDashboardCache(null);
@@ -508,13 +511,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // Clear gym activation cache
     setGymActivationCache({});
     
-    console.log('[DataContext] Cache invalidation completed');
+    log.debug('[DataContext] Cache invalidation completed');
   }, [userId]);
   
   // Global trigger function for dashboard refresh from other components
   useEffect(() => {
     (global as any).triggerDashboardRefresh = () => {
-      console.log('[DataContext] Global triggerDashboardRefresh called');
+      log.debug('[DataContext] Global triggerDashboardRefresh called');
       setShouldRefreshDashboard(true);
       setLastWorkoutCompletionTime(Date.now());
     };
@@ -537,14 +540,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                               cacheAge > CACHE_DURATION ||
                               !dashboardCache;
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:535',message:'loadDashboardSnapshot - checking shouldForceRefresh',data:{shouldRefreshDashboard,cacheAge,hasDashboardCache:!!dashboardCache,shouldForceRefresh},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    
+        
     // Prevent concurrent loads first
     // BUT: Always bypass if shouldRefreshDashboard is true (deletion/completion needs fresh data)
     if (isLoading && !shouldRefreshDashboard) {
-      console.log('[DataContext] Skipping load - already in progress');
+      log.debug('[DataContext] Skipping load - already in progress');
       return dashboardCache?.data || {
         profile: null,
         gyms: [],
@@ -564,16 +564,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
     
     if (dashboardCache && !shouldForceRefresh) {
-      console.log('[DataContext] Using cached dashboard data (cache age:', cacheAge, 'ms)');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:561',message:'Using cached dashboard data',data:{cacheAge,cachedProfileActiveTPathId:dashboardCache.data?.profile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      return dashboardCache.data;
+      log.debug('[DataContext] Using cached dashboard data (cache age:', cacheAge, 'ms)');
+            return dashboardCache.data;
     }
     
     if (shouldForceRefresh) {
       if (__DEV__) {
-        console.log('[DataContext] Forcing dashboard refresh - cache bypassed due to:', {
+        log.debug('[DataContext] Forcing dashboard refresh - cache bypassed due to:', {
           shouldRefreshDashboard,
           cacheAge,
           cacheExists: !!dashboardCache,
@@ -606,10 +603,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // If shouldRefreshDashboard is true, don't use cached profile - force fresh fetch
     // This ensures we get the latest programme_type after T-Path regeneration or gym switch
     let latestProfile = shouldRefreshDashboard ? null : profileCache;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:605',message:'loadDashboardSnapshot - profile cache check',data:{shouldRefreshDashboard,hasProfileCache:!!profileCache,cachedActiveTPathId:profileCache?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    let remoteActiveTPath: DashboardProgram | null = null;
+        let remoteActiveTPath: DashboardProgram | null = null;
     let remoteChildWorkouts: DashboardProgram[] = [];
 
     // Load local profile first for immediate access (profile storage not implemented in database yet)
@@ -640,7 +634,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           .maybeSingle();
 
         if (profileError) {
-          console.warn('[DataContext] Failed to load profile', profileError);
+          log.warn('[DataContext] Failed to load profile', profileError);
         }
 
         if (profileData) {
@@ -655,10 +649,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             last_name: profileData.last_name,
             onboarding_completed: Boolean(profileData.onboarding_completed),
           };
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:633',message:'loadDashboardSnapshot - profile loaded from Supabase',data:{profileId:profileData.id,activeTPathId:profileData.active_t_path_id,programmeType:profileData.programme_type,shouldRefreshDashboard,oldCachedActiveTPathId:profileCache?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'F'})}).catch(()=>{});
-          // #endregion
-          setProfileCache(latestProfile);
+                    setProfileCache(latestProfile);
           
           // Also update local profile for offline access (profile storage not implemented in database yet)
           // await database.saveProfile({
@@ -681,7 +672,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           .eq('user_id', userId);
 
         if (gymsError) {
-          console.warn('[DataContext] Failed to load gyms', gymsError);
+          log.warn('[DataContext] Failed to load gyms', gymsError);
         } else if (gymsData) {
           // Get existing local gyms BEFORE syncing to identify what needs cleanup
           const localGyms = await database.getGyms(userId);
@@ -726,7 +717,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           );
           
           if (gymsToDelete.length > 0) {
-            console.log(`[DataContext] Cleaning up ${gymsToDelete.length} stale local gym(s) not found in Supabase`);
+            log.log(`[DataContext] Cleaning up ${gymsToDelete.length} stale local gym(s) not found in Supabase`);
             for (const gymToDelete of gymsToDelete) {
               await database.deleteGym(gymToDelete.id);
             }
@@ -745,7 +736,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         const sessionIds: string[] = [];
 
         if (sessionsError) {
-          console.warn(
+          log.warn(
             '[DataContext] Failed to load workout sessions',
             sessionsError
           );
@@ -762,7 +753,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               .map(item => item.payload.id)
           );
 
-          console.log('[DataContext] Pending deletion IDs from sync queue:', Array.from(pendingDeletionIds));
+          log.debug('[DataContext] Pending deletion IDs from sync queue:', Array.from(pendingDeletionIds));
 
           for (const sessionRow of sessionsData) {
             // Only add sessions that don't already exist locally AND are not pending deletion
@@ -781,7 +772,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               };
               await database.addWorkoutSession(session);
             } else if (pendingDeletionIds.has(sessionRow.id)) {
-              console.log('[DataContext] Skipping re-addition of session pending deletion:', sessionRow.id);
+              log.debug('[DataContext] Skipping re-addition of session pending deletion:', sessionRow.id);
             }
           }
         }
@@ -795,7 +786,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             .in('session_id', sessionIds);
 
           if (setLogsError) {
-            console.warn('[DataContext] Failed to load set logs', setLogsError);
+            log.warn('[DataContext] Failed to load set logs', setLogsError);
           } else if (setLogsData) {
             const grouped = new Map<string, SetLog[]>();
             for (const logRow of setLogsData) {
@@ -834,7 +825,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               .maybeSingle();
 
           if (activeTPathError) {
-            console.warn(
+            log.warn(
               '[DataContext] Failed to load active t_path',
               activeTPathError
             );
@@ -876,7 +867,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               .order('template_name', { ascending: true });
 
           if (childWorkoutsError) {
-            console.warn(
+            log.warn(
               '[DataContext] Failed to load child workouts',
               childWorkoutsError
             );
@@ -929,10 +920,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               .order('order_index', { ascending: true });
 
             if (tPathExercisesError) {
-              console.warn(`[DataContext] Failed to load exercises for workout ${workoutId}:`, tPathExercisesError);
+              log.warn(`[DataContext] Failed to load exercises for workout ${workoutId}:`, tPathExercisesError);
             } else if (tPathExercisesData && tPathExercisesData.length > 0) {
               if (__DEV__) {
-                console.log(`[DataContext] Syncing ${tPathExercisesData.length} exercises for workout ${workoutId}`);
+                log.log(`[DataContext] Syncing ${tPathExercisesData.length} exercises for workout ${workoutId}`);
               }
               
               // Sync each exercise link to local database
@@ -952,7 +943,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       } catch (error) {
-        console.warn('[DataContext] Dashboard snapshot refresh failed', error);
+        log.warn('[DataContext] Dashboard snapshot refresh failed', error);
         setIsLoading(false);
         
         // Return cached data if available, otherwise return empty data
@@ -987,7 +978,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       ]);
 
     if (__DEV__) {
-      console.log('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
+      log.debug('[DataContext] Loaded gyms from database:', gyms.length, gyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
     }
 
     // Check gym activation cache first
@@ -995,17 +986,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     let finalActiveGym: Gym | null = null;
     
     if (cachedActiveGym) {
-      console.log('[DataContext] Using cached active gym:', cachedActiveGym);
+      log.debug('[DataContext] Using cached active gym:', cachedActiveGym);
       finalActiveGym = cachedActiveGym;
     } else {
       // Get active gym after gyms are loaded to ensure consistency
       const activeGym = await database.getActiveGym(userId);
-      console.log('[DataContext] Active gym from database:', activeGym);
+      log.debug('[DataContext] Active gym from database:', activeGym);
 
       // Improved active gym management with gym capping
       finalActiveGym = activeGym;
       if (gyms.length > 0 && !activeGym) {
-        console.log('[DataContext] No active gym found, ensuring first gym is active');
+        log.debug('[DataContext] No active gym found, ensuring first gym is active');
         try {
           // Use the most recently created gym as active
           const gymsToConsider = gyms;
@@ -1013,12 +1004,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           
           await database.setActiveGym(userId, bestGym.id);
           finalActiveGym = { ...bestGym, is_active: true }; // Force set is_active to true
-          console.log('[DataContext] Successfully set gym as active:', bestGym.name);
+          log.debug('[DataContext] Successfully set gym as active:', bestGym.name);
           
           // Cache the result
           setGymActivationCache(prev => ({ ...prev, [userId]: finalActiveGym }));
         } catch (error) {
-          console.error('[DataContext] Failed to auto-set gym as active:', error);
+          log.error('[DataContext] Failed to auto-set gym as active:', error);
         }
       } else if (activeGym) {
         // Cache existing active gym
@@ -1028,7 +1019,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Check if we have too many gyms (beyond capping limit)
     if (gyms.length > MAX_GYMS_PER_USER) {
-      console.warn(`[DataContext] User has ${gyms.length} gyms, exceeding limit of ${MAX_GYMS_PER_USER}. Consider implementing cleanup.`);
+      log.warn(`[DataContext] User has ${gyms.length} gyms, exceeding limit of ${MAX_GYMS_PER_USER}. Consider implementing cleanup.`);
       // This would be the place to call gym cleanup if we implement automatic removal
     }
 
@@ -1089,13 +1080,13 @@ const uniqueWorkouts = Array.from(workoutTypeMap.values());
 
 // Debug: Log the mapping to verify session IDs are correct
 if (__DEV__) {
-  console.log('🎯 Workout type mapping debug:', uniqueWorkouts.map(w => ({
+  log.debug('🎯 Workout type mapping debug:', uniqueWorkouts.map(w => ({
     type: w.template_name,
     sessionId: w.id,
     date: w.completed_at || w.session_date
   })));
   
-  console.log('Weekly summary calculation:', {
+  log.debug('Weekly summary calculation:', {
     totalRecentWorkouts: recentWorkouts.length,
     currentWeekWorkouts: currentWeekWorkouts.length,
     uniqueWorkouts: uniqueWorkouts.length,
@@ -1128,23 +1119,14 @@ if (__DEV__) {
       return dateB.getTime() - dateA.getTime(); // Most recent first
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1124',message:'Looking up t-path in local DB',data:{hasLatestProfile:!!latestProfile,activeTPathId:latestProfile?.active_t_path_id,programmeType},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-    const activeTPathRecord = latestProfile?.active_t_path_id
+        const activeTPathRecord = latestProfile?.active_t_path_id
       ? await database.getTPath(latestProfile.active_t_path_id)
       : null;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1126',message:'getTPath result',data:{activeTPathId:latestProfile?.active_t_path_id,found:!!activeTPathRecord,tPathName:activeTPathRecord?.template_name},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-
+    
     const localChildWorkouts = latestProfile?.active_t_path_id
       ? await database.getTPathsByParent(latestProfile.active_t_path_id)
       : [];
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1131',message:'getTPathsByParent result',data:{activeTPathId:latestProfile?.active_t_path_id,workoutsCount:localChildWorkouts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-
+    
     // Ensure we have a consistent activeTPath - prefer remote if available, otherwise use local
     const activeTPath =
       remoteActiveTPath ??
@@ -1196,9 +1178,9 @@ if (__DEV__) {
           const workoutType = lastWorkout.template_name?.toLowerCase() || '';
           const secondWorkoutType = secondLastWorkout?.template_name?.toLowerCase() || '';
           
-          console.log('PPL progression - last workout:', workoutType);
-          console.log('PPL progression - second last workout:', secondWorkoutType);
-          console.log('Available workouts:', tPathWorkouts.map(w => w.template_name));
+          log.debug('PPL progression - last workout:', workoutType);
+          log.debug('PPL progression - second last workout:', secondWorkoutType);
+          log.debug('Available workouts:', tPathWorkouts.map(w => w.template_name));
           
           // First, detect if we have a duplicate workout sequence (like Push -> Push)
           // This handles cases where "Legs" template actually contains Push exercises
@@ -1213,11 +1195,11 @@ if (__DEV__) {
             (workoutType.includes('leg') && secondWorkoutType.includes('push'))
           );
           
-          console.log('Duplicate sequence detected:', isDuplicateSequence);
+          log.debug('Duplicate sequence detected:', isDuplicateSequence);
           
           if (isDuplicateSequence) {
             // Handle duplicate sequence by skipping to the next logical workout
-            console.log('🎯 DETECTED DUPLICATE SEQUENCE! Handling accordingly...');
+            log.log('🎯 DETECTED DUPLICATE SEQUENCE! Handling accordingly...');
             
             if (workoutType.includes('push') || workoutType.includes('leg')) {
               // If last workout was Push (or Legs template with Push exercises), next should be Pull
@@ -1227,7 +1209,7 @@ if (__DEV__) {
               
               if (pullWorkout) {
                 nextWorkout = pullWorkout;
-                console.log('✅ Duplicate Push sequence → Pull selected:', nextWorkout?.template_name);
+                log.log('✅ Duplicate Push sequence → Pull selected:', nextWorkout?.template_name);
               } else {
                 // Fallback: find any non-Push/non-Legs workout
                 const fallbackWorkout = tPathWorkouts.find(workout =>
@@ -1235,7 +1217,7 @@ if (__DEV__) {
                   !workout.template_name.toLowerCase().includes('leg')
                 );
                 nextWorkout = fallbackWorkout || tPathWorkouts[0];
-                console.log('⚠️  No Pull found, using fallback:', nextWorkout?.template_name);
+                log.log('⚠️  No Pull found, using fallback:', nextWorkout?.template_name);
               }
             } else if (workoutType.includes('pull')) {
               // If last workout was Pull, next should be Legs
@@ -1245,21 +1227,21 @@ if (__DEV__) {
               
               if (legsWorkout) {
                 nextWorkout = legsWorkout;
-                console.log('✅ Duplicate Pull sequence → Legs selected:', nextWorkout?.template_name);
+                log.log('✅ Duplicate Pull sequence → Legs selected:', nextWorkout?.template_name);
               } else {
                 // Fallback: find any non-Pull workout
                 const fallbackWorkout = tPathWorkouts.find(workout =>
                   !workout.template_name.toLowerCase().includes('pull')
                 );
                 nextWorkout = fallbackWorkout || tPathWorkouts[0];
-                console.log('⚠️  No Legs found, using fallback:', nextWorkout?.template_name);
+                log.log('⚠️  No Legs found, using fallback:', nextWorkout?.template_name);
               }
             } else {
               // Default for other duplicates - prioritize Pull
               nextWorkout = tPathWorkouts.find(workout =>
                 workout.template_name.toLowerCase().includes('pull')
               ) || tPathWorkouts[0];
-              console.log('🔄 Unknown duplicate, defaulting to Pull:', nextWorkout?.template_name);
+              log.log('🔄 Unknown duplicate, defaulting to Pull:', nextWorkout?.template_name);
             }
           } else {
             // Enhanced logic that considers multiple recent workouts
@@ -1268,13 +1250,13 @@ if (__DEV__) {
               nextWorkout = tPathWorkouts.find(workout =>
                 workout.template_name.toLowerCase().includes('pull')
               ) || tPathWorkouts[0];
-              console.log('After Push, next should be Pull:', nextWorkout?.template_name);
+              log.debug('After.*next should be Pull:', nextWorkout?.template_name);
             } else if (workoutType.includes('pull') && !secondWorkoutType.includes('leg')) {
               // If last was Pull and second last wasn't Legs, next should be Legs
               nextWorkout = tPathWorkouts.find(workout =>
                 workout.template_name.toLowerCase().includes('leg')
               ) || tPathWorkouts[0];
-              console.log('After Pull, next should be Legs:', nextWorkout?.template_name);
+              log.debug('After.*next should be Legs:', nextWorkout?.template_name);
             } else {
               // Enhanced logic that considers multiple recent workouts
               if (workoutType.includes('leg')) {
@@ -1289,20 +1271,20 @@ if (__DEV__) {
                     !workout.template_name.toLowerCase().includes('push') &&
                     !workout.template_name.toLowerCase().includes('leg')
                   ) || tPathWorkouts[0];
-                  console.log('Legs workout (actually Push) after Push, next should be Pull:', nextWorkout?.template_name);
+                  log.log('Legs workout (actually Push) after Push, next should be Pull:', nextWorkout?.template_name);
                 } else {
                   // If it was a real Legs workout (not following Push), next should be Push
                   nextWorkout = tPathWorkouts.find(workout =>
                     workout.template_name.toLowerCase().includes('push')
                   ) || tPathWorkouts[0];
-                  console.log('Real Legs workout (not Push), next should be Push:', nextWorkout?.template_name);
+                  log.log('Real Legs workout (not Push), next should be Push:', nextWorkout?.template_name);
                 }
               } else if (workoutType.includes('pull') && secondWorkoutType.includes('push')) {
                 // If sequence was Push -> Pull, next should be Legs
                 nextWorkout = tPathWorkouts.find(workout =>
                   workout.template_name.toLowerCase().includes('leg')
                 ) || tPathWorkouts[0];
-                console.log('Push -> Pull sequence, next should be Legs:', nextWorkout?.template_name);
+                log.log('Push -> Pull sequence, next should be Legs:', nextWorkout?.template_name);
               } else {
                 // Unknown workout sequence, try to infer from available workouts
                 if (tPathWorkouts.length === 3) {
@@ -1328,7 +1310,7 @@ if (__DEV__) {
                     workout.template_name.toLowerCase().includes('push')
                   ) || tPathWorkouts[0];
                 }
-                console.log('Unknown workout type or sequence, defaulted to:', nextWorkout?.template_name);
+                log.log('Unknown workout type or sequence, defaulted to:', nextWorkout?.template_name);
               }
             }
           }
@@ -1353,8 +1335,8 @@ if (__DEV__) {
           const secondWorkoutType = secondLastWorkout?.template_name?.toLowerCase() || '';
           
           if (__DEV__) {
-            console.log('ULUL progression - last workout:', workoutType);
-            console.log('ULUL progression - second last workout:', secondWorkoutType);
+            log.log('ULUL progression - last workout:', workoutType);
+            log.log('ULUL progression - second last workout:', secondWorkoutType);
           }
           
           if (workoutType.includes('upper') && workoutType.includes('a') && !secondWorkoutType.includes('lower')) {
@@ -1405,7 +1387,7 @@ if (__DEV__) {
     }
 
     if (__DEV__) {
-      console.log('Final nextWorkout determination:', {
+      log.debug('Final nextWorkout determination:', {
         programmeType,
         totalRecentWorkouts: sortedRecentWorkouts.length,
         lastWorkout: sortedRecentWorkouts[0]?.template_name,
@@ -1438,10 +1420,7 @@ if (__DEV__) {
     setDataLoaded(true);
 
     // Cache the result
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'data-context.tsx:1411',message:'Setting dashboard cache',data:{profileActiveTPathId:result.profile?.active_t_path_id,shouldRefreshDashboard},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    setDashboardCache({
+        setDashboardCache({
       data: result,
       timestamp: Date.now()
     });
@@ -1503,7 +1482,7 @@ if (__DEV__) {
 
   // Enhanced method to handle workout completion refresh
   const handleWorkoutCompletion = useCallback(async (session?: WorkoutSession | undefined): Promise<void> => {
-    console.log('[DataContext] Handling workout completion for dashboard refresh', { sessionId: session?.id });
+    log.debug('[DataContext] Handling workout completion for dashboard refresh', { sessionId: session?.id });
 
     // Calculate and award points for workout completion
     // CRITICAL: Only award points if a valid session ID is provided
@@ -1518,7 +1497,7 @@ if (__DEV__) {
         const recentlyProcessed = (global as any)[sessionProcessedKey];
         
         if (recentlyProcessed) {
-          console.log('[DataContext] Points already awarded for this session, skipping:', session.id);
+          log.debug('[DataContext] Points already awarded for this session, skipping:', session.id);
         } else {
           // Mark this session as processed to prevent duplicate awards
           (global as any)[sessionProcessedKey] = Date.now();
@@ -1560,7 +1539,7 @@ if (__DEV__) {
             // Handle query errors - skip volume PR check if critical error (not just "not found")
             // PGRST116 = "not found" which is fine (means no previous record)
             if (recordError && recordError.code !== 'PGRST116') {
-              console.error('[DataContext] Error checking volume record, skipping volume PR check:', recordError);
+              log.error('[DataContext] Error checking volume record, skipping volume PR check:', recordError);
             } else {
               const currentBestVolume = currentRecord?.best_volume || 0;
               
@@ -1581,17 +1560,17 @@ if (__DEV__) {
 
                 // Only award +5 points AFTER successfully upserting the record
                 if (upsertError) {
-                  console.error('[DataContext] Error updating volume record, not awarding volume PR points:', upsertError);
+                  log.error('[DataContext] Error updating volume record, not awarding volume PR points:', upsertError);
                 } else {
                   // New volume PR for this workout type - award +5 points
                   pointsEarned += 5;
-                  console.log('[DataContext] New volume PR for workout type:', { workoutType, previousBest: currentBestVolume, newBest: sessionVolume });
+                  log.debug('[DataContext] New volume PR for workout type:', { workoutType, previousBest: currentBestVolume, newBest: sessionVolume });
                 }
               }
             }
           }
 
-          console.log('[DataContext] Points calculation:', { base: 5, volumePrs: volumePrCount, totalEarned: pointsEarned, userId, sessionId: session.id });
+          log.debug('[DataContext] Points calculation:', { base: 5, volumePrs: volumePrCount, totalEarned: pointsEarned, userId, sessionId: session.id });
 
           // Update user's total_points in database
           const { data: currentProfile } = await supabase
@@ -1612,12 +1591,12 @@ if (__DEV__) {
             .eq('id', userId);
 
           if (pointsUpdateError) {
-            console.error('[DataContext] Error updating points:', pointsUpdateError);
-            console.error('[DataContext] Points update failed for user:', userId);
+            log.error('[DataContext] Error updating points:', pointsUpdateError);
+            log.error('[DataContext] Points update failed for user:', userId);
             // Clear the flag on error so it can be retried
             delete (global as any)[sessionProcessedKey];
           } else {
-            console.log('[DataContext] Points updated successfully:', {
+            log.debug('[DataContext] Points updated successfully:', {
               userId,
               previous: currentTotalPoints,
               earned: pointsEarned,
@@ -1631,11 +1610,11 @@ if (__DEV__) {
               .eq('id', userId)
               .single();
 
-            console.log('[DataContext] Verification - points after update:', verifyProfile?.total_points);
+            log.debug('[DataContext] Verification - points after update:', verifyProfile?.total_points);
           }
         }
       } catch (pointsError) {
-        console.error('[DataContext] Error in points calculation:', pointsError);
+        log.error('[DataContext] Error in points calculation:', pointsError);
         // Clear the flag on error so it can be retried
         if (session?.id) {
           const sessionProcessedKey = `points_awarded_${session.id}`;
@@ -1644,7 +1623,7 @@ if (__DEV__) {
       }
     } else if (!session?.id) {
       // Log when called without a session ID (cache invalidation only, no points)
-      console.log('[DataContext] handleWorkoutCompletion called without session ID - performing cache invalidation only (no points awarded)');
+      log.debug('[DataContext] handleWorkoutCompletion called without session ID - performing cache invalidation only (no points awarded)');
     }
 
     // Clear all caches immediately
@@ -1671,51 +1650,51 @@ if (__DEV__) {
       
       // Show "Workout Complete!" message first (will be cleared after 2 seconds when sync box hides)
       setTempStatusMessage({ message: 'Workout Complete!', type: 'success' });
-      console.log('[DataContext] ENFORCEMENT: Showing "Workout Complete!" message for session:', session?.id || 'general');
+      log.debug('[DataContext] ENFORCEMENT: Showing "Workout Complete!" message for session:', session?.id || 'general');
     } else {
-      console.log('[DataContext] ENFORCEMENT: Skipping "Workout Complete!" message - already shown for this session');
+      log.debug('[DataContext] ENFORCEMENT: Skipping "Workout Complete!" message - already shown for this session');
     }
 
     // Update rolling workout status after workout completion
     if (userId && supabase) {
       try {
-        console.log('[DataContext] Updating rolling workout status after workout completion');
+        log.debug('[DataContext] Updating rolling workout status after workout completion');
         const { data, error } = await supabase.functions.invoke('calculate-rolling-status', {
           body: { user_id: userId }
         });
 
         if (error) {
-          console.error('[DataContext] Error updating rolling workout status:', error);
+          log.error('[DataContext] Error updating rolling workout status:', error);
         } else {
-          console.log('[DataContext] Rolling workout status updated successfully:', data);
+          log.debug('[DataContext] Rolling workout status updated successfully:', data);
         }
       } catch (error) {
-        console.error('[DataContext] Failed to update rolling workout status:', error);
+        log.error('[DataContext] Failed to update rolling workout status:', error);
       }
 
       // Process achievements after workout completion
       try {
-        console.log('[DataContext] Processing achievements after workout completion');
+        log.debug('[DataContext] Processing achievements after workout completion');
         const { data: achievementData, error: achievementError } = await supabase.functions.invoke('process-achievements', {
           body: { user_id: userId, session_id: session?.id }
         });
 
         if (achievementError) {
-          console.error('[DataContext] Error processing achievements:', achievementError);
+          log.error('[DataContext] Error processing achievements:', achievementError);
         } else {
-          console.log('[DataContext] Achievements processed successfully:', achievementData);
+          log.debug('[DataContext] Achievements processed successfully:', achievementData);
         }
       } catch (error) {
-        console.error('[DataContext] Failed to process achievements:', error);
+        log.error('[DataContext] Failed to process achievements:', error);
       }
     }
 
     // Refresh profile data to show updated points
-    console.log('[DataContext] Calling forceRefreshProfile after workout completion');
+    log.debug('[DataContext] Calling forceRefreshProfile after workout completion');
     await forceRefreshProfile();
-    console.log('[DataContext] forceRefreshProfile completed');
+    log.debug('[DataContext] forceRefreshProfile completed');
 
-    console.log('[DataContext] Workout completion refresh triggered successfully');
+    log.debug('[DataContext] Workout completion refresh triggered successfully');
   }, [invalidateAllCaches, setShouldRefreshDashboard, setLastWorkoutCompletionTime, userId, supabase, setTempStatusMessage, getWorkoutType, calculateSessionVolume, getWeekStart, forceRefreshProfile]);
 
   // Client-side fallback: Check for missed weekly completions when user opens app
@@ -1725,7 +1704,7 @@ if (__DEV__) {
 
     try {
       if (__DEV__) {
-        console.log('[DataContext] Checking for missed weekly completions for user:', userId);
+        log.debug('[DataContext] Checking for missed weekly completions for user:', userId);
       }
 
       // Invoke the edge function to check missed weekly completions
@@ -1737,16 +1716,16 @@ if (__DEV__) {
       if (invokeError) {
         // Handle 404 (function not deployed) gracefully - this is expected if the function hasn't been deployed yet
         if (invokeError.message?.includes('404') || invokeError.message?.includes('not found')) {
-          console.log('[DataContext] Weekly completion check function not yet deployed. This is expected if the function hasn\'t been deployed to Supabase yet.');
+          log.debug('[DataContext] Weekly completion check function not yet deployed. This is expected if the function hasn\'t been deployed to Supabase yet.');
           return;
         }
         // For other errors, log them but don't throw - this is a background check
-        console.error('[DataContext] Error checking missed weekly completions:', invokeError.message || invokeError);
+        log.error('[DataContext] Error checking missed weekly completions:', invokeError.message || invokeError);
         return;
       }
 
       if (__DEV__) {
-        console.log('[DataContext] Checked missed weekly completions successfully', data);
+        log.debug('[DataContext] Checked missed weekly completions successfully', data);
       }
       // Refresh profile to get updated points after weekly completion check
       // Use a small delay to ensure the points update has completed
@@ -1757,9 +1736,9 @@ if (__DEV__) {
       // Handle any unexpected errors gracefully - this is a background check, so we don't want to disrupt the app
       const errorMessage = error?.message || String(error);
       if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        console.log('[DataContext] Weekly completion check function not yet deployed. This is expected if the function hasn\'t been deployed to Supabase yet.');
+        log.debug('[DataContext] Weekly completion check function not yet deployed. This is expected if the function hasn\'t been deployed to Supabase yet.');
       } else {
-        console.error('[DataContext] Failed to check missed weekly completions:', errorMessage);
+        log.error('[DataContext] Failed to check missed weekly completions:', errorMessage);
       }
     }
   }, [userId, supabase, forceRefreshProfile]);
@@ -1771,46 +1750,46 @@ if (__DEV__) {
 
   const deleteWorkoutSession = async (sessionId: string): Promise<void> => {
     try {
-      console.log('[DataContext] Starting enhanced workout session deletion:', sessionId);
+      log.debug('[DataContext] Starting enhanced workout session deletion:', sessionId);
       
       // 1. Delete from local database first
       await database.deleteWorkoutSession(sessionId);
-      console.log('[DataContext] Deleted workout session from local database');
+      log.debug('[DataContext] Deleted workout session from local database');
       
       // 2. Add to sync queue for remote deletion (this will sync silently in the background)
       await addToSyncQueue('delete', 'workout_sessions', { id: sessionId });
-      console.log('[DataContext] Added deletion to sync queue');
+      log.debug('[DataContext] Added deletion to sync queue');
       
       // 3. Clear all related caches immediately
       database.clearSessionCache(userId || '');
       database.clearWeeklyVolumeCache(userId || '');
       database.clearExerciseDefinitionsCache();
-      console.log('[DataContext] Cleared all related caches');
+      log.debug('[DataContext] Cleared all related caches');
       
       // 4. Enhanced cache invalidation for workout deletion
-      console.log('[DataContext] Invalidating dashboard cache due to workout deletion');
+      log.info('[DataContext] Invalidating dashboard cache due to workout deletion');
       setDashboardCache(null);
       setShouldRefreshDashboard(true);
       // Note: NOT setting setLastWorkoutCompletionTime here - that's only for completions
       // This ensures the sync happens silently in the background without showing the sync banner
       
       // 5. Force immediate state reset to prevent empty dashboard
-      console.log('[DataContext] Resetting data context state to prevent empty dashboard');
+      log.debug('[DataContext] Resetting data context state to prevent empty dashboard');
       setProfileCache(null);
       setDataLoaded(false);
       setIsLoading(false);
       
       // 6. Force immediate reload of critical data
-      console.log('[DataContext] Forcing immediate data reload after deletion');
+      log.debug('[DataContext] Forcing immediate data reload after deletion');
       setTimeout(() => {
         loadDashboardSnapshot().catch(error => {
-          console.error('[DataContext] Failed to reload dashboard after deletion:', error);
+          log.error('[DataContext] Failed to reload dashboard after deletion:', error);
         });
       }, 500); // Increased delay to ensure all caches are cleared
       
-      console.log('[DataContext] Enhanced workout session deletion completed successfully');
+      log.debug('[DataContext] Enhanced workout session deletion completed successfully');
     } catch (error) {
-      console.error('[DataContext] Failed to delete workout session:', error);
+      log.error('[DataContext] Failed to delete workout session:', error);
       throw error;
     }
   };
@@ -2107,12 +2086,12 @@ if (__DEV__) {
 
   const forceRefreshProfile = useCallback(async () => {
     if (__DEV__) {
-      console.log('[DataContext] Forcing profile refresh...');
+      log.debug('[DataContext] Forcing profile refresh...');
     }
 
     // First, prioritize processing any pending sync items
     if (isInitialized && userId && isOnline) {
-      console.log('[DataContext] Processing pending sync items before refresh...');
+      log.debug('[DataContext] Processing pending sync items before refresh...');
       // Wait a bit for any pending syncs to process
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
@@ -2126,7 +2105,7 @@ if (__DEV__) {
   }, [isInitialized, userId, isOnline]);
 
   const forceSyncPendingItems = useCallback(async () => {
-    console.log('[DataContext] Forcing sync of pending items...');
+    log.debug('[DataContext] Forcing sync of pending items...');
     // The sync queue processor will automatically process pending items
     // We can trigger it by ensuring the processor is active
     if (isInitialized && userId && isOnline) {
@@ -2136,7 +2115,7 @@ if (__DEV__) {
   }, [isInitialized, userId, isOnline]);
 
   const cleanupUserData = useCallback(async (userId: string) => {
-    console.log('[DataContext] Starting cleanup for user:', userId);
+    log.debug('[DataContext] Starting cleanup for user:', userId);
     const result = await database.cleanupUserData(userId);
     
     // Clear all caches and force refresh after cleanup
@@ -2152,7 +2131,7 @@ if (__DEV__) {
   }, []);
 
   const emergencyReset = useCallback(async () => {
-    console.log('[DataContext] Performing emergency reset...');
+    log.debug('[DataContext] Performing emergency reset...');
     // Note: emergencyReset method doesn't exist in database class
     // This method would need to be implemented or removed
     const result = { success: true };
@@ -2269,7 +2248,7 @@ if (__DEV__) {
       setIsGeneratingPlan,
       forceRefresh,
     }),
-    [isSyncing, queueLength, isOnline, loadDashboardSnapshot, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId, tempStatusMessage, isGeneratingPlan, setTempStatusMessage, forceRefresh]
+    [isSyncing, queueLength, isOnline, loadDashboardSnapshot, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId, tempStatusMessage, isGeneratingPlan, setTempStatusMessage, forceRefresh, invalidateDashboardCache, invalidateAllCaches, handleWorkoutCompletion, shouldRefreshDashboard, lastWorkoutCompletionTime]
   );
 
   if (!isInitialized) {

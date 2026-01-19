@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../app/_contexts/auth-context';
 import { supabase } from '@data/supabase/client-mobile';
+import { createTaggedLogger } from '../lib/logger';
+
+const log = createTaggedLogger('useWorkoutPerformanceData');
 
 interface WeeklyVolumeData {
   [muscleGroup: string]: number;
@@ -191,7 +194,7 @@ export const useWorkoutPerformanceData = (): WorkoutPerformanceData => {
             ];
           }
           if (__DEV__) {
-            console.log('[useWorkoutPerformanceData] Loaded canonical muscle groups:', loadedCanonicalGroups);
+            log.debug('[useWorkoutPerformanceData] Loaded canonical muscle groups:', loadedCanonicalGroups);
           }
         }
         

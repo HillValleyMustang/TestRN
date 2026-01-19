@@ -14,6 +14,9 @@ import { useData } from './data-context';
 import { clearOnboardingData } from '../../lib/onboardingStorage';
 import { clearWorkoutState } from '../../lib/workoutStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('AuthContext');
 
 // DEVELOPMENT AUTO-LOGIN - Set to true to auto-login during development
 const AUTO_LOGIN_FOR_DEVELOPMENT = true;
@@ -40,20 +43,20 @@ const clearAllAppStorage = async (userId?: string | null): Promise<void> => {
       try {
         await clearWorkoutState(userId);
         if (__DEV__) {
-          console.log('[Auth] Cleared workout state for user:', userId);
+          log.log('[Auth] Cleared workout state for user:', userId);
         }
       } catch (error) {
-        console.error('[Auth] Failed to clear workout state:', error);
+        log.error('[Auth] Failed to clear workout state:', error);
       }
     }
     
     // Clear other app-specific keys
     await AsyncStorage.multiRemove(APP_STORAGE_KEYS);
     if (__DEV__) {
-      console.log('[Auth] Cleared all app-specific AsyncStorage keys');
+      log.log('[Auth] Cleared all app-specific AsyncStorage keys');
     }
   } catch (error) {
-    console.error('[Auth] Failed to clear AsyncStorage keys:', error);
+    log.error('[Auth] Failed to clear AsyncStorage keys:', error);
   }
 };
 
@@ -85,8 +88,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const oldUserId = previousUserId.current;
 
         if (__DEV__) {
-          console.log('[Auth] Auth state changed:', newSession ? `authenticated (user: ${newSession?.user?.email})` : 'not authenticated');
-          console.log('[Auth] User transition:', { from: oldUserId, to: newUserId });
+          log.log('[Auth] Auth state changed:', newSession ? `authenticated (user: ${newSession?.user?.email})` : 'not authenticated');
+          log.log('[Auth] User transition:', { from: oldUserId, to: newUserId });
         }
 
         // Set loading to false on first auth state change
@@ -97,36 +100,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Check if user changed (different user or signed out)
         if (oldUserId && oldUserId !== newUserId) {
-          console.log('[Auth] User change detected, cleaning up local data for previous user:', oldUserId);
+          log.log('[Auth] User change detected, cleaning up local data for previous user:', oldUserId);
           try {
             // Clear both SQLite database and AsyncStorage
             await Promise.all([
               cleanupUserData(oldUserId),
               clearAllAppStorage(oldUserId) // Clear all app-specific AsyncStorage keys including workout state
             ]);
-            console.log('[Auth] Local data cleanup completed for previous user');
+            log.log('[Auth] Local data cleanup completed for previous user');
           } catch (error) {
-            console.error('[Auth] Failed to cleanup local data for previous user:', error);
+            log.error('[Auth] Failed to cleanup local data for previous user:', error);
           }
         } else if (!oldUserId && newUserId) {
           // New user signed in - clear any existing onboarding data to ensure clean slate
           if (__DEV__) {
-            console.log('[Auth] New user detected, clearing onboarding data for fresh start');
+            log.log('[Auth] New user detected, clearing onboarding data for fresh start');
           }
           try {
             await clearAllAppStorage(newUserId);
-            console.log('[Auth] Onboarding data cleared for new user');
+            log.log('[Auth] Onboarding data cleared for new user');
           } catch (error) {
-            console.error('[Auth] Failed to clear onboarding data for new user:', error);
+            log.error('[Auth] Failed to clear onboarding data for new user:', error);
           }
         } else if (oldUserId && !newUserId) {
           // User signed out - clear workout state
-          console.log('[Auth] User signed out, clearing workout state');
+          log.log('[Auth] User signed out, clearing workout state');
           try {
             await clearWorkoutState(oldUserId);
-            console.log('[Auth] Workout state cleared on logout');
+            log.log('[Auth] Workout state cleared on logout');
           } catch (error) {
-            console.error('[Auth] Failed to clear workout state on logout:', error);
+            log.error('[Auth] Failed to clear workout state on logout:', error);
           }
         }
 
@@ -139,14 +142,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (AUTO_LOGIN_FOR_DEVELOPMENT) {
       // DEVELOPMENT AUTO-LOGIN: Sign in with real credentials
       if (__DEV__) {
-        console.log('[Auth] 🔧 DEVELOPMENT MODE: Auto-logging in with dev credentials');
+        log.log('[Auth] 🔧 DEVELOPMENT MODE: Auto-logging in with dev credentials');
       }
       supabase.auth.signInWithPassword({
         email: DEV_EMAIL,
         password: DEV_PASSWORD,
       }).catch((error) => {
-        console.error('[Auth] Auto-login failed:', error.message);
-        console.log('[Auth] Falling back to normal auth flow');
+        log.error('[Auth] Auto-login failed:', error.message);
+        log.log('[Auth] Falling back to normal auth flow');
         // Auth state change listener will handle setting session to null
       });
       return () => subscription.unsubscribe();
@@ -154,7 +157,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Force sign out to clear any cached sessions for testing
     supabase.auth.signOut().catch((error) => {
-      console.error('[Auth] Failed to sign out:', error);
+      log.error('[Auth] Failed to sign out:', error);
       // Auth state change listener will handle the session state
     });
 

@@ -4,6 +4,9 @@ import { useAuth } from '../app/_contexts/auth-context';
 import { FetchedExerciseDefinition } from '../../../packages/data/src/types/exercise';
 import { exercisesApi } from '../../../packages/data/src/api/exercises';
 import { filterExercises, sortExercises, getUniqueMuscleGroups } from '../../../packages/data/src/selectors/exercises';
+import { createTaggedLogger } from '../lib/logger';
+
+const log = createTaggedLogger('useExerciseData');
 
 interface UseExerciseDataProps {
   supabase: SupabaseClient;
@@ -104,9 +107,9 @@ export const useExerciseData = ({ supabase }: UseExerciseDataProps): UseExercise
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching exercises...');
+      log.debug('Fetching exercises...');
       const exercises = await exercisesApi.fetchExercises(supabase);
-      console.log('Fetched exercises:', exercises.length);
+      log.debug('Fetched exercises:', exercises.length);
       setAllExercises(exercises);
     } catch (err) {
       console.error('Error fetching exercises:', err);

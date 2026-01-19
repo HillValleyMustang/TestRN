@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { Card } from '../ui/Card';
@@ -91,6 +91,13 @@ export const WeeklyVolumeChart: React.FC<WeeklyVolumeChartProps> = ({
     })
     .sort(([,a], [,b]) => b - a);
 
+  // Memoize maxVolume calculation to prevent O(n²) operation inside map
+  // This was being recalculated for each item in filteredData.map()
+  const maxVolume = useMemo(() => {
+    if (filteredData.length === 0) return 1;
+    return Math.max(...filteredData.map(([, vol]) => typeof vol === 'number' && !isNaN(vol) ? vol : 0), 1);
+  }, [filteredData]);
+
   return (
     <Card style={styles.progressCard}>
       <View style={styles.cardHeader}>
@@ -149,7 +156,6 @@ export const WeeklyVolumeChart: React.FC<WeeklyVolumeChartProps> = ({
         <View style={styles.volumeChartContainer}>
           {filteredData.map(([muscle, volume]) => {
             const safeVolume = typeof volume === 'number' && !isNaN(volume) ? volume : 0;
-            const maxVolume = Math.max(...filteredData.map(([, vol]) => typeof vol === 'number' && !isNaN(vol) ? vol : 0), 1);
             const percentage = (safeVolume / maxVolume) * 100;
 
             return (

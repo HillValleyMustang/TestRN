@@ -43,30 +43,20 @@ export function WeeklyTargetWidget({
   loading,
   error,
 }: WeeklyTargetWidgetProps) {
-  // Use a ref to track the previous completedWorkouts for deep comparison
-  const prevCompletedWorkoutsRef = useRef<string>(JSON.stringify(completedWorkouts.map(w => ({ id: w.id, name: w.name }))));
+  // Use a ref to track the previous completedWorkouts IDs for comparison
+  // Optimized: Use simple ID string comparison instead of expensive JSON.stringify
+  const workoutIds = useMemo(() => completedWorkouts.map(w => w.id).sort().join(','), [completedWorkouts]);
+  const prevWorkoutIdsRef = useRef<string>(workoutIds);
   const [renderKey, setRenderKey] = useState(0);
 
-  // Force re-render when completedWorkouts changes to ensure fresh data
-  // CRITICAL FIX: Use deep comparison instead of just length to detect actual changes
+  // Force re-render when completedWorkouts IDs change
   useEffect(() => {
-    const currentWorkoutsKey = JSON.stringify(completedWorkouts.map(w => ({ id: w.id, name: w.name })));
-    if (prevCompletedWorkoutsRef.current !== currentWorkoutsKey) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyTargetWidget.tsx:51',message:'WeeklyTargetWidget detected workout change',data:{oldKey:prevCompletedWorkoutsRef.current,newKey:currentWorkoutsKey,oldLength:JSON.parse(prevCompletedWorkoutsRef.current||'[]').length,newLength:completedWorkouts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      if (__DEV__) {
-        console.log('🔄 WeeklyTargetWidget useEffect triggered:', {
-          oldKey: prevCompletedWorkoutsRef.current,
-          newKey: currentWorkoutsKey,
-          completedWorkouts: completedWorkouts.map(w => ({ id: w.id, name: w.name }))
-        });
-      }
-      prevCompletedWorkoutsRef.current = currentWorkoutsKey;
+    if (prevWorkoutIdsRef.current !== workoutIds) {
+      prevWorkoutIdsRef.current = workoutIds;
       // Force a re-render by incrementing the render key
       setRenderKey(prev => prev + 1);
     }
-  }, [completedWorkouts]);
+  }, [workoutIds]);
 
   // Construct progress text safely
   const progressText = useMemo(() => {
@@ -146,17 +136,7 @@ export function WeeklyTargetWidget({
              7 - goalTotal // Max additional circles to reach 7 total
            );
            
-           // Debug logging
-           if (__DEV__) {
-             console.log('WeeklyTargetWidget Debug:', {
-               totalSessions,
-               completedWorkoutsLength: completedWorkouts.length,
-               goalTotal,
-               hasAdditionalWorkouts,
-               additionalWorkoutsCount,
-               maxAdditional: 7 - goalTotal,
-             });
-           }
+           // Debug logging removed - too verbose
 
           const coreWorkouts = workoutTypes.slice(0, goalTotal);
 
@@ -181,15 +161,7 @@ export function WeeklyTargetWidget({
                   ]}
                   onPress={() => {
                     const sessionId = matchingWorkout.sessionId || matchingWorkout.id;
-                    if (__DEV__) {
-                      console.log('🎯 Circle pressed:', {
-                        index,
-                        workoutType,
-                        workoutName: matchingWorkout.name,
-                        sessionId,
-                        completedWorkoutsLength: completedWorkouts.length
-                      });
-                    }
+                    // Debug logging removed - too verbose
                     if (sessionId) {
                       onViewWorkoutSummary?.(sessionId);
                     }
@@ -221,9 +193,7 @@ export function WeeklyTargetWidget({
           /*
           const additionalCircles = [];
           if (hasAdditionalWorkouts && additionalWorkoutsCount > 0) {
-            if (__DEV__) {
-              console.log('🎯 Creating additional circles:', additionalWorkoutsCount);
-            }
+            // Debug logging removed - too verbose
             // Add gap between core and additional circles
             additionalCircles.push(
               <View key="gap" style={styles.circleGap} />

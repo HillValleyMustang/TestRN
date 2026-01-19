@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, Footprints, Plus } from 'lucide-react-native';
 import { Colors, Spacing } from '../../constants/Theme';
@@ -79,7 +79,7 @@ const formatLastCompleted = (date: Date | null): string => {
   return `${Math.floor(diffDays / 30)} months ago`;
 };
 
-export const WorkoutPill: React.FC<WorkoutPillProps> = ({
+const WorkoutPillComponent: React.FC<WorkoutPillProps> = ({
   id,
   title,
   // workoutType,
@@ -95,21 +95,31 @@ export const WorkoutPill: React.FC<WorkoutPillProps> = ({
   const IconComponent = getCategoryIcon(category);
   const lastCompletedText = formatLastCompleted(completedAt || null);
 
+  // Memoize style objects to prevent unnecessary re-renders and layout recalculations
+  const dynamicStyle = useMemo(() => ({
+    backgroundColor: isSelected ? backgroundColor : Colors.card,
+    borderColor: isSelected ? 'transparent' : backgroundColor,
+    borderWidth: isSelected ? 0 : 2,
+  }), [isSelected, backgroundColor]);
+
+  const iconColor = useMemo(() => 
+    isSelected ? Colors.white : backgroundColor,
+    [isSelected, backgroundColor]
+  );
+
   return (
     <Pressable
       style={({ pressed }) => [
         styles.container,
-        {
-          backgroundColor: isSelected ? backgroundColor : Colors.card,
-          borderColor: isSelected ? 'transparent' : backgroundColor,
-          borderWidth: isSelected ? 0 : 2,
-        },
+        dynamicStyle,
         pressed && styles.pressed,
       ]}
-      onPress={() => onClick(id)}
+      onPress={() => {
+        onClick(id);
+      }}
     >
       <View style={styles.content}>
-        <IconComponent size={20} color={isSelected ? Colors.white : backgroundColor} />
+        <IconComponent size={20} color={iconColor} />
         <View style={styles.textContainer}>
           <Text style={[styles.title, isSelected && styles.selectedTitle]} numberOfLines={1}>
             {title}
@@ -124,6 +134,21 @@ export const WorkoutPill: React.FC<WorkoutPillProps> = ({
     </Pressable>
   );
 };
+
+// Memoize WorkoutPill to prevent re-renders when props haven't changed
+export const WorkoutPill = React.memo(WorkoutPillComponent, (prevProps, nextProps) => {
+  // Return true if props are equal (should skip re-render), false if different (should re-render)
+  // Only re-render if these props actually change - onClick is compared by reference (should be stable via useCallback)
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.title === nextProps.title &&
+    prevProps.category === nextProps.category &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.completedAt?.getTime() === nextProps.completedAt?.getTime() &&
+    prevProps.hideLastCompleted === nextProps.hideLastCompleted &&
+    prevProps.onClick === nextProps.onClick
+  );
+});
 
 const styles = StyleSheet.create({
   container: {

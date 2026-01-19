@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -150,7 +149,9 @@ export const GlobalExerciseList: React.FC<GlobalExerciseListProps> = ({
   const [addToTPathModalVisible, setAddToTPathModalVisible] = useState(false);
   const [exerciseToAdd, setExerciseToAdd] = useState<FetchedExerciseDefinition | null>(null);
 
-  console.log('GlobalExerciseList render:', { exercises: exercises?.length, totalCount, loading });
+  if (__DEV__) {
+    console.log('GlobalExerciseList render:', { exercises: exercises?.length, totalCount, loading });
+  }
 
   const handleInfoPress = useCallback((exercise: FetchedExerciseDefinition) => {
     setSelectedExercise(exercise);
@@ -163,11 +164,11 @@ export const GlobalExerciseList: React.FC<GlobalExerciseListProps> = ({
   }, []);
 
   const handleAddToWorkout = useCallback((exercise: FetchedExerciseDefinition) => {
-    console.log('GlobalExerciseList: Opening AddToTPathModal for exercise:', exercise.name);
-    console.log('GlobalExerciseList: Setting exerciseToAdd and modal visible');
+    if (__DEV__) {
+      console.log('GlobalExerciseList: Opening AddToTPathModal for exercise:', exercise.name);
+    }
     setExerciseToAdd(exercise);
     setAddToTPathModalVisible(true);
-    console.log('GlobalExerciseList: Modal should now be visible');
   }, []);
 
   const handleCloseAddToTPathModal = useCallback(() => {
@@ -214,19 +215,20 @@ export const GlobalExerciseList: React.FC<GlobalExerciseListProps> = ({
   }
 
   return (
-    <ScrollView style={styles.flatList} showsVerticalScrollIndicator={false}>
-      {renderHeader()}
-      {exercises.length === 0 ? renderEmpty() : exercises.map((exercise) => (
-        <ExerciseItem
-          key={exercise.id}
-          exercise={exercise}
-          exerciseWorkoutsMap={exerciseWorkoutsMap}
-          onToggleFavorite={onToggleFavorite}
-          onAddToWorkout={handleAddToWorkout}
-          onInfoPress={handleInfoPress}
-          onManageGyms={onManageGyms}
-        />
-      ))}
+    <View style={styles.listContainer}>
+      <FlatList
+        data={exercises}
+        renderItem={renderExercise}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={renderEmpty}
+        ListHeaderComponent={renderHeader}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={10}
+        contentContainerStyle={styles.listContent}
+      />
 
       <ExerciseInfoModal
         visible={infoModalVisible}
@@ -241,7 +243,7 @@ export const GlobalExerciseList: React.FC<GlobalExerciseListProps> = ({
         exerciseWorkoutsMap={exerciseWorkoutsMap}
         onAddSuccess={onRefreshData || (() => {})}
       />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -264,6 +266,9 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
+  },
+  listContent: {
+    paddingBottom: Spacing.md,
   },
   listHeader: {
     marginBottom: Spacing.md,

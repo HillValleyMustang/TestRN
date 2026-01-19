@@ -11,14 +11,13 @@ import type {
   TPathWithExercises,
   Gym,
 } from '@data/storage';
+import { logger } from '../../lib/logger';
 
 const DB_NAME = 'fitness_tracker.db';
 
-// Conditional debug logging - only logs in development
+// Conditional debug logging - uses debug level (hidden by default)
 const debugLog = (...args: any[]) => {
-  if (__DEV__) {
-    console.log('[Database]', ...args);
-  }
+  logger.debug('[Database]', ...args);
 };
 
 class Database {

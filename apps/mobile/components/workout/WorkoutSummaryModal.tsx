@@ -260,10 +260,6 @@ const useWorkoutMetrics = (exercises: WorkoutExercise[], providedDuration?: stri
       return total + (weight * reps);
     }, 0);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:241',message:'PB count calculation - checking completedSets',data:{totalCompletedSets:completedSets.length,exercisesCount:exercises.length,completedSetsWithIsPR:completedSets.filter(s=>s.isPR).length,allSetsDetails:completedSets.map(s=>({isPR:s.isPR,isCompleted:s.isCompleted,hasIsPRProp:Object.hasOwnProperty.call(s,'isPR')}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'2B'})}).catch(()=>{});
-    // #endregion
-
     const prCount = completedSets.filter(set => set.isPR).length;
     const exerciseCount = exercises.length;
     const totalSets = completedSets.length;
@@ -412,10 +408,6 @@ interface ExerciseSummaryProps {
 // CRITICAL FIX: Memoize icon component to prevent re-rendering
 const ExerciseIcon = React.memo<{ exerciseId: string; iconUrl: string | number; exerciseName: string; onError: () => void; hasError: boolean }>(
   ({ exerciseId, iconUrl, exerciseName, onError, hasError }) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:413',message:'ExerciseIcon rendering',data:{exerciseId,iconUrlType:typeof iconUrl,hasError,iconUrlValue:typeof iconUrl==='string'?iconUrl.substring(0,50):iconUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'icon'})}).catch(()=>{});
-    // #endregion
-    
     if (hasError) {
       return <Ionicons name="fitness" size={24} color={Colors.foreground} />;
     }
@@ -464,9 +456,6 @@ const ExerciseIcon = React.memo<{ exerciseId: string; iconUrl: string | number; 
                        prevProps.exerciseId === nextProps.exerciseId;
     
     if (!shouldSkip) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:452',message:'ExerciseIcon props changed',data:{prevIconUrl:prevProps.iconUrl,nextIconUrl:nextProps.iconUrl,prevHasError:prevProps.hasError,nextHasError:nextProps.hasError,prevId:prevProps.exerciseId,nextId:nextProps.exerciseId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'icon'})}).catch(()=>{});
-      // #endregion
     }
     return shouldSkip;
   }
@@ -753,6 +742,9 @@ export function WorkoutSummaryModal({
   const historicalComparison = useMemo(() => {
     if (!historicalWorkout) return null;
     
+    // Optimized: Compute completed sets count once instead of twice
+    const completedSetsCount = historicalWorkout.exercises.flatMap(ex => ex.sets.filter(set => set.isCompleted)).length;
+    
     return {
       volumeDiff: metrics.totalVolume - historicalWorkout.totalVolume,
       volumePercent: historicalWorkout.totalVolume > 0 
@@ -761,9 +753,8 @@ export function WorkoutSummaryModal({
       timeDiff: metrics.totalDurationSeconds - parseDurationToSeconds(historicalWorkout.duration),
       prDiff: metrics.prCount - historicalWorkout.prCount,
       avgTimePerSetDiff: metrics.averageTimePerSet - (
-        historicalWorkout.exercises.flatMap(ex => ex.sets.filter(set => set.isCompleted)).length > 0
-          ? Math.round(parseDurationToSeconds(historicalWorkout.duration) / 
-              historicalWorkout.exercises.flatMap(ex => ex.sets.filter(set => set.isCompleted)).length)
+        completedSetsCount > 0
+          ? Math.round(parseDurationToSeconds(historicalWorkout.duration) / completedSetsCount)
           : 0
       ),
     };
@@ -818,9 +809,6 @@ export function WorkoutSummaryModal({
   }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateDashboardCache]);
 
   const handleSaveAndClose = useCallback(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:806',message:'handleSaveAndClose called',data:{hasRatingChanged,sessionId,userId,workoutName},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (hasRatingChanged) {
       await handleSaveRating();
     }
@@ -828,10 +816,6 @@ export function WorkoutSummaryModal({
     // CRITICAL: Ensure dashboard refresh happens immediately when closing the modal
     if (userId) {
       console.log('[WorkoutSummaryModal] Triggering immediate dashboard refresh after workout completion');
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:816',message:'Starting cache invalidation',data:{sessionId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       // First, trigger the data context's workout completion handler for immediate cache invalidation
       // CRITICAL: Pass the session ID to award points for workout completion
@@ -842,9 +826,6 @@ export function WorkoutSummaryModal({
           const session = sessions.find(s => s.id === sessionId);
           
           if (session) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:825',message:'Calling handleWorkoutCompletion with session',data:{sessionId:session.id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             await handleWorkoutCompletion(session);
             console.log('[WorkoutSummaryModal] Points calculated and awarded for session:', sessionId);
           } else {
@@ -855,9 +836,6 @@ export function WorkoutSummaryModal({
           console.log('[WorkoutSummaryModal] No session ID provided, cache invalidation only (no points)');
           await handleWorkoutCompletion(undefined);
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:838',message:'Cache invalidation completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         console.log('[WorkoutSummaryModal] Data context cache invalidation completed');
       } catch (error) {
         console.error('[WorkoutSummaryModal] Error during data context cache invalidation:', error);
@@ -865,9 +843,6 @@ export function WorkoutSummaryModal({
       
       // Then trigger the global refresh mechanism for immediate effect
       if (typeof (global as any).triggerDashboardRefresh === 'function') {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:843',message:'Triggering global dashboard refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         (global as any).triggerDashboardRefresh();
         console.log('[WorkoutSummaryModal] Global dashboard refresh triggered');
       }
@@ -880,12 +855,6 @@ export function WorkoutSummaryModal({
       // The dashboard focus effect will handle the refresh when user navigates
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:856',message:'About to close modal',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutSummaryModal.tsx:859',message:'Calling onClose immediately',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     // CRITICAL FIX: Close immediately instead of waiting 1.5s to prevent race conditions
     // The dashboard refresh will complete in the background
     onClose();

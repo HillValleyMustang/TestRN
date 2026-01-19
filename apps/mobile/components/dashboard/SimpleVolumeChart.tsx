@@ -3,7 +3,7 @@
  * Displays weekly volume as simple bar chart with Y-axis values and workout type colors
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
@@ -56,28 +56,13 @@ export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
   // This ensures the chart always shows the latest data from the parent
   const chartData = data;
 
+  // Memoize maxVolume calculation to prevent recalculation on every render
+  const maxVolume = useMemo(() => {
+    if (chartData.length === 0) return 1;
+    return Math.max(...chartData.map(d => d.volume), 1);
+  }, [chartData]);
 
-  const maxVolume = Math.max(...chartData.map(d => d.volume), 1);
-
-  // Debug logging for Y-axis calculation (reduced frequency)
-  if (__DEV__) {
-    const lastLogRef = React.useRef<number>(0);
-    const now = Date.now();
-    if (now - lastLogRef.current > 5000) {
-      lastLogRef.current = now;
-      console.log('[SimpleVolumeChart] Y-axis calculation debug:', {
-        chartData: chartData.map(d => ({ date: d.date, volume: d.volume })),
-        maxVolume,
-        yAxisLabels: [
-          0,
-          Math.ceil(maxVolume * 0.25 / 5) * 5,
-          Math.ceil(maxVolume * 0.5 / 10) * 10,
-          Math.ceil(maxVolume * 0.75 / 25) * 25,
-          Math.ceil(maxVolume / 50) * 50
-        ].reverse()
-      });
-    }
-  }
+  // Debug logging removed - too verbose
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);

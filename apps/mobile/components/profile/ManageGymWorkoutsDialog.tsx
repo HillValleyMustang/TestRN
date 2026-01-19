@@ -231,8 +231,9 @@ export function ManageGymWorkoutsDialog({
     let filtered = availableExercises;
 
     // First, exclude exercises already in the current workout
-    const currentWorkoutExerciseIds = [...coreExercises, ...bonusExercises].map(ex => ex.exercise_id);
-    filtered = filtered.filter(ex => !currentWorkoutExerciseIds.includes(ex.id));
+    // Optimized: Use Set for O(1) lookups instead of O(n) array.includes()
+    const currentWorkoutExerciseIds = new Set([...coreExercises, ...bonusExercises].map(ex => ex.exercise_id));
+    filtered = filtered.filter(ex => !currentWorkoutExerciseIds.has(ex.id));
 
     // Apply search filter (case-insensitive)
     if (debouncedSearchQuery.trim()) {

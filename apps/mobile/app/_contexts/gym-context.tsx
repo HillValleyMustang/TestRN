@@ -4,6 +4,9 @@ import { supabase } from '@data/supabase/client-mobile';
 import { useAuth } from './auth-context';
 import { Gym, DashboardProfile } from './data-context'; // Using Gym and DashboardProfile from data-context
 import Toast from 'react-native-toast-message';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('GymContext');
 
 interface GymContextType {
   userGyms: Gym[];
@@ -46,7 +49,7 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
         .maybeSingle();
 
       if (profileError) {
-        console.error('Error fetching profile:', profileError);
+        log.error('Error fetching profile:', profileError);
         Toast.show({
           type: 'error',
           text1: 'Error loading user profile.',
@@ -71,7 +74,7 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('user_id', userId);
 
       if (gymsError) {
-        console.error('Error fetching gyms:', gymsError);
+        log.error('Error fetching gyms:', gymsError);
         Toast.show({
           type: 'error',
           text1: 'Error loading gyms.',
@@ -94,7 +97,7 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
         setActiveGym(currentActiveGym || null);
       }
     } catch (error) {
-      console.error('Unexpected error in fetchGymData:', error);
+      log.error('Unexpected error in fetchGymData:', error);
       Toast.show({
         type: 'error',
         text1: 'An unexpected error occurred while loading gym data.',
@@ -130,10 +133,6 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
     setActiveGym(newActiveGym); // Optimistic update
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:132',message:'Switching active gym',data:{gymId,previousGymId:activeGym?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       // Call the edge function to switch active gym, which also updates active_t_path_id
       const { data, error } = await supabase.functions.invoke('switch-active-gym', {
         body: { gymId },
@@ -142,10 +141,6 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) {
         throw new Error(error.message || 'Failed to switch active gym');
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:145',message:'Edge function call successful',data:{gymId,result:data},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       // Refresh gyms and profile to get updated active_t_path_id
       refreshGyms();
@@ -157,10 +152,6 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', userId)
         .maybeSingle();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:155',message:'Profile after switch',data:{activeGymId:updatedProfile?.active_gym_id,activeTPathId:updatedProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       if (updatedProfile) {
         setProfile(prev => prev ? { ...prev, active_t_path_id: updatedProfile.active_t_path_id } : null);
       }
@@ -171,10 +162,7 @@ export const GymProvider = ({ children }: { children: React.ReactNode }) => {
       });
       return true;
     } catch (error: any) {
-      console.error('Error switching active gym:', error.message);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gym-context.tsx:168',message:'Error switching gym',data:{error:error.message,gymId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
+      log.error('Error switching active gym:', error.message);
       Toast.show({
         type: 'error',
         text1: error.message || 'Failed to switch active gym.',

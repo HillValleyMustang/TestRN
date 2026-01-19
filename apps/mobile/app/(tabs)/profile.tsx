@@ -241,10 +241,7 @@ export default function ProfileScreen() {
       }
 
       console.log('[Profile] Profile data loaded:', profileRes.data?.id, 'total_points:', profileRes.data?.total_points, 'forceRefresh value:', forceRefresh);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:243',message:'Profile loaded from Supabase',data:{profileId:profileRes.data?.id,activeTPathId:profileRes.data?.active_t_path_id,programmeType:profileRes.data?.programme_type},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
+      
       // Load gyms data
       const gymsRes = await supabase
         .from('gyms')
@@ -360,10 +357,7 @@ export default function ProfileScreen() {
       });
 
       console.log('[Profile] Setting profile state with total_points:', profileData.total_points);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:360',message:'Setting profile state',data:{profileId:profileData.id,activeTPathId:profileData.active_t_path_id,programmeType:profileData.programme_type},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      setProfile(profileData);
+            setProfile(profileData);
 
       if (gymsRes.data) {
         setGyms(gymsRes.data);
@@ -667,10 +661,7 @@ export default function ProfileScreen() {
           
           if (!profileCheckError && currentProfile?.active_t_path_id !== activeGymTPath.id) {
             console.log('[Profile] Updating active_t_path_id to:', activeGymTPath.id);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:663',message:'Updating active_t_path_id in Supabase',data:{activeGymId,activeGymTPathId:activeGymTPath.id,currentActiveTPathId:currentProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-            const { error: updateActiveTPathError } = await supabase
+                        const { error: updateActiveTPathError } = await supabase
               .from('profiles')
               .update({ 
                 active_t_path_id: activeGymTPath.id,
@@ -680,15 +671,9 @@ export default function ProfileScreen() {
             
             if (updateActiveTPathError) {
               console.warn('[Profile] Failed to update active_t_path_id:', updateActiveTPathError);
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:673',message:'Failed to update active_t_path_id',data:{error:updateActiveTPathError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-              // #endregion
-            } else {
+                          } else {
               console.log('[Profile] Successfully updated active_t_path_id');
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:675',message:'Successfully updated active_t_path_id',data:{activeGymTPathId:activeGymTPath.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-              // #endregion
-              // Wait longer for Supabase to propagate the update and verify it's saved
+                            // Wait longer for Supabase to propagate the update and verify it's saved
               await new Promise(resolve => setTimeout(resolve, 500));
               
               // Verify the update was saved correctly
@@ -705,10 +690,7 @@ export default function ProfileScreen() {
                 if (!verifyError && verifyProfile?.active_t_path_id === activeGymTPath.id) {
                   verified = true;
                   console.log('[Profile] Verified active_t_path_id update on attempt', verifyAttempts + 1);
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:692',message:'Verified active_t_path_id update',data:{activeTPathId:verifyProfile.active_t_path_id,attempts:verifyAttempts+1},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-                  // #endregion
-                  break;
+                                    break;
                 }
                 
                 verifyAttempts++;
@@ -719,17 +701,11 @@ export default function ProfileScreen() {
               
               if (!verified) {
                 console.warn('[Profile] Could not verify active_t_path_id update after', maxVerifyAttempts, 'attempts');
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:710',message:'Failed to verify active_t_path_id update',data:{expectedTPathId:activeGymTPath.id,attempts:maxVerifyAttempts},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-              }
+                              }
             }
           } else {
             console.log('[Profile] active_t_path_id is already correct:', currentProfile?.active_t_path_id);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:680',message:'active_t_path_id already correct',data:{activeTPathId:currentProfile?.active_t_path_id,expectedTPathId:activeGymTPath.id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-          }
+                      }
         } else {
           console.warn('[Profile] No t-path found for active gym:', activeGymId);
         }
@@ -756,35 +732,20 @@ export default function ProfileScreen() {
               expected: activeGymTPath.id,
               actual: finalVerifyProfile?.active_t_path_id
             });
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:730',message:'Final verification failed',data:{expected:activeGymTPath.id,actual:finalVerifyProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-          } else {
+                      } else {
             console.log('[Profile] Final verification passed - active_t_path_id is correct:', finalVerifyProfile?.active_t_path_id);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:735',message:'Final verification passed',data:{activeTPathId:finalVerifyProfile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
-          }
+                      }
         }
       }
 
       // Step 8: Clear caches and refresh (AFTER active_t_path_id is verified)
       console.log('[Profile] Invalidating caches and refreshing data');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:740',message:'Before invalidateAllCaches and setShouldRefreshDashboard',data:{activeGymId:profile.active_gym_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      invalidateAllCaches();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:743',message:'Setting shouldRefreshDashboard to true',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      setShouldRefreshDashboard(true);
+            invalidateAllCaches();
+            setShouldRefreshDashboard(true);
 
       // Step 9: Reload profile to get updated active_t_path_id
       await loadProfile();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:693',message:'After loadProfile - checking profile state',data:{profileActiveTPathId:profile?.active_t_path_id},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
+      
       console.log('[Profile] T-Path regeneration for all gyms complete');
       
       Toast.show({

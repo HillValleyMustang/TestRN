@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -892,22 +891,20 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
   }
 
   return (
-    <ScrollView style={styles.flatList} showsVerticalScrollIndicator={false}>
-      {renderHeader()}
-      {exercises.length === 0 ? renderEmpty() : exercises.map((exercise) => (
-        <ExerciseItem
-          key={exercise.id}
-          exercise={exercise}
-          exerciseGymsMap={exerciseGymsMap}
-          exerciseWorkoutsMap={exerciseWorkoutsMap}
-          onToggleFavorite={onToggleFavorite}
-          onDeleteExercise={onDeleteExercise}
-          onAddToWorkout={handleAddToWorkout}
-          onEditExercise={handleEditExercise}
-          onInfoPress={handleInfoPress}
-          onManageGyms={handleManageGyms}
-        />
-      ))}
+    <View style={styles.listContainer}>
+      <FlatList
+        data={exercises}
+        renderItem={renderExercise}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={renderEmpty}
+        ListHeaderComponent={renderHeader}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={10}
+        contentContainerStyle={styles.listContent}
+      />
 
       <ExerciseInfoModal
         visible={infoModalVisible}
@@ -938,7 +935,7 @@ export const UserExerciseList: React.FC<UserExerciseListProps> = ({
         initialSelectedGymIds={new Set(exerciseToManageGyms?.id ? exerciseGymsMap[exerciseToManageGyms.id] || [] : [])}
         onSaveSuccess={handleManageGymsSuccess}
       />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -961,6 +958,9 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
+  },
+  listContent: {
+    paddingBottom: Spacing.md,
   },
   addButton: {
     flexDirection: 'row',

@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { database } from '../app/_lib/database';
 import { useAuth } from '../app/_contexts/auth-context';
 import { supabase } from '../app/_lib/supabase';
+import { createTaggedLogger } from '../lib/logger';
+
+const log = createTaggedLogger('useWorkoutLauncherData');
 
 // Define types locally
 interface TPath {
@@ -86,12 +89,12 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
         database.getTPaths(userId),
       ]);
 
-      console.log('[useWorkoutLauncherData] Profile from Supabase:', {
+      log.debug('[useWorkoutLauncherData] Profile from Supabase:', {
         id: profileData?.id,
         active_t_path_id: profileData?.active_t_path_id,
         programme_type: profileData?.programme_type,
       });
-      console.log('[useWorkoutLauncherData] T-Paths from local DB:', tPathsData.length, tPathsData.map(tp => ({
+      log.debug('[useWorkoutLauncherData] T-Paths from local DB:', tPathsData.length, tPathsData.map(tp => ({
         id: tp.id,
         template_name: tp.template_name,
         parent_t_path_id: tp.parent_t_path_id,
@@ -107,8 +110,8 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
         ? allWorkouts.filter(tp => tp.parent_t_path_id === profileData.active_t_path_id)
         : [];
       
-      console.log('[useWorkoutLauncherData] All workouts (non-main):', allWorkouts.length);
-      console.log('[useWorkoutLauncherData] Child workouts for active T-Path:', childWorkouts.length, childWorkouts.map(w => w.template_name));
+      log.debug('[useWorkoutLauncherData] All workouts (non-main):', allWorkouts.length);
+      log.debug('[useWorkoutLauncherData] Child workouts for active T-Path:', childWorkouts.length, childWorkouts.map(w => w.template_name));
 
       // Only fetch exercises for child workouts (from active program)
       if (childWorkouts.length > 0) {
@@ -135,7 +138,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   // Also refresh when profile's active_t_path_id changes (e.g., after T-Path regeneration)
   useEffect(() => {
     if (profile?.active_t_path_id) {
-      console.log('[useWorkoutLauncherData] Profile active_t_path_id changed, refreshing:', profile.active_t_path_id);
+      log.debug('[useWorkoutLauncherData] Profile active_t_path_id changed, refreshing:', profile.active_t_path_id);
       refresh();
     }
   }, [profile?.active_t_path_id, refresh]);
@@ -151,7 +154,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       const programmeTypeChanged = profile.programme_type !== lastProgrammeTypeRef.current;
       
       if (tPathChanged || programmeTypeChanged) {
-        console.log('[useWorkoutLauncherData] T-path or programme type changed, clearing exercise cache and refreshing:', {
+        log.debug('[useWorkoutLauncherData] T-path or programme type changed, clearing exercise cache and refreshing:', {
           oldTPath: lastTPathIdRef.current,
           newTPath: profile.active_t_path_id,
           oldType: lastProgrammeTypeRef.current,
@@ -212,6 +215,10 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   // Build workout exercises cache and last completed dates
   const [workoutExercisesCache, setWorkoutExercisesCache] = useState<Record<string, any[]>>({});
   const [lastCompletedDates, setLastCompletedDates] = useState<Record<string, Date | null>>({});
+  
+  // Preserve completion dates by template_name to prevent "never" flash during gym switches
+  // This ref stores dates keyed by template_name (e.g., "Push", "Pull") which are stable across gyms
+  const lastCompletedDatesByTemplateNameRef = useRef<Record<string, Date>>({});
 
   // Helper function to get exercise details from local database
   const getExerciseDetailsFromLocal = async (exerciseIds: string[]): Promise<Array<{ id: string; name: string; main_muscle?: string }>> => {
@@ -370,10 +377,27 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   // Fetch last completed dates for workouts
   useEffect(() => {
     const fetchLastCompletedDates = async () => {
-      if (!userId || derivedData.childWorkouts.length === 0) {
+      if (!userId) {
+        // Only clear if there's no user - otherwise preserve existing dates
         setLastCompletedDates({});
+        lastCompletedDatesByTemplateNameRef.current = {};
         return;
       }
+
+      // Don't clear dates if childWorkouts is empty - preserve existing dates during transitions
+      if (derivedData.childWorkouts.length === 0) {
+        return;
+      }
+
+      // CRITICAL: Immediately set state with preserved dates from ref BEFORE async fetch
+      // This prevents "never" flash during gym switches when workout IDs change
+      const immediateDatesMap: Record<string, Date | null> = {};
+      derivedData.childWorkouts.forEach(workout => {
+        const preservedDate = lastCompletedDatesByTemplateNameRef.current[workout.template_name];
+        immediateDatesMap[workout.id] = preservedDate || null;
+      });
+      // Set state immediately so buttons don't show "never" during the async fetch
+      setLastCompletedDates(immediateDatesMap);
 
       try {
         // Get all workout IDs and template names
@@ -381,8 +405,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
         const workoutNames = derivedData.childWorkouts.map(w => w.template_name);
         
         if (workoutIds.length === 0) {
-          setLastCompletedDates({});
-          return;
+          return; // Don't clear existing dates
         }
 
         // Build a map for quick lookup
@@ -391,6 +414,9 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
           workoutMap.set(workout.id, workout);
           workoutMap.set(workout.template_name, workout);
         });
+        
+        // Start with the immediate dates we just set
+        const datesMap: Record<string, Date | null> = { ...immediateDatesMap };
 
         // Query Supabase for the most recent completed session for each workout
         // Try to match by t_path_id first (most accurate), then fall back to template_name
@@ -403,17 +429,9 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
 
         if (error) {
           console.error('[useWorkoutLauncherData] Error fetching last completed dates:', error);
-          setLastCompletedDates({});
+          // Don't clear dates on error - preserve existing dates
           return;
         }
-
-        // Build a map of workout ID to last completed date
-        const datesMap: Record<string, Date | null> = {};
-        
-        // Initialize all workouts with null
-        derivedData.childWorkouts.forEach(workout => {
-          datesMap[workout.id] = null;
-        });
 
         if (sessions && sessions.length > 0) {
           // Process sessions to find the most recent completed date for each workout
@@ -450,14 +468,22 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
           // Fill in any missing dates using template_name matching
           latestByTemplateName.forEach((date, templateName) => {
             const workout = workoutMap.get(templateName);
-            if (workout && !datesMap[workout.id]) {
+            if (workout) {
+              // Always update with the latest fetched date, even if we had a preserved one
               datesMap[workout.id] = date;
             }
           });
         }
 
+        // Update the ref with dates by template_name for persistence across gym switches
+        derivedData.childWorkouts.forEach(workout => {
+          if (datesMap[workout.id]) {
+            lastCompletedDatesByTemplateNameRef.current[workout.template_name] = datesMap[workout.id]!;
+          }
+        });
+
         setLastCompletedDates(datesMap);
-        console.log('[useWorkoutLauncherData] Last completed dates:', datesMap);
+        log.debug('[useWorkoutLauncherData] Last completed dates:', datesMap);
       } catch (error) {
         console.error('[useWorkoutLauncherData] Error fetching last completed dates:', error);
         setLastCompletedDates({});
@@ -467,13 +493,31 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     fetchLastCompletedDates();
   }, [userId, derivedData.childWorkouts]);
 
+  // CRITICAL: Merge state with preserved ref dates synchronously during render
+  // This ensures dates are available immediately when childWorkouts changes, preventing "never" flash
+  const enrichedLastCompletedDates = useMemo(() => {
+    const merged: Record<string, Date | null> = { ...lastCompletedDates };
+    
+    // For each current workout, if it's missing in state, try to get preserved date from ref
+    derivedData.childWorkouts.forEach(workout => {
+      if (!merged[workout.id]) {
+        const preservedDate = lastCompletedDatesByTemplateNameRef.current[workout.template_name];
+        if (preservedDate) {
+          merged[workout.id] = preservedDate;
+        }
+      }
+    });
+    
+    return merged;
+  }, [lastCompletedDates, derivedData.childWorkouts]);
+
   return {
     profile,
     activeTPath: derivedData.activeTPath,
     childWorkouts: derivedData.childWorkouts,
     adhocWorkouts: derivedData.adhocWorkouts,
     workoutExercisesCache,
-    lastCompletedDates,
+    lastCompletedDates: enrichedLastCompletedDates,
     loading,
     refreshing,
     error,

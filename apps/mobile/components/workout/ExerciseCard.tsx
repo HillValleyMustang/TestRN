@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Info, Menu, Plus, ChevronDown, ChevronUp, History, RotateCcw, X, Save, Lightbulb, Trophy } from 'lucide-react-native';
 import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
@@ -223,10 +223,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             ];
             const maxPreviousVolume = allPreviousVolumes.length > 0 ? Math.max(...allPreviousVolumes) : 0;
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:198',message:'PB calculation check',data:{exerciseId:exercise.id,exerciseName:exercise.name,setIndex,currentVolume,maxPreviousVolume,historicalSetsCount:historicalSets?.length||0,currentSessionSetsCount:currentSessionSets?.length||0,alreadySavedLocalSetsCount:alreadySavedLocalSets.length,isVolumePB:currentVolume>0&&(allPreviousVolumes.length===0||currentVolume>maxPreviousVolume),hasUserInput:!!(set.weight_kg && set.reps)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'2A'})}).catch(()=>{});
-            // #endregion
-            
             // PB is true if: current volume > max previous volume (strictly greater, not equal), OR if no history exists and volume > 0 (first time doing exercise)
             // Note: Matching a previous PB is NOT a new PB - must exceed it
             const isVolumePB = currentVolume > 0 && (allPreviousVolumes.length === 0 || currentVolume > maxPreviousVolume);
@@ -238,9 +234,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 isPR: isVolumePB
             };
             setLocalSets(newSets);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:207',message:'Set updated with isPR flag',data:{exerciseId:exercise.id,setIndex,isPR:isVolumePB,isSaved:!set.isSaved},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'2A'})}).catch(()=>{});
-            // #endregion
             // Update both isPR and is_pb to ensure consistency
             updateSet(exercise.id, setIndex, { 
               isSaved: !set.isSaved, 
@@ -332,10 +325,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             `;
 
             const recentSessionResult = await db.getFirstAsync<any>(sessionQuery, sessionParams);
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:302',message:'Previous workout sets query result',data:{exerciseId:exercise.id,exerciseName:exercise.name,templateName,currentSessionId,foundRecentSession:!!recentSessionResult,recentSessionId:recentSessionResult?.session_id},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'4A'})}).catch(()=>{});
-            // #endregion
 
             if (recentSessionResult) {
                 // Get all sets from that session for this exercise, ordered by creation time
@@ -350,10 +339,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 `;
 
                 const previousSets = await db.getAllAsync<any>(setsQuery, [recentSessionResult.session_id, exercise.id]);
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExerciseCard.tsx:316',message:'Previous sets found',data:{previousSetsCount:previousSets?.length||0,previousSets:previousSets?.map((s:any)=>({weight_kg:s.weight_kg,reps:s.reps}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'4B'})}).catch(()=>{});
-                // #endregion
 
                 if (previousSets && previousSets.length > 0) {
                     // Map previous sets to current sets by index
@@ -543,6 +528,23 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             );
         }
     };
+
+    // Memoize expensive history stats calculations to prevent recalculation on every render
+    const historyStats = useMemo(() => {
+        if (exerciseHistory.length === 0) {
+            return {
+                bestWeight: 0,
+                bestVolume: 0,
+                prSessions: 0,
+            };
+        }
+        return {
+            bestWeight: Math.max(...exerciseHistory.map(s => s.bestSet?.weight || 0)),
+            bestVolume: Math.max(...exerciseHistory.map(s => s.totalVolume || 0)),
+            prSessions: exerciseHistory.filter(s => s.hasPR).length,
+        };
+    }, [exerciseHistory]);
+
     return (
         <View style={[styles.container, accentColor && { borderWidth: 2, borderColor: accentColor }, showMenu && { zIndex: 999999, elevation: 100 }]}>
             <Pressable style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
@@ -882,9 +884,9 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                         {exerciseHistory.length > 0 && (
                             <View style={styles.historyStats}>
                                 <View style={styles.statItem}><Text style={styles.statValue}>{exerciseHistory.length}</Text><Text style={styles.statLabel}>Sessions</Text></View>
-                                <View style={styles.statItem}><Text style={styles.statValue}>{Math.max(...exerciseHistory.map(s => s.bestSet.weight || 0))}kg</Text><Text style={styles.statLabel}>Best Weight</Text></View>
-                                <View style={styles.statItem}><Text style={styles.statValue}>{Math.max(...exerciseHistory.map(s => s.totalVolume))}kg</Text><Text style={styles.statLabel}>Best Volume</Text></View>
-                                <View style={styles.statItem}><Text style={styles.statValue}>{exerciseHistory.filter(s => s.hasPR).length}</Text><Text style={styles.statLabel}>PR Sessions</Text></View>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{historyStats.bestWeight}kg</Text><Text style={styles.statLabel}>Best Weight</Text></View>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{historyStats.bestVolume}kg</Text><Text style={styles.statLabel}>Best Volume</Text></View>
+                                <View style={styles.statItem}><Text style={styles.statValue}>{historyStats.prSessions}</Text><Text style={styles.statLabel}>PR Sessions</Text></View>
                             </View>
                         )}
                         {historyTab === 'list' ? (

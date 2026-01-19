@@ -4,6 +4,9 @@ import { useRouter } from 'expo-router';
 import { useAuth } from './_contexts/auth-context';
 import { useData } from './_contexts/data-context';
 import { Colors } from '../constants/Theme';
+import { createTaggedLogger } from '../lib/logger';
+
+const log = createTaggedLogger('Index');
 
 export default function Index() {
   const { session, userId, loading: authLoading, supabase } = useAuth();
@@ -16,18 +19,18 @@ export default function Index() {
 
   useEffect(() => {
     if (__DEV__) {
-      console.log('[Index] useEffect triggered - session:', !!session, 'userId:', userId, 'authLoading:', authLoading);
+      log.debug('[Index] useEffect triggered - session:', !!session, 'userId:', userId, 'authLoading:', authLoading);
     }
     const handleNavigation = async () => {
       if (!authLoading) {
         if (session === null) {
           if (__DEV__) {
-            console.log('[Index] No session, redirecting to login');
+            log.debug('[Index] No session, redirecting to login');
           }
           router.replace('/login');
         } else if (userId) {
           if (__DEV__) {
-            console.log('[Index] User authenticated, forcing profile refresh and checking onboarding status...');
+            log.debug('[Index] User authenticated, forcing profile refresh and checking onboarding status...');
           }
 
           // Force refresh the profile data to ensure we get the latest from database
@@ -41,19 +44,19 @@ export default function Index() {
               .eq('id', userId)
               .single();
 
-            console.log('[Index] Profile check result:', { profile: !!profile, onboarding_completed: profile?.onboarding_completed, profileError, timestamp: new Date().toISOString() });
+            log.debug('[Index] Profile check result:', { profile: !!profile, onboarding_completed: profile?.onboarding_completed, profileError, timestamp: new Date().toISOString() });
 
             if (profile) {
               if (profile.onboarding_completed) {
                 if (__DEV__) {
-                  console.log('[Index] User has completed onboarding, redirecting to dashboard');
+                  log.debug('[Index] User has completed onboarding, redirecting to dashboard');
                 }
                 if (!navigatedRef.current) {
                   navigatedRef.current = true;
                   router.replace('/(tabs)/dashboard');
                 }
               } else {
-                console.log('[Index] User needs onboarding, redirecting to onboarding');
+                log.debug('[Index] User needs onboarding, redirecting to onboarding');
                 if (USE_NEW_ONBOARDING) {
                   router.replace('/new-onboarding'); // Future new onboarding route
                 } else {
@@ -61,7 +64,7 @@ export default function Index() {
                 }
               }
             } else {
-              console.log('[Index] No profile found, redirecting to onboarding');
+              log.debug('[Index] No profile found, redirecting to onboarding');
               if (USE_NEW_ONBOARDING) {
                 router.replace('/new-onboarding'); // Future new onboarding route
               } else {
