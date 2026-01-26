@@ -245,6 +245,12 @@ export class WeeklyWorkoutAnalyzer {
       } else if (lastWorkoutType.includes('lower') && lastWorkoutType.includes('b')) {
         // Lower B → Upper A (cycle restart)
         return this.findWorkoutByType(tPathWorkouts, 'upper', 'a') || tPathWorkouts[0];
+      } else if (lastWorkoutType.includes('upper')) {
+        // Generic Upper → Lower A
+        return this.findWorkoutByType(tPathWorkouts, 'lower', 'a') || tPathWorkouts[0];
+      } else if (lastWorkoutType.includes('lower')) {
+        // Generic Lower → Upper B
+        return this.findWorkoutByType(tPathWorkouts, 'upper', 'b') || tPathWorkouts[0];
       } else {
         // Unknown workout type, default to Upper A
         return this.findWorkoutByType(tPathWorkouts, 'upper', 'a') || tPathWorkouts[0];
@@ -261,7 +267,20 @@ export class WeeklyWorkoutAnalyzer {
     return workouts.find(workout => {
       const name = workout.template_name.toLowerCase();
       const matchesType = name.includes(type);
-      const matchesVariant = !variant || name.includes(variant);
+      
+      // If variant is provided, it must match.
+      // If variant is NOT provided, we should prefer a name that DOESN'T have 'a' or 'b' 
+      // if possible, to avoid matching 'Upper Body A' when we just want 'Upper Body'
+      let matchesVariant = true;
+      if (variant) {
+        matchesVariant = name.includes(variant);
+      } else {
+        // If we're looking for 'upper' but not a specific variant, 
+        // and the name is 'upper body a', it's a weak match.
+        // But for the sake of simplicity in this legacy logic, we'll keep it broad
+        // unless it's explicitly 'a' or 'b' in the program order.
+      }
+      
       return matchesType && matchesVariant;
     });
   }

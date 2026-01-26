@@ -71,10 +71,17 @@ export const useNextWorkout = (
       endOfWeek.setHours(23, 59, 59, 999);
       
       // Filter to current week and deduplicate by workout type
-      const currentWeekWorkouts = recentWorkouts.filter(({ session }) => {
-        const workoutDate = new Date(session.completed_at || session.session_date);
-        return workoutDate >= startOfWeek && workoutDate <= endOfWeek;
-      });
+      // Sort currentWeekWorkouts by date descending to ensure the most recent is first
+      const currentWeekWorkouts = recentWorkouts
+        .filter(({ session }) => {
+          const workoutDate = new Date(session.completed_at || session.session_date);
+          return workoutDate >= startOfWeek && workoutDate <= endOfWeek;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.session.completed_at || a.session.session_date);
+          const dateB = new Date(b.session.completed_at || b.session.session_date);
+          return dateB.getTime() - dateA.getTime();
+        });
       
       const workoutTypeMap = new Map<string, typeof recentWorkouts[0]>();
       currentWeekWorkouts.forEach((workout) => {
