@@ -84,7 +84,7 @@ const shouldSyncToSupabase = (item: SyncQueueItem): boolean => {
     return true;
   }
 
-  // For workout sessions, only sync if completed
+  // For workout sessions, only sync if completed (has completed_at)
   if (table === 'workout_sessions') {
     if (operation === 'create' || operation === 'update') {
       return (payload as any).completed_at !== null;
@@ -157,8 +157,10 @@ export const useSyncQueueProcessor = ({
     }, 100); // 100ms debounce
   }, []);
 
+  const isSyncingRef = useRef(false);
+
   const processNext = useCallback(async () => {
-    if (!enabled || !isOnline || isSyncing || !supabase) {
+    if (!enabled || !isOnline || isSyncingRef.current || !supabase) {
       return;
     }
 
@@ -186,6 +188,7 @@ export const useSyncQueueProcessor = ({
 
     // Batch processing: Group items by table and operation for efficiency
     const batches: { [key: string]: SyncQueueItem[] } = {};
+    let hasItemsToSync = false;
 
     for (const item of sortedQueue.slice(0, BATCH_SIZE)) {
       // Check if item has exceeded max retry attempts
@@ -257,9 +260,15 @@ export const useSyncQueueProcessor = ({
         batches[batchKey] = [];
       }
       batches[batchKey].push(item);
+      hasItemsToSync = true;
+    }
+
+    if (!hasItemsToSync) {
+      return;
     }
 
     // Process batches
+    isSyncingRef.current = true;
     debouncedSetIsSyncing(true);
 
     console.log(`[SyncQueue] Processing ${Object.keys(batches).length} batches:`, Object.keys(batches));
@@ -392,9 +401,10 @@ export const useSyncQueueProcessor = ({
       const error = err instanceof Error ? err : new Error(String(err));
       setLastError(error);
     } finally {
+      isSyncingRef.current = false;
       debouncedSetIsSyncing(false);
     }
-  }, [enabled, isOnline, isSyncing, supabase, store, onError, onSuccess]);
+  }, [enabled, isOnline, supabase, store, onError, onSuccess, debouncedSetQueueLength, debouncedSetIsSyncing]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -407,11 +417,20 @@ export const useSyncQueueProcessor = ({
         ? IDLE_INTERVAL
         : DEFAULT_INTERVAL;
 
-      timeoutId = setTimeout(() => {
-        processNext().finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      timeoutId = setTimeout(async () => {
+        if (!enabled || !isOnline || isSyncingRef.current || !supabase) {
+          scheduleNext();
+          return;
+        }
+        
+        try {
+          await processNext();
+        } finally {
           // Schedule next check
           scheduleNext();
-        });
+        }
       }, currentInterval);
     };
 
@@ -421,7 +440,7 @@ export const useSyncQueueProcessor = ({
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [enabled, consecutiveEmptyRuns, processNext, isOnline]);
+  }, [enabled, consecutiveEmptyRuns, processNext, isOnline, supabase]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {

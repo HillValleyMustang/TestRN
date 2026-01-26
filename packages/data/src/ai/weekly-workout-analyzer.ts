@@ -68,19 +68,49 @@ export class WeeklyWorkoutAnalyzer {
     let nextRecommendedWorkout: string | undefined;
     let recommendationReason: 'weekly_completion' | 'normal_cycling';
 
-    if (preferences.strictMode && missingWorkouts.length > 0) {
-      // Strict mode: Always prioritize weekly completion
-      nextRecommendedWorkout = missingWorkouts[0];
+    if ((preferences.strictMode || preferences.prioritizeWeeklyCompletion) && missingWorkouts.length > 0 && !isWeekComplete) {
+      // Find the last completed workout from the program this week
+      // completedWorkoutsThisWeek is expected to be sorted most-recent-first
+      const lastCompletedProgramWorkout = completedWorkoutsThisWeek
+        .find(w => workoutOrder.some(p => this.isWorkoutTypeMatch(w.name, p)));
+      
+      if (lastCompletedProgramWorkout) {
+        // Find its index in the program order
+        const lastIndex = workoutOrder.findIndex(p => this.isWorkoutTypeMatch(lastCompletedProgramWorkout.name, p));
+        
+        // Find the next missing workout in the sequence after the last completed one
+        // We look ahead from lastIndex + 1
+        let nextInSequence = -1;
+        for (let i = 1; i <= workoutOrder.length; i++) {
+          const checkIndex = (lastIndex + i) % workoutOrder.length;
+          const workoutAtPos = workoutOrder[checkIndex];
+          if (missingWorkouts.some(m => this.isWorkoutTypeMatch(m, workoutAtPos))) {
+            nextInSequence = checkIndex;
+            break;
+          }
+        }
+        
+        if (nextInSequence !== -1) {
+          nextRecommendedWorkout = workoutOrder[nextInSequence];
+        } else {
+          nextRecommendedWorkout = missingWorkouts[0];
+        }
+      } else {
+        // Nothing completed this week yet, but we should still check the overall last workout
+        // to continue the sequence if possible
+        recommendationReason = 'normal_cycling';
+        return {
+          completedWorkouts: programCompletedWorkouts,
+          missingWorkouts,
+          isWeekComplete,
+          nextRecommendedWorkout: undefined, // Let normal cycling handle it
+          recommendationReason
+        };
+      }
+      
       recommendationReason = 'weekly_completion';
-    } else if (preferences.prioritizeWeeklyCompletion && missingWorkouts.length > 0 && !isWeekComplete) {
-      // Standard mode: Suggest missing workouts if week isn't complete
-      nextRecommendedWorkout = missingWorkouts[0];
-      recommendationReason = 'weekly_completion';
-    } else if (isWeekComplete || preferences.allowEarlyCycling) {
-      // Week complete or early cycling allowed - use normal progression
-      recommendationReason = 'normal_cycling';
     } else {
-      // Fallback to normal cycling
+      // Week complete or early cycling allowed - use normal progression
       recommendationReason = 'normal_cycling';
     }
 
@@ -297,10 +327,11 @@ export class WeeklyWorkoutAnalyzer {
     if (isUpper && isB) return compUpper && compB;
     if (isLower && isB) return compLower && compB;
 
-    if (isUpper && compUpper) return true;
-    if (isLower && compLower) return true;
+    // Handle names without A/B suffix (e.g., just "Upper Body")
+    if (isUpper && !isA && !isB) return compUpper;
+    if (isLower && !isA && !isB) return compLower;
 
-    // Handle workout names with extra qualifiers (e.g., "Push - Beginner", "Upper Body A (Modified)")
+    // Handle ad-hoc names with all words matching
     const programWords = program.split(' ');
     const allWordsMatch = programWords.every(word => completed.includes(word));
     if (allWordsMatch) return true;

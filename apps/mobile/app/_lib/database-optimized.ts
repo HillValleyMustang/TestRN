@@ -752,7 +752,6 @@ async addTPath(tPath: TPath): Promise<void> {
     // Check current table structure to handle missing columns gracefully
     const tableInfo = await db.getAllAsync<any>("PRAGMA table_info(t_paths);");
     const columns = tableInfo.map((col: any) => col.name);
-    console.log(`[DEBUG] 📋 Current t_paths columns for addTPath:`, columns);
     
     // Build dynamic query based on available columns
     const baseColumns = ['id', 'user_id', 'template_name', 'is_bonus', 'created_at', 'updated_at'];
@@ -791,11 +790,8 @@ async addTPath(tPath: TPath): Promise<void> {
     const placeholders = availableColumns.map(() => '?').join(', ');
     const query = `INSERT OR REPLACE INTO t_paths (${availableColumns.join(', ')}) VALUES (${placeholders})`;
     
-    console.log(`[DEBUG] 🔧 addTPath - Using columns:`, availableColumns);
-    console.log(`[DEBUG] 🔧 addTPath - Values count:`, availableValues.length);
-    
     await db.runAsync(query, availableValues);
-    console.log(`[DEBUG] ✅ addTPath successful for:`, tPath.template_name);
+    // Success log removed to reduce clutter
     
   } catch (error: any) {
     console.error(`[DEBUG] ❌ addTPath failed:`, error.message);
