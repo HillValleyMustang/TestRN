@@ -47,6 +47,7 @@ interface HistoricalWorkout {
   totalVolume: number;
   prCount: number;
   date: Date;
+  workoutName?: string;
 }
 
 interface WeeklyVolumeData {
@@ -588,7 +589,7 @@ export function WorkoutSummaryModal({
   // ===== HOOKS =====
   const metrics = useWorkoutMetrics(exercises, providedDuration);
   const { handleImageError } = useImageErrorHandling();
-  const { invalidateDashboardCache, handleWorkoutCompletion, userId, getWorkoutSessions } = useData();
+  const { invalidateAllCaches, handleWorkoutCompletion, userId, getWorkoutSessions } = useData();
 
   // ===== CONSTANTS =====
   const [routes] = useState([
@@ -600,6 +601,17 @@ export function WorkoutSummaryModal({
   // ===== EFFECTS =====
   useEffect(() => {
     if (visible) {
+      // CRITICAL: Reset rating state when modal opens for a new workout (not historical)
+      // Only use historicalRating if this is a read-only historical view
+      if (showActions) {
+        setRating(0);
+        setHasRatingChanged(false);
+        setRatingSaved(false);
+      } else if (historicalRating !== undefined && historicalRating !== null) {
+        // For historical views, use the historical rating
+        setRating(historicalRating);
+      }
+      
       if (providedDuration) {
         setDuration(formatDurationDisplay(providedDuration));
       } else {
@@ -610,7 +622,7 @@ export function WorkoutSummaryModal({
         setDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
       }
     }
-  }, [visible, startTime, providedDuration]);
+  }, [visible, startTime, providedDuration, showActions, historicalRating]);
 
   // Preselect progress tab based on workout type
   useEffect(() => {
@@ -730,8 +742,18 @@ export function WorkoutSummaryModal({
           (selectedProgressTab === 'upper' && category === 'upper') ||
           (selectedProgressTab === 'lower' && category === 'lower');
 
-        if (shouldInclude && typeof volume === 'number' && !isNaN(volume)) {
-          acc[muscle] = volume;
+        if (shouldInclude) {
+          // Handle both array format (from getWeeklyVolumeData) and number format
+          let totalVolume = 0;
+          if (Array.isArray(volume)) {
+            // Sum the array values to get total weekly volume
+            totalVolume = volume.reduce((sum, val) => sum + (typeof val === 'number' && !isNaN(val) ? val : 0), 0);
+          } else if (typeof volume === 'number' && !isNaN(volume)) {
+            totalVolume = volume;
+          }
+          
+          // Include all muscles (even with 0 volume) to show complete muscle breakdown
+          acc[muscle] = totalVolume;
         }
       });
     }
@@ -768,7 +790,7 @@ export function WorkoutSummaryModal({
       await onSaveWorkout(rating);
       // Trigger dashboard refresh to ensure fresh data is loaded when user navigates back
       if (userId) {
-        invalidateDashboardCache();
+        invalidateAllCaches();
         // Also trigger the global refresh mechanism for immediate effect
         if (typeof (global as any).triggerDashboardRefresh === 'function') {
           (global as any).triggerDashboardRefresh();
@@ -779,7 +801,7 @@ export function WorkoutSummaryModal({
     } finally {
       setIsSaving(false);
     }
-  }, [onSaveWorkout, rating, userId, invalidateDashboardCache]);
+  }, [onSaveWorkout, rating, userId, invalidateAllCaches]);
 
   const handleRating = useCallback((newRating: number) => {
     setRating(newRating);
@@ -790,46 +812,64 @@ export function WorkoutSummaryModal({
     if (hasRatingChanged) {
       setIsSaving(true);
       try {
-        onRateWorkout?.(rating);
+        // CRITICAL: Await the rating save to ensure it completes
+        await onRateWorkout?.(rating);
         setHasRatingChanged(false);
         setRatingSaved(true);
         // Trigger dashboard refresh when rating is saved
         if (userId) {
-          invalidateDashboardCache();
+          invalidateAllCaches();
           if (typeof (global as any).triggerDashboardRefresh === 'function') {
             (global as any).triggerDashboardRefresh();
           }
         }
       } catch (error) {
+        console.error('[WorkoutSummaryModal] Error saving rating:', error);
         Alert.alert('Error', 'Failed to save rating');
+        // Re-throw to prevent marking as saved if there was an error
+        throw error;
       } finally {
         setIsSaving(false);
       }
     }
-  }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateDashboardCache]);
+  }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateAllCaches]);
 
   const handleSaveAndClose = useCallback(async () => {
+    // Save rating first if changed
     if (hasRatingChanged) {
       await handleSaveRating();
     }
+    
+    // Save workout (ensures any pending changes are saved)
     await handleSave();
+    
     // CRITICAL: Ensure dashboard refresh happens immediately when closing the modal
     if (userId) {
       console.log('[WorkoutSummaryModal] Triggering immediate dashboard refresh after workout completion');
+      
+      // CRITICAL: Wait a brief moment to ensure database writes are committed
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // First, trigger the data context's workout completion handler for immediate cache invalidation
       // CRITICAL: Pass the session ID to award points for workout completion
       try {
         if (sessionId && userId && getWorkoutSessions) {
           // Fetch the session data to pass to handleWorkoutCompletion
-          const sessions = await getWorkoutSessions(userId);
-          const session = sessions.find(s => s.id === sessionId);
+          // Retry a few times in case the session isn't immediately available
+          let session = null;
+          for (let attempt = 0; attempt < 3 && !session; attempt++) {
+            const sessions = await getWorkoutSessions(userId);
+            session = sessions.find(s => s.id === sessionId);
+            if (!session && attempt < 2) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          }
           
           if (session) {
             await handleWorkoutCompletion(session);
             console.log('[WorkoutSummaryModal] Points calculated and awarded for session:', sessionId);
           } else {
-            console.warn('[WorkoutSummaryModal] Session not found, calling without session ID (cache invalidation only)');
+            console.warn('[WorkoutSummaryModal] Session not found after retries, calling without session ID (cache invalidation only)');
             await handleWorkoutCompletion(undefined);
           }
         } else {
@@ -841,24 +881,20 @@ export function WorkoutSummaryModal({
         console.error('[WorkoutSummaryModal] Error during data context cache invalidation:', error);
       }
       
+      // CRITICAL FIX: Invalidate cache immediately
+      invalidateAllCaches();
+      console.log('[WorkoutSummaryModal] Cache invalidated');
+      
       // Then trigger the global refresh mechanism for immediate effect
       if (typeof (global as any).triggerDashboardRefresh === 'function') {
         (global as any).triggerDashboardRefresh();
         console.log('[WorkoutSummaryModal] Global dashboard refresh triggered');
       }
-      
-      // CRITICAL FIX: Invalidate cache immediately (don't wait)
-      invalidateDashboardCache();
-      console.log('[WorkoutSummaryModal] Cache invalidated');
-      
-      // CRITICAL FIX: Don't wait - close immediately and let refresh happen in background
-      // The dashboard focus effect will handle the refresh when user navigates
     }
     
-    // CRITICAL FIX: Close immediately instead of waiting 1.5s to prevent race conditions
-    // The dashboard refresh will complete in the background
+    // Close the modal - the dashboard refresh will complete in the background
     onClose();
-  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateDashboardCache, handleWorkoutCompletion, sessionId, getWorkoutSessions]);
+  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateAllCaches, handleWorkoutCompletion, sessionId, getWorkoutSessions]);
 
   // ===== TAB ROUTES =====
   const SummaryTab = useCallback(() => (
@@ -872,6 +908,25 @@ export function WorkoutSummaryModal({
       keyboardShouldPersistTaps="always"
       bounces={true}
     >
+      {/* Your Next Workout — only when just finished (live summary), not historical */}
+      {showActions && nextWorkoutSuggestion && (
+        <View style={styles.nextWorkoutSection}>
+          <Text style={styles.nextWorkoutLabel}>Your Next Workout</Text>
+          <View
+            style={[
+              styles.nextWorkoutBadge,
+              { backgroundColor: getWorkoutColor(nextWorkoutSuggestion.name).main }
+            ]}
+            accessible
+            accessibilityLabel={`Next workout: ${nextWorkoutSuggestion.name}`}
+          >
+            <Text style={styles.nextWorkoutBadgeText} numberOfLines={1}>
+              {nextWorkoutSuggestion.name}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Workout Stats */}
       <View style={styles.statsContainer}>
         <Card style={styles.statsCard}>
@@ -933,7 +988,7 @@ export function WorkoutSummaryModal({
             {!showActions ? "Workout Rating" : "Rate Your Workout"}
           </Text>
         </View>
-        <View style={styles.cardContent}>
+        <View style={[styles.cardContent, showActions && rating > 0 && styles.ratingCardContentWithButton]}>
           {showActions && (
             <Text style={styles.ratingDescription}>
               How did this workout feel?
@@ -989,7 +1044,8 @@ export function WorkoutSummaryModal({
     </ScrollView>
   ), [
     showActions, metrics, duration, rating, ratingSaved, isSaving,
-    exercises, historicalRating, handleRating, handleSaveRating
+    exercises, historicalRating, handleRating, handleSaveRating,
+    nextWorkoutSuggestion, workoutName
   ]);
 
   const ProgressTab = useCallback(() => (
@@ -1018,13 +1074,13 @@ export function WorkoutSummaryModal({
           )}
         </View>
         <View style={styles.cardContent}>
-          {/* Upper/Lower Body Tabs */}
+          {/* Upper/Lower/All Body Tabs */}
           <View style={styles.volumeTabsContainer}>
             <TouchableOpacity
               style={[
                 styles.volumeTab,
                 styles.volumeTabLeft,
-                (selectedProgressTab === 'upper' || selectedProgressTab === 'all') && { backgroundColor: getWorkoutColor(workoutName).main }
+                selectedProgressTab === 'upper' && { backgroundColor: getWorkoutColor(workoutName).main }
               ]}
               onPress={() => setSelectedProgressTab('upper')}
               accessibilityState={{ selected: selectedProgressTab === 'upper' }}
@@ -1039,8 +1095,8 @@ export function WorkoutSummaryModal({
             <TouchableOpacity
               style={[
                 styles.volumeTab,
-                styles.volumeTabRight,
-                (selectedProgressTab === 'lower' || selectedProgressTab === 'all') && { backgroundColor: getWorkoutColor(workoutName).main }
+                styles.volumeTabMiddle,
+                selectedProgressTab === 'lower' && { backgroundColor: getWorkoutColor(workoutName).main }
               ]}
               onPress={() => setSelectedProgressTab('lower')}
               accessibilityState={{ selected: selectedProgressTab === 'lower' }}
@@ -1052,36 +1108,69 @@ export function WorkoutSummaryModal({
                 Lower Body
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.volumeTab,
+                styles.volumeTabRight,
+                selectedProgressTab === 'all' && { backgroundColor: getWorkoutColor(workoutName).main }
+              ]}
+              onPress={() => setSelectedProgressTab('all')}
+              accessibilityState={{ selected: selectedProgressTab === 'all' }}
+            >
+              <Text style={[
+                styles.volumeTabText,
+                selectedProgressTab === 'all' && styles.volumeTabTextActive
+              ]}>
+                All
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Weekly Volume Distribution Chart */}
           <View style={styles.volumeChartContainer}>
-            {Object.entries(weeklyVolumeTotals)
-              .sort(([,a], [,b]) => b - a)
-              .map(([muscle, volume]) => {
-                const safeVolume = typeof volume === 'number' && !isNaN(volume) ? volume : 0;
-                const maxVolume = Math.max(...Object.values(weeklyVolumeTotals).filter(v => typeof v === 'number' && !isNaN(v)), 1);
-                const percentage = (safeVolume / maxVolume) * 100;
+            {Object.entries(weeklyVolumeTotals).length > 0 ? (() => {
+              // Calculate total volume for the selected category (upper/lower/all)
+              const categoryTotalVolume = Object.values(weeklyVolumeTotals).reduce((sum, vol) => {
+                const safeVol = typeof vol === 'number' && !isNaN(vol) ? vol : 0;
+                return sum + safeVol;
+              }, 0);
 
-                return (
-                  <View key={muscle} style={styles.volumeBarRow}>
-                    <View style={styles.volumeBarLabel}>
-                      <Text style={styles.volumeBarMuscle}>{muscle}</Text>
-                      <Text style={styles.volumeBarValue}>
-                        {safeVolume.toFixed(0)}kg • {percentage.toFixed(1)}%
-                      </Text>
+              return Object.entries(weeklyVolumeTotals)
+                .sort(([,a], [,b]) => b - a)
+                .map(([muscle, volume]) => {
+                  const safeVolume = typeof volume === 'number' && !isNaN(volume) ? volume : 0;
+                  // Calculate percentage of total category volume
+                  const percentage = categoryTotalVolume > 0 ? (safeVolume / categoryTotalVolume) * 100 : 0;
+
+                  return (
+                    <View key={muscle} style={styles.volumeBarRow}>
+                      <View style={styles.volumeBarLabel}>
+                        <Text style={styles.volumeBarMuscle}>{muscle}</Text>
+                        <Text style={styles.volumeBarValue}>
+                          {safeVolume.toFixed(0)}kg{safeVolume > 0 ? ` • ${percentage.toFixed(1)}%` : ''}
+                        </Text>
+                      </View>
+                      <View style={styles.volumeBarBackground}>
+                        <View
+                          style={[
+                            styles.volumeBarFill,
+                            { 
+                              width: `${percentage}%`, 
+                              backgroundColor: safeVolume > 0 ? getWorkoutColor(workoutName).main : Colors.secondary 
+                            }
+                          ]}
+                        />
+                      </View>
                     </View>
-                    <View style={styles.volumeBarBackground}>
-                      <View
-                        style={[
-                          styles.volumeBarFill,
-                          { width: `${percentage}%`, backgroundColor: getWorkoutColor(workoutName).main }
-                        ]}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                });
+            })() : (
+              <View style={styles.emptyChartContainer}>
+                <Text style={styles.emptyChartText}>
+                  No volume data available for {selectedProgressTab === 'upper' ? 'Upper Body' : selectedProgressTab === 'lower' ? 'Lower Body' : 'All Muscles'}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Card>
@@ -1102,7 +1191,9 @@ export function WorkoutSummaryModal({
       {historicalComparison && (
         <Card style={styles.insightsCard}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>vs Last Workout</Text>
+            <Text style={styles.cardTitle}>
+              vs Last {historicalWorkout?.workoutName || workoutName} Workout
+            </Text>
           </View>
           <View style={styles.cardContent}>
             <View style={styles.comparisonRow}>
@@ -1246,24 +1337,32 @@ export function WorkoutSummaryModal({
           <View style={styles.volumeChartContainer}>
             {Object.entries(volumeDistribution)
               .sort(([,a], [,b]) => b - a)
-              .map(([muscle, volume]) => (
-                <View key={`insights-${muscle}`} style={styles.volumeBarRow}>
-                  <View style={styles.volumeBarLabel}>
-                    <Text style={styles.volumeBarMuscle}>{muscle}</Text>
-                    <Text style={styles.volumeBarValue}>
-                      {volume.toFixed(0)}kg • {((volume / metrics.totalVolume) * 100).toFixed(1)}%
-                    </Text>
+              .map(([muscle, volume]) => {
+                const maxVolume = Math.max(...Object.values(volumeDistribution), 0.001); // Prevent division by 0
+                const barWidth = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+                const percentage = metrics.totalVolume > 0 ? (volume / metrics.totalVolume) * 100 : 0;
+                
+                return (
+                  <View key={`insights-${muscle}`} style={styles.volumeBarRow}>
+                    <View style={styles.volumeBarLabel}>
+                      <Text style={styles.volumeBarMuscle}>{muscle}</Text>
+                      <Text style={styles.volumeBarValue}>
+                        {volume.toFixed(0)}kg • {percentage.toFixed(1)}%
+                      </Text>
+                    </View>
+                    <View style={styles.volumeBarBackground}>
+                      {volume > 0 && (
+                        <View
+                          style={[
+                            styles.volumeBarFill,
+                            { width: `${barWidth}%`, backgroundColor: getWorkoutColor(workoutName).main }
+                          ]}
+                        />
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.volumeBarBackground}>
-                    <View
-                      style={[
-                        styles.volumeBarFill,
-                        { width: `${(volume / Math.max(...Object.values(volumeDistribution))) * 100}%`, backgroundColor: getWorkoutColor(workoutName).main }
-                      ]}
-                    />
-                  </View>
-                </View>
-              ))}
+                );
+              })}
           </View>
         </View>
       </Card>
@@ -1348,9 +1447,9 @@ export function WorkoutSummaryModal({
                 <Text 
                   style={styles.modalHeaderDate}
                   accessible={true}
-                  accessibilityLabel={`Workout date: ${startTime.toLocaleDateString()}`}
+                  accessibilityLabel={`Workout date: ${startTime.toLocaleDateString('en-US', { weekday: 'short' })} ${startTime.toLocaleDateString()}`}
                 >
-                  {startTime.toLocaleDateString()}
+                  {startTime.toLocaleDateString('en-US', { weekday: 'short' })} {startTime.toLocaleDateString()}
                 </Text>
                 <Text 
                   style={styles.modalHeaderTime}
@@ -1477,6 +1576,28 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.lg,
   },
+  nextWorkoutSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  nextWorkoutLabel: {
+    ...TextStyles.bodyMedium,
+    fontWeight: FontWeight.semiBold,
+    color: Colors.foreground,
+  },
+  nextWorkoutBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+  },
+  nextWorkoutBadgeText: {
+    ...TextStyles.bodyMedium,
+    fontWeight: FontWeight.semiBold,
+    color: Colors.white,
+  },
   statsContainer: {
     marginBottom: Spacing.md,
   },
@@ -1544,6 +1665,9 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: Spacing.md,
     paddingTop: Spacing.sm,
+  },
+  ratingCardContentWithButton: {
+    paddingBottom: Spacing.md,
   },
   ratingDescription: {
     ...TextStyles.caption,
@@ -1720,6 +1844,10 @@ const styles = StyleSheet.create({
   volumeTabLeft: {
     marginRight: 2,
   },
+  volumeTabMiddle: {
+    marginLeft: 2,
+    marginRight: 2,
+  },
   volumeTabRight: {
     marginLeft: 2,
   },
@@ -1777,6 +1905,17 @@ const styles = StyleSheet.create({
   volumeChartContainer: {
     gap: Spacing.sm,
     marginBottom: Spacing.md,
+    minHeight: 100,
+  },
+  emptyChartContainer: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyChartText: {
+    ...TextStyles.bodyMedium,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
   },
   volumeBarRow: {
     flexDirection: 'row',
