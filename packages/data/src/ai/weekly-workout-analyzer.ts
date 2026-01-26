@@ -97,14 +97,14 @@ export class WeeklyWorkoutAnalyzer {
         }
       } else {
         // Nothing completed this week yet, but we should still check the overall last workout
-        // to continue the sequence if possible
-        recommendationReason = 'normal_cycling';
+        // to continue the sequence if possible. 
+        // We'll return undefined here and let determineNextWorkoutWeeklyAware fall back to determineNextWorkoutNormal
         return {
           completedWorkouts: programCompletedWorkouts,
           missingWorkouts,
           isWeekComplete,
-          nextRecommendedWorkout: undefined, // Let normal cycling handle it
-          recommendationReason
+          nextRecommendedWorkout: undefined,
+          recommendationReason: 'normal_cycling'
         };
       }
       

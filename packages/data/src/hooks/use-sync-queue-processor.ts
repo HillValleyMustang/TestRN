@@ -120,9 +120,7 @@ export const useSyncQueueProcessor = ({
 
   // Refs for debouncing state updates to reduce UI re-renders
   const queueLengthTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSyncingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingQueueLengthRef = useRef<number | null>(null);
-  const pendingIsSyncingRef = useRef<boolean | null>(null);
 
   // Debounced state update functions to reduce UI re-renders
   const debouncedSetQueueLength = useCallback((length: number | ((prev: number) => number)) => {
@@ -141,21 +139,6 @@ export const useSyncQueueProcessor = ({
       }
     }, 100); // 100ms debounce
   }, [queueLength]);
-
-  const debouncedSetIsSyncing = useCallback((syncing: boolean) => {
-    pendingIsSyncingRef.current = syncing;
-
-    if (isSyncingTimeoutRef.current) {
-      clearTimeout(isSyncingTimeoutRef.current);
-    }
-
-    isSyncingTimeoutRef.current = setTimeout(() => {
-      if (pendingIsSyncingRef.current !== null) {
-        setIsSyncing(pendingIsSyncingRef.current);
-        pendingIsSyncingRef.current = null;
-      }
-    }, 100); // 100ms debounce
-  }, []);
 
   const isSyncingRef = useRef(false);
 
@@ -269,7 +252,7 @@ export const useSyncQueueProcessor = ({
 
     // Process batches
     isSyncingRef.current = true;
-    debouncedSetIsSyncing(true);
+    setIsSyncing(true);
 
     console.log(`[SyncQueue] Processing ${Object.keys(batches).length} batches:`, Object.keys(batches));
 
@@ -402,9 +385,9 @@ export const useSyncQueueProcessor = ({
       setLastError(error);
     } finally {
       isSyncingRef.current = false;
-      debouncedSetIsSyncing(false);
+      setIsSyncing(false);
     }
-  }, [enabled, isOnline, supabase, store, onError, onSuccess, debouncedSetQueueLength, debouncedSetIsSyncing]);
+  }, [enabled, isOnline, supabase, store, onError, onSuccess, debouncedSetQueueLength]);
 
   useEffect(() => {
     if (!enabled) return;
