@@ -415,11 +415,6 @@ export const useSyncQueueProcessor = ({
       }, currentInterval);
     };
 
-    // Start processing immediately if online and have items
-    if (isOnline) {
-      processNext();
-    }
-
     // Also schedule regular checks
     scheduleNext();
 

@@ -70,10 +70,8 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       }
       setError(null);
 
-      // Ensure we have local data first, will sync from Supabase during data loading
-
-      // Fetch profile and TPaths in parallel
-      const [profileData, tPathsData] = await Promise.all([
+      // Fetch profile and TPaths from Supabase (always use fresh data)
+      const [profileData, supabaseTPathsData] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, active_t_path_id, active_gym_id, programme_type, preferred_session_length, created_at, updated_at')
@@ -86,18 +84,51 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
             // Add user_id to match our interface
             return data ? { ...data, user_id: userId } : null;
           }),
-        database.getTPaths(userId),
+        supabase
+          .from('t_paths')
+          .select('*')
+          .eq('user_id', userId)
+          .then(({ data, error }) => {
+            if (error) {
+              log.error('[useWorkoutLauncherData] Error fetching T-paths from Supabase:', error);
+              return [];
+            }
+            return data || [];
+          }),
       ]);
+
+      // Sync T-paths to local database
+      if (supabaseTPathsData && supabaseTPathsData.length > 0) {
+        for (const tPath of supabaseTPathsData) {
+          try {
+            await database.addTPath({
+              ...tPath,
+              is_bonus: Boolean(tPath.is_bonus),
+              is_main_program: Boolean(tPath.is_main_program),
+              is_ai_generated: Boolean(tPath.is_ai_generated),
+              settings: tPath.settings || null,
+              progression_settings: tPath.progression_settings || null,
+              gym_id: tPath.gym_id || null, // Ensure gym_id is synced
+            });
+          } catch (err) {
+            log.warn('[useWorkoutLauncherData] Error syncing T-path to local:', err);
+          }
+        }
+      }
+
+      const tPathsData = supabaseTPathsData;
 
       log.debug('[useWorkoutLauncherData] Profile from Supabase:', {
         id: profileData?.id,
         active_t_path_id: profileData?.active_t_path_id,
+        active_gym_id: profileData?.active_gym_id,
         programme_type: profileData?.programme_type,
       });
-      log.debug('[useWorkoutLauncherData] T-Paths from local DB:', tPathsData.length, tPathsData.map(tp => ({
+      log.debug('[useWorkoutLauncherData] T-Paths from Supabase:', tPathsData.length, tPathsData.map(tp => ({
         id: tp.id,
         template_name: tp.template_name,
         parent_t_path_id: tp.parent_t_path_id,
+        gym_id: tp.gym_id,
         is_main_program: tp.is_main_program,
       })));
 
@@ -107,11 +138,21 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       // Also refresh exercises after updating workouts
       const allWorkouts = tPathsData.filter(tp => !tp.is_main_program);
       const childWorkouts = profileData?.active_t_path_id
-        ? allWorkouts.filter(tp => tp.parent_t_path_id === profileData.active_t_path_id)
+        ? allWorkouts.filter(tp => 
+            tp.parent_t_path_id === profileData.active_t_path_id &&
+            tp.gym_id === profileData.active_gym_id
+          )
         : [];
       
-      log.debug('[useWorkoutLauncherData] All workouts (non-main):', allWorkouts.length);
-      log.debug('[useWorkoutLauncherData] Child workouts for active T-Path:', childWorkouts.length, childWorkouts.map(w => w.template_name));
+      log.debug('[useWorkoutLauncherData] All workouts (non-main):', allWorkouts.length, allWorkouts.map(w => ({
+        name: w.template_name,
+        gym_id: w.gym_id,
+        parent: w.parent_t_path_id
+      })));
+      log.debug('[useWorkoutLauncherData] Child workouts for active gym:', childWorkouts.length, childWorkouts.map(w => ({
+        name: w.template_name,
+        gym_id: w.gym_id
+      })));
 
       // Only fetch exercises for child workouts (from active program)
       if (childWorkouts.length > 0) {
@@ -135,14 +176,6 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     refresh();
   }, [userId, refresh]);
 
-  // Also refresh when profile's active_t_path_id changes (e.g., after T-Path regeneration)
-  useEffect(() => {
-    if (profile?.active_t_path_id) {
-      log.debug('[useWorkoutLauncherData] Profile active_t_path_id changed, refreshing:', profile.active_t_path_id);
-      refresh();
-    }
-  }, [profile?.active_t_path_id, refresh]);
-  
   // Watch for T-path changes by comparing current profile with latest from Supabase
   // This ensures we catch T-path changes immediately even if local state hasn't updated
   const lastTPathIdRef = useRef<string | null>(null);
@@ -150,6 +183,15 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   
   useEffect(() => {
     if (profile) {
+      // If refs are null, this is the first time we've got a profile
+      // We should just set the refs and NOT refresh, because the profile 
+      // was likely just fetched by the initial refresh() call
+      if (lastTPathIdRef.current === null && lastProgrammeTypeRef.current === null) {
+        lastTPathIdRef.current = profile.active_t_path_id;
+        lastProgrammeTypeRef.current = profile.programme_type || null;
+        return;
+      }
+
       const tPathChanged = profile.active_t_path_id !== lastTPathIdRef.current;
       const programmeTypeChanged = profile.programme_type !== lastProgrammeTypeRef.current;
       
@@ -158,17 +200,14 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
           oldTPath: lastTPathIdRef.current,
           newTPath: profile.active_t_path_id,
           oldType: lastProgrammeTypeRef.current,
-          newType: profile.programme_type
+          newType: profile.programme_type,
+          source: 'useEffect_change_detection'
         });
         // CRITICAL: Clear exercise cache when T-path changes to prevent showing old exercises
         setWorkoutExercisesCache({});
         lastTPathIdRef.current = profile.active_t_path_id;
         lastProgrammeTypeRef.current = profile.programme_type || null;
         refresh();
-      } else {
-        // Update refs even if no change detected (initial load)
-        lastTPathIdRef.current = profile.active_t_path_id;
-        lastProgrammeTypeRef.current = profile.programme_type || null;
       }
     }
   }, [profile?.active_t_path_id, profile?.programme_type, refresh]);
@@ -196,10 +235,13 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     // Get all workouts that are not main programs
     const allWorkouts = tPaths.filter(tp => !tp.is_main_program);
 
-    // Only show workouts that belong to the active program (PPL)
+    // Only show workouts that belong to the active program AND the active gym
     // Don't show adhoc workouts or other standalone programs
     const childWorkouts = activeTPath
-      ? allWorkouts.filter(tp => tp.parent_t_path_id === activeTPath.id)
+      ? allWorkouts.filter(tp => 
+          tp.parent_t_path_id === activeTPath.id && 
+          tp.gym_id === profile.active_gym_id
+        )
       : [];
 
     // Don't show adhoc workouts - only show workouts from the active program
@@ -284,7 +326,8 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       return a & a;
     }, 0);
     
-    const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Glutes'];
+    // Use canonical muscle groups for fallback
+    const muscleGroups = ['Pectorals', 'Lats', 'Quadriceps', 'Deltoids', 'Biceps', 'Core', 'Glutes'];
     return muscleGroups[Math.abs(hash) % muscleGroups.length];
   };
 

@@ -86,11 +86,13 @@ export class WeeklyWorkoutAnalyzer {
 
     console.log(`[WeeklyWorkoutAnalyzer] Weekly completion analysis:`, {
       programmeType,
-      completedProgramWorkouts: programCompletedWorkouts.length,
+      completedWorkoutsThisWeek: completedWorkoutsThisWeek.map(w => w.name),
+      completedProgramWorkouts: programCompletedWorkouts,
       totalProgramWorkouts: workoutOrder.length,
       missingWorkouts,
       nextRecommended: nextRecommendedWorkout,
       recommendationReason,
+      isWeekComplete,
       preferences: {
         strictMode: preferences.strictMode,
         prioritizeWeeklyCompletion: preferences.prioritizeWeeklyCompletion,
@@ -125,6 +127,12 @@ export class WeeklyWorkoutAnalyzer {
   ): any {
     if (tPathWorkouts.length === 0) return null;
 
+    console.log(`[WeeklyWorkoutAnalyzer] determineNextWorkoutWeeklyAware called:`, {
+      programmeType,
+      completedWorkoutsThisWeek: completedWorkoutsThisWeek.map(w => ({ id: w.id, name: w.name })),
+      tPathWorkouts: tPathWorkouts.map(w => w.template_name)
+    });
+
     // Analyze weekly completion
     const weeklyStatus = this.analyzeWeeklyCompletion(
       programmeType,
@@ -136,7 +144,7 @@ export class WeeklyWorkoutAnalyzer {
     if (weeklyStatus.nextRecommendedWorkout) {
       const recommendedWorkout = this.findWorkoutByType(tPathWorkouts, weeklyStatus.nextRecommendedWorkout);
       if (recommendedWorkout) {
-        console.log(`[WeeklyWorkoutAnalyzer] Weekly completion recommendation: ${recommendedWorkout.template_name}`);
+        console.log(`[WeeklyWorkoutAnalyzer] Weekly completion recommendation: ${recommendedWorkout.template_name} (reason: ${weeklyStatus.recommendationReason})`);
         return {
           id: recommendedWorkout.id,
           template_name: recommendedWorkout.template_name,
@@ -144,12 +152,16 @@ export class WeeklyWorkoutAnalyzer {
           parent_t_path_id: recommendedWorkout.parent_t_path_id,
           recommendationReason: weeklyStatus.recommendationReason
         };
+      } else {
+        console.warn(`[WeeklyWorkoutAnalyzer] Could not find workout matching recommendation: ${weeklyStatus.nextRecommendedWorkout}`);
       }
     }
 
     // Fall back to normal cycling logic
-    console.log(`[WeeklyWorkoutAnalyzer] Using normal cycling logic`);
-    return this.determineNextWorkoutNormal(programmeType, recentWorkouts, tPathWorkouts);
+    console.log(`[WeeklyWorkoutAnalyzer] Using normal cycling logic (no weekly recommendation)`);
+    const normalResult = this.determineNextWorkoutNormal(programmeType, recentWorkouts, tPathWorkouts);
+    console.log(`[WeeklyWorkoutAnalyzer] Normal cycling result: ${normalResult?.template_name}`);
+    return normalResult;
   }
 
   /**
@@ -192,10 +204,19 @@ export class WeeklyWorkoutAnalyzer {
       }
     } else if (programmeType === 'ulul') {
       if (lastWorkoutType.includes('upper') && lastWorkoutType.includes('a')) {
+        // Upper A → Lower A
         return this.findWorkoutByType(tPathWorkouts, 'lower', 'a') || tPathWorkouts[0];
       } else if (lastWorkoutType.includes('lower') && lastWorkoutType.includes('a')) {
+        // Lower A → Upper B
         return this.findWorkoutByType(tPathWorkouts, 'upper', 'b') || tPathWorkouts[0];
+      } else if (lastWorkoutType.includes('upper') && lastWorkoutType.includes('b')) {
+        // Upper B → Lower B
+        return this.findWorkoutByType(tPathWorkouts, 'lower', 'b') || tPathWorkouts[0];
+      } else if (lastWorkoutType.includes('lower') && lastWorkoutType.includes('b')) {
+        // Lower B → Upper A (cycle restart)
+        return this.findWorkoutByType(tPathWorkouts, 'upper', 'a') || tPathWorkouts[0];
       } else {
+        // Unknown workout type, default to Upper A
         return this.findWorkoutByType(tPathWorkouts, 'upper', 'a') || tPathWorkouts[0];
       }
     }
@@ -260,10 +281,24 @@ export class WeeklyWorkoutAnalyzer {
     }
 
     // Handle abbreviated forms (Upper A, Lower A, etc.)
-    if (program.includes('upper') && program.includes('a') && completed.includes('upper') && completed.includes('a')) return true;
-    if (program.includes('lower') && program.includes('a') && completed.includes('lower') && completed.includes('a')) return true;
-    if (program.includes('upper') && program.includes('b') && completed.includes('upper') && completed.includes('b')) return true;
-    if (program.includes('lower') && program.includes('b') && completed.includes('lower') && completed.includes('b')) return true;
+    const isUpper = program.includes('upper');
+    const isLower = program.includes('lower');
+    const isA = program.includes('a');
+    const isB = program.includes('b');
+
+    const compUpper = completed.includes('upper');
+    const compLower = completed.includes('lower');
+    const compA = completed.includes('a');
+    const compB = completed.includes('b');
+
+    // Strict matching for A/B variants to prevent cross-matching
+    if (isUpper && isA) return compUpper && compA;
+    if (isLower && isA) return compLower && compA;
+    if (isUpper && isB) return compUpper && compB;
+    if (isLower && isB) return compLower && compB;
+
+    if (isUpper && compUpper) return true;
+    if (isLower && compLower) return true;
 
     // Handle workout names with extra qualifiers (e.g., "Push - Beginner", "Upper Body A (Modified)")
     const programWords = program.split(' ');
