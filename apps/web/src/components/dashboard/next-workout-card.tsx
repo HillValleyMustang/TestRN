@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useSession } from '@/components/session-context-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ interface NextWorkoutCardProps {
   completedWorkoutsThisWeek?: CompletedWorkout[];
 }
 
-export const NextWorkoutCard = ({
+const NextWorkoutCardComponent = ({
   profile,
   groupedTPaths,
   loadingPlans,
@@ -46,6 +46,12 @@ export const NextWorkoutCard = ({
   
   const isLoading = loadingPlans || loadingGyms;
   const dataError = plansError;
+  
+  // Only show loading if we don't have data yet - if we have cached data, show it even during revalidation
+  // However, if we're processing but have no groupedTPaths yet, show skeleton to prevent layout shift
+  const hasData = !!groupedTPaths && groupedTPaths.length > 0 && !!profile && !!activeGym;
+  const isProcessing = isLoading && !hasData; // Processing but no data yet
+  const shouldShowLoading = isProcessing;
 
   // Derive nextWorkout, estimatedDuration, lastWorkoutName, and mainTPath using useMemo
   const { nextWorkout, derivedEstimatedDuration, derivedLastWorkoutName, derivedMainTPath } = useMemo(() => {
@@ -170,17 +176,24 @@ export const NextWorkoutCard = ({
   const isTrulyEmptyState = !derivedMainTPath || !nextWorkout;
 
   return (
-    <Card>
+    <Card className="will-change-contents" style={{ contentVisibility: 'auto' }}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
           Your Next Workout
         </CardTitle>
       </CardHeader>
-      <CardContent className="min-h-[120px] flex flex-col justify-center">
-        {isLoading ? (
-          // Render blank space during loading, matching the min-height of CardContent
-          <div className="h-[120px] w-full" />
+      <CardContent className="min-h-[120px] flex flex-col justify-center" style={{ containLayout: true }}>
+        {shouldShowLoading ? (
+          // Render skeleton that matches the actual content layout to prevent layout shift
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-pulse">
+            <div className="flex flex-col space-y-2 flex-1">
+              <Skeleton className="h-7 w-48" /> {/* Workout name */}
+              <Skeleton className="h-4 w-32" /> {/* Duration */}
+              <Skeleton className="h-3 w-40" /> {/* Last workout */}
+            </div>
+            <Skeleton className="h-10 w-32" /> {/* Button */}
+          </div>
         ) : dataError ? (
           <p className="text-destructive">Error loading next workout: {dataError}</p>
         ) : !activeGym ? (
@@ -197,7 +210,7 @@ export const NextWorkoutCard = ({
             <p>No active Transformation Path found or no workouts defined for your current session length. Complete onboarding or set one in your profile to get started.</p>
           </div>
         ) : (
-          <div className="animate-fade-in-fast"> {/* Apply fast fade-in here */}
+          <div className="animate-fade-in-fast" style={{ minHeight: '120px' }}> {/* Apply fast fade-in here, maintain min-height to prevent layout shift */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center gap-2 min-h-[1.75rem]">
@@ -233,3 +246,17 @@ export const NextWorkoutCard = ({
     </Card>
   );
 };
+
+// Memoize to prevent unnecessary re-renders when props haven't changed
+export const NextWorkoutCard = React.memo(NextWorkoutCardComponent, (prevProps, nextProps) => {
+  // Only re-render if critical props actually changed
+  return (
+    prevProps.loadingPlans === nextProps.loadingPlans &&
+    prevProps.loadingGyms === nextProps.loadingGyms &&
+    prevProps.profile?.id === nextProps.profile?.id &&
+    prevProps.activeGym?.id === nextProps.activeGym?.id &&
+    prevProps.groupedTPaths?.length === nextProps.groupedTPaths?.length &&
+    JSON.stringify(prevProps.groupedTPaths) === JSON.stringify(nextProps.groupedTPaths) &&
+    prevProps.completedWorkoutsThisWeek?.length === nextProps.completedWorkoutsThisWeek?.length
+  );
+});

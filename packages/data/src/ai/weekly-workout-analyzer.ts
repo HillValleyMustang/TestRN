@@ -68,7 +68,42 @@ export class WeeklyWorkoutAnalyzer {
     let nextRecommendedWorkout: string | undefined;
     let recommendationReason: 'weekly_completion' | 'normal_cycling';
 
-    if ((preferences.strictMode || preferences.prioritizeWeeklyCompletion) && missingWorkouts.length > 0 && !isWeekComplete) {
+    // When week is complete but we have workouts this week, use the most recent one to determine next step
+    if (isWeekComplete && completedWorkoutsThisWeek.length > 0) {
+      // Find the last completed workout from the program this week
+      // completedWorkoutsThisWeek is expected to be sorted most-recent-first
+      const lastCompletedProgramWorkout = completedWorkoutsThisWeek
+        .find(w => workoutOrder.some(p => this.isWorkoutTypeMatch(w.name, p)));
+      
+      if (lastCompletedProgramWorkout) {
+        // Find its index in the program order
+        const lastIndex = workoutOrder.findIndex(p => this.isWorkoutTypeMatch(lastCompletedProgramWorkout.name, p));
+        const lastWorkoutName = workoutOrder[lastIndex].toLowerCase();
+        
+        // Smart week reset: alternate muscle groups to avoid consecutive same-type workouts
+        if (programmeType === 'ulul') {
+          // ULUL: Upper Body A (0), Lower Body A (1), Upper Body B (2), Lower Body B (3)
+          if (lastWorkoutName.includes('upper')) {
+            // Last was Upper → suggest first Lower workout (Lower Body A)
+            nextRecommendedWorkout = workoutOrder[1]; // Lower Body A
+          } else if (lastWorkoutName.includes('lower')) {
+            // Last was Lower → suggest first Upper workout (Upper Body A)
+            nextRecommendedWorkout = workoutOrder[0]; // Upper Body A
+          } else {
+            // Fallback: cycle to next
+            const nextIndex = (lastIndex + 1) % workoutOrder.length;
+            nextRecommendedWorkout = workoutOrder[nextIndex];
+          }
+        } else {
+          // PPL: Cycle back to first workout (Push)
+          nextRecommendedWorkout = workoutOrder[0];
+        }
+        recommendationReason = 'weekly_completion';
+      } else {
+        // No program workouts completed this week, fall back to normal cycling
+        recommendationReason = 'normal_cycling';
+      }
+    } else if ((preferences.strictMode || preferences.prioritizeWeeklyCompletion) && missingWorkouts.length > 0 && !isWeekComplete) {
       // Find the last completed workout from the program this week
       // completedWorkoutsThisWeek is expected to be sorted most-recent-first
       const lastCompletedProgramWorkout = completedWorkoutsThisWeek
@@ -264,23 +299,13 @@ export class WeeklyWorkoutAnalyzer {
    * Finds a workout by type and optional variant
    */
   private static findWorkoutByType(workouts: any[], type: string, variant?: string): any {
+    const searchType = type.toLowerCase();
+    const searchVariant = variant?.toLowerCase();
+
     return workouts.find(workout => {
       const name = workout.template_name.toLowerCase();
-      const matchesType = name.includes(type);
-      
-      // If variant is provided, it must match.
-      // If variant is NOT provided, we should prefer a name that DOESN'T have 'a' or 'b' 
-      // if possible, to avoid matching 'Upper Body A' when we just want 'Upper Body'
-      let matchesVariant = true;
-      if (variant) {
-        matchesVariant = name.includes(variant);
-      } else {
-        // If we're looking for 'upper' but not a specific variant, 
-        // and the name is 'upper body a', it's a weak match.
-        // But for the sake of simplicity in this legacy logic, we'll keep it broad
-        // unless it's explicitly 'a' or 'b' in the program order.
-      }
-      
+      const matchesType = name.includes(searchType);
+      const matchesVariant = !searchVariant || name.includes(searchVariant);
       return matchesType && matchesVariant;
     });
   }
@@ -292,6 +317,24 @@ export class WeeklyWorkoutAnalyzer {
   private static isWorkoutTypeMatch(completedName: string, programWorkoutName: string): boolean {
     const completed = completedName.toLowerCase().trim();
     const program = programWorkoutName.toLowerCase().trim();
+
+    // Handle ULUL program variations strictly first
+    if (program === 'upper body a') {
+      return (completed === 'upper body a') || (completed === 'upper a') || 
+             (completed.includes('upper') && completed.includes('a') && !completed.includes('b'));
+    }
+    if (program === 'lower body a') {
+      return (completed === 'lower body a') || (completed === 'lower a') ||
+             (completed.includes('lower') && completed.includes('a') && !completed.includes('b'));
+    }
+    if (program === 'upper body b') {
+      return (completed === 'upper body b') || (completed === 'upper b') ||
+             (completed.includes('upper') && completed.includes('b') && !completed.includes('a'));
+    }
+    if (program === 'lower body b') {
+      return (completed === 'lower body b') || (completed === 'lower b') ||
+             (completed.includes('lower') && completed.includes('b') && !completed.includes('a'));
+    }
 
     // Direct substring match (most common case)
     if (completed.includes(program)) return true;
@@ -310,45 +353,6 @@ export class WeeklyWorkoutAnalyzer {
              completed.includes('lower body') ||
              (completed.includes('quad') && completed.includes('hamstring'));
     }
-
-    // Handle ULUL program variations
-    if (program === 'upper body a') {
-      return (completed.includes('upper') && completed.includes('a')) ||
-             (completed.includes('upper body') && completed.includes('a'));
-    }
-    if (program === 'lower body a') {
-      return (completed.includes('lower') && completed.includes('a')) ||
-             (completed.includes('lower body') && completed.includes('a'));
-    }
-    if (program === 'upper body b') {
-      return (completed.includes('upper') && completed.includes('b')) ||
-             (completed.includes('upper body') && completed.includes('b'));
-    }
-    if (program === 'lower body b') {
-      return (completed.includes('lower') && completed.includes('b')) ||
-             (completed.includes('lower body') && completed.includes('b'));
-    }
-
-    // Handle abbreviated forms (Upper A, Lower A, etc.)
-    const isUpper = program.includes('upper');
-    const isLower = program.includes('lower');
-    const isA = program.includes('a');
-    const isB = program.includes('b');
-
-    const compUpper = completed.includes('upper');
-    const compLower = completed.includes('lower');
-    const compA = completed.includes('a');
-    const compB = completed.includes('b');
-
-    // Strict matching for A/B variants to prevent cross-matching
-    if (isUpper && isA) return compUpper && compA;
-    if (isLower && isA) return compLower && compA;
-    if (isUpper && isB) return compUpper && compB;
-    if (isLower && isB) return compLower && compB;
-
-    // Handle names without A/B suffix (e.g., just "Upper Body")
-    if (isUpper && !isA && !isB) return compUpper;
-    if (isLower && !isA && !isB) return compLower;
 
     // Handle ad-hoc names with all words matching
     const programWords = program.split(' ');

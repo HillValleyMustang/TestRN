@@ -485,6 +485,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
 
       // Step 4: Generate exercises from detected equipment
       let generatedExercises: DetectedExercise[] = [];
+      let progressInterval: NodeJS.Timeout | null = null;
       if (totalEquipment > 0 && onExercisesGenerated) {
         try {
           if (isMountedRef.current) {
@@ -492,7 +493,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           }
 
           // Update progress every 5 seconds to give feedback
-          const progressInterval = setInterval(() => {
+          progressInterval = setInterval(() => {
             if (isMountedRef.current) {
               setAnalysisProgress(prev => {
                 const messages = [
@@ -511,6 +512,10 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           checkSession();
 
           if (!session?.access_token) {
+            if (progressInterval) {
+              clearInterval(progressInterval);
+              progressInterval = null;
+            }
             throw new Error('Session access token not available');
           }
 
@@ -547,7 +552,10 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
               'Exercise generation timed out. This can happen with many images. Please try again.'
             );
           } finally {
-            clearInterval(progressInterval);
+            if (progressInterval) {
+              clearInterval(progressInterval);
+              progressInterval = null;
+            }
           }
           
           const elapsed = Date.now() - startTime;
@@ -568,7 +576,24 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           }
         } catch (error) {
           console.error('[AnalyseGymPhotoDialog] Exercise generation error:', error);
+          
+          // Clear progress interval if still running
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
+          
+          // Clear progress message
+          if (isMountedRef.current) {
+            setAnalysisProgress('');
+          }
+          
           // Continue with normal feedback flow if exercise generation fails
+          // Equipment was detected, so user can still proceed and add exercises manually
+          console.log('[AnalyseGymPhotoDialog] Exercise generation failed, but equipment was detected. User can proceed to add exercises manually.');
+          
+          // Note: The flow will continue to Step 5 below, which will show success feedback
+          // and call onFinish() since equipment was detected
         }
       }
 

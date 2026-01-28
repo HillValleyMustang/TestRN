@@ -4,7 +4,7 @@
  * Reference: profile s11 design
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -14,8 +14,10 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../app/_contexts/auth-context';
+import { useData } from '../../app/_contexts/data-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 
 interface Gym {
@@ -28,7 +30,7 @@ interface CopyGymSetupDialogProps {
   visible: boolean;
   gymId: string;
   gymName: string;
-  sourceGyms: Gym[];
+  sourceGyms?: Gym[]; // Made optional since we'll fetch directly
   onBack: () => void;
   onFinish: () => void;
 }
@@ -37,108 +39,199 @@ export const CopyGymSetupDialog: React.FC<CopyGymSetupDialogProps> = ({
   visible,
   gymId,
   gymName,
-  sourceGyms,
+  sourceGyms: propSourceGyms, // Renamed to avoid confusion
   onBack,
   onFinish,
 }) => {
-  const { supabase } = useAuth();
+  const { supabase, userId } = useAuth();
+  const { forceRefreshProfile, invalidateAllCaches, loadDashboardSnapshot } = useData();
   const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [isCopying, setIsCopying] = useState(false);
+  const [availableGyms, setAvailableGyms] = useState<Gym[]>([]);
+  const [isLoadingGyms, setIsLoadingGyms] = useState(false);
+
+  // Fetch gyms directly from database when dialog opens
+  useEffect(() => {
+    console.log('[CopyGymSetupDialog] visibility check:', { visible, userId, gymId });
+    if (visible && userId) {
+      const fetchGyms = async () => {
+        setIsLoadingGyms(true);
+        try {
+          console.log('[CopyGymSetupDialog] Fetching gyms from database for user:', userId);
+          const { data, error } = await supabase
+            .from('gyms')
+            .select('id, name, created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: true });
+
+          if (error) {
+            console.error('[CopyGymSetupDialog] Error fetching gyms:', error);
+            setAvailableGyms([]);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            // Sort by created_at to identify the newest gym (the one just created)
+            const sortedGyms = [...data].sort((a, b) => {
+              const timeA = new Date(a.created_at).getTime();
+              const timeB = new Date(b.created_at).getTime();
+              return timeA - timeB;
+            });
+
+            // If only one gym exists, allow copying from it (user has no other choice)
+            // Otherwise, exclude the newest gym to avoid copying from the one being set up.
+            const filteredGyms =
+              sortedGyms.length <= 1 ? sortedGyms : sortedGyms.slice(0, -1);
+
+            console.log(
+              '[CopyGymSetupDialog] Found',
+              data.length,
+              'total gyms,',
+              filteredGyms.length,
+              'available after filtering'
+            );
+            console.log('[CopyGymSetupDialog] Raw gyms (id/name/created_at):', data);
+            console.log('[CopyGymSetupDialog] Sorted gyms (oldest->newest):', sortedGyms);
+            console.log('[CopyGymSetupDialog] Available gym IDs:', filteredGyms.map(g => g.id));
+            console.log('[CopyGymSetupDialog] Current gym ID (for reference):', gymId);
+            setAvailableGyms(filteredGyms);
+          } else {
+            setAvailableGyms([]);
+          }
+        } catch (error) {
+          console.error('[CopyGymSetupDialog] Exception fetching gyms:', error);
+          setAvailableGyms([]);
+        } finally {
+          setIsLoadingGyms(false);
+        }
+      };
+
+      fetchGyms();
+    } else if (!visible) {
+      // Reset state when dialog closes
+      setSelectedSourceId('');
+      setAvailableGyms([]);
+    }
+  }, [visible, userId, gymId, supabase]);
+
+  // Use fetched gyms, fallback to prop if provided (for backwards compatibility)
+  const sourceGyms = availableGyms.length > 0 ? availableGyms : (propSourceGyms || []);
 
   const handleCopySetup = async () => {
     if (!selectedSourceId) return;
 
     setIsCopying(true);
     try {
-      // Copy equipment from source gym
+      console.log('[CopyGymSetupDialog] Starting copy from', selectedSourceId, 'to', gymId);
+      
+      let copiedEquipmentCount = 0;
+      let copiedExercisePoolCount = 0;
+
+      // 1. Copy equipment from source gym
       const { data: sourceEquipment } = await supabase
         .from('gym_equipment')
         .select('*')
         .eq('gym_id', selectedSourceId);
 
       if (sourceEquipment && sourceEquipment.length > 0) {
+        console.log('[CopyGymSetupDialog] Copying', sourceEquipment.length, 'equipment items');
         const equipmentInserts = sourceEquipment.map((eq) => ({
           gym_id: gymId,
           equipment_type: eq.equipment_type,
           quantity: eq.quantity,
         }));
         await supabase.from('gym_equipment').insert(equipmentInserts);
+        copiedEquipmentCount = sourceEquipment.length;
       }
 
-      // Copy exercises from source gym
-      const { data: sourceExercises } = await supabase
+      // 2. Copy gym-specific exercises list (pool of exercises)
+      const { data: sourceGymExercises } = await supabase
         .from('gym_exercises')
         .select('*')
         .eq('gym_id', selectedSourceId);
 
-      if (sourceExercises && sourceExercises.length > 0) {
-        const exerciseInserts = sourceExercises.map((ex) => ({
+      if (sourceGymExercises && sourceGymExercises.length > 0) {
+        console.log('[CopyGymSetupDialog] Copying', sourceGymExercises.length, 'gym exercises');
+        const exerciseInserts = sourceGymExercises.map((ex) => ({
           gym_id: gymId,
           exercise_id: ex.exercise_id,
         }));
         await supabase.from('gym_exercises').insert(exerciseInserts);
+        copiedExercisePoolCount = sourceGymExercises.length;
       }
 
-      // Copy T-paths (workout programs) from source gym
-      const { data: sourceTpaths } = await supabase
-        .from('t_paths')
-        .select('*')
-        .eq('gym_id', selectedSourceId);
+      // 3. Call edge function to handle T-path (workout plan) copying
+      // This is much safer as it handles hierarchies and associations correctly
+      console.log('[CopyGymSetupDialog] Calling copy-gym-setup edge function');
+      let copiedWorkoutCount = 0;
+      let workoutExerciseCount = 0;
 
-      if (sourceTpaths && sourceTpaths.length > 0) {
-        const tpathMapping: Record<string, string> = {}; // Old ID -> New ID
-
-        for (const tpath of sourceTpaths) {
-          const { data: newTpath } = await supabase
-            .from('t_paths')
-            .insert({
-              user_id: tpath.user_id,
-              gym_id: gymId,
-              template_name: tpath.template_name,
-              is_bonus: tpath.is_bonus,
-              settings: tpath.settings,
-              progression_settings: tpath.progression_settings,
-              parent_t_path_id: null, // Will update after all are inserted
-            })
-            .select()
-            .single();
-
-          if (newTpath) {
-            tpathMapping[tpath.id] = newTpath.id;
-
-            // Copy T-path exercises
-            const { data: tpathExercises } = await supabase
-              .from('t_path_exercises')
-              .select('*')
-              .eq('template_id', tpath.id);
-
-            if (tpathExercises && tpathExercises.length > 0) {
-              const exerciseInserts = tpathExercises.map((ex) => ({
-                template_id: newTpath.id,
-                exercise_id: ex.exercise_id,
-                order_index: ex.order_index,
-                is_bonus_exercise: ex.is_bonus_exercise,
-              }));
-              await supabase.from('t_path_exercises').insert(exerciseInserts);
-            }
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const response = await fetch(
+          'https://mgbfevrzrbjjiajkqpti.supabase.co/functions/v1/copy-gym-setup',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionData.session?.access_token}`,
+            },
+            body: JSON.stringify({
+              sourceGymId: selectedSourceId,
+              targetGymId: gymId,
+            }),
           }
-        }
+        );
 
-        // Update parent_t_path_id relationships
-        for (const tpath of sourceTpaths) {
-          if (tpath.parent_t_path_id && tpathMapping[tpath.parent_t_path_id]) {
-            await supabase
-              .from('t_paths')
-              .update({ parent_t_path_id: tpathMapping[tpath.parent_t_path_id] })
-              .eq('id', tpathMapping[tpath.id]);
+        if (!response.ok) {
+          const errorData = await response.json();
+          // If the error is just that there are no workouts, we can ignore it as we've already copied equipment
+          if (errorData.error && errorData.error.includes("does not have any workouts to copy")) {
+            console.warn('[CopyGymSetupDialog] Source gym has no workouts to copy, but equipment/exercises were copied');
+          } else {
+            throw new Error(errorData.error || 'Edge function failed');
           }
+        } else {
+          const result = await response.json();
+          copiedWorkoutCount = result.workoutCount || 0;
+          workoutExerciseCount = result.exerciseCount || 0;
         }
+      } catch (edgeError) {
+        console.warn('[CopyGymSetupDialog] Edge function failed or timed out:', edgeError);
+        // We don't want to fail the whole process if only T-paths failed to copy
+        // but equipment/exercises were successful.
       }
+
+      console.log('[CopyGymSetupDialog] Copy completed successfully');
+      
+      // CRITICAL: Sync local database with Supabase to ensure new gym data is available
+      // loadDashboardSnapshot syncs gyms from Supabase to local SQLite, which workout page reads from
+      console.log('[CopyGymSetupDialog] Syncing data from Supabase to local database...');
+      invalidateAllCaches();
+      
+      // loadDashboardSnapshot pulls gyms from Supabase and writes them to local SQLite
+      // This is what makes the gym switcher appear on the Workout page
+      await loadDashboardSnapshot();
+      
+      // Also trigger forceRefresh to notify other components
+      await forceRefreshProfile();
+      console.log('[CopyGymSetupDialog] Data sync completed');
+      
+      // Show confirmation toast with the correct exercise count
+      // workoutExerciseCount = total exercises across all workouts (e.g., 24 exercises in 4 workouts)
+      // copiedExercisePoolCount = gym exercise pool size (e.g., 1 unique exercise definition)
+      Toast.show({
+        type: 'success',
+        text1: 'Gym Setup Copied!',
+        text2: `Copied ${copiedWorkoutCount} workout plans with ${workoutExerciseCount} total exercises.`,
+        position: 'bottom',
+        visibilityTime: 4000,
+      });
 
       onFinish();
     } catch (error) {
       console.error('[CopyGymSetupDialog] Error:', error);
-      alert('Failed to copy gym setup. Please try again.');
+      alert('Failed to copy gym setup: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsCopying(false);
     }
@@ -167,16 +260,24 @@ export const CopyGymSetupDialog: React.FC<CopyGymSetupDialogProps> = ({
           <Text style={styles.description}>
             Select an existing gym to copy its exercise list from.
           </Text>
-
           {/* Source Gym Picker */}
-          {sourceGyms.length === 0 ? (
+          {isLoadingGyms ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading gyms...</Text>
+            </View>
+          ) : sourceGyms.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>
                 No other gyms available to copy from.
               </Text>
             </View>
           ) : (
-            <ScrollView style={styles.gymList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.gymList}
+              contentContainerStyle={styles.gymListContent}
+              showsVerticalScrollIndicator={false}
+            >
               {sourceGyms.map((gym) => (
                 <TouchableOpacity
                   key={gym.id}
@@ -188,13 +289,15 @@ export const CopyGymSetupDialog: React.FC<CopyGymSetupDialogProps> = ({
                 >
                   <View style={styles.gymOptionContent}>
                     <Text style={styles.gymOptionName}>{gym.name}</Text>
-                    <Text style={styles.gymOptionDate}>
-                      Added: {new Date(gym.created_at).toLocaleDateString('en-GB', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric' 
-                      })}
-                    </Text>
+                    {gym.created_at && (
+                      <Text style={styles.gymOptionDate}>
+                        Added: {new Date(gym.created_at).toLocaleDateString('en-GB', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric' 
+                        })}
+                      </Text>
+                    )}
                   </View>
                   {selectedSourceId === gym.id && (
                     <Ionicons name="checkmark-circle" size={24} color={Colors.blue600} />
@@ -280,8 +383,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   gymList: {
-    flex: 1,
+    maxHeight: 240,
+    minHeight: 72,
     marginBottom: Spacing.lg,
+  },
+  gymListContent: {
+    paddingBottom: Spacing.sm,
   },
   gymOption: {
     flexDirection: 'row',
@@ -309,6 +416,17 @@ const styles = StyleSheet.create({
   gymOptionDate: {
     fontSize: 12,
     color: Colors.mutedForeground,
+  },
+  loadingState: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+    textAlign: 'center',
   },
   emptyState: {
     padding: Spacing.xl,

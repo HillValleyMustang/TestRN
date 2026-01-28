@@ -435,7 +435,16 @@ export function MyGymsCardNew({
       setCurrentGymId(newGym.id);
       setCurrentGymName(newGym.name);
       setSetupCompleted(false);
+      
+      // Transition to next step immediately for better UX
       setFlowStep('setup');
+
+      // Refresh gyms in background so the gyms prop is updated
+      // We don't await this here to prevent the flow from closing if refresh fails
+      // or takes too long. The 'setup' dialog is already showing.
+      onRefresh().catch(refreshError => {
+        console.warn('[MyGymsCard] background refresh failed:', refreshError);
+      });
     } catch (error) {
       console.error('[MyGymsCard] Error creating gym:', error);
       Alert.alert('Error', 'Failed to create gym. Please try again.');
@@ -749,41 +758,16 @@ export function MyGymsCardNew({
       const programmeType = profile.programme_type as 'ulul' | 'ppl';
       const sessionLength = profile.preferred_session_length || profileData.sessionLength || '45-60';
 
-      // Create main t-path first
-      const mainTPathId = generateUUID(); // Generate React Native-compatible UUID
-      const { error: mainTPathError } = await supabase
-        .from('t_paths')
-        .insert({
-          id: mainTPathId,
-          user_id: userId,
-          template_name: programmeType === 'ppl' ? 'Push/Pull/Legs' : 'Upper/Lower',
-          gym_id: currentGymId,
-          settings: {
-            tPathType: programmeType,
-            equipmentMethod: 'photo',
-          },
-          created_at: new Date().toISOString(),
-        });
-
-      if (mainTPathError) throw mainTPathError;
-
-      // Update profile to use this t-path as active
-      await supabase
-        .from('profiles')
-        .update({ 
-          active_t_path_id: mainTPathId,
-          active_gym_id: currentGymId,
-        })
-        .eq('id', userId);
-      
-      console.log('[MyGymsCard] Calling generate-t-path with:', {
-        tPathId: mainTPathId,
+      console.log('[MyGymsCard] Calling setup-gym-with-ai with:', {
+        gymId: currentGymId,
+        programmeType,
         sessionLength,
       });
 
-      // Call generate-t-path edge function to create child workouts
+      // Call setup-gym-with-ai edge function
+      // This will get/create the single main T-path and generate gym-specific child workouts
       const response = await fetch(
-        `https://mgbfevrzrbjjiajkqpti.supabase.co/functions/v1/generate-t-path`,
+        `https://mgbfevrzrbjjiajkqpti.supabase.co/functions/v1/setup-gym-with-ai`,
         {
           method: 'POST',
           headers: {
@@ -791,16 +775,26 @@ export function MyGymsCardNew({
             Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           },
           body: JSON.stringify({
-            tPathId: mainTPathId,
-            preferred_session_length: sessionLength,
+            gymId: currentGymId,
+            programmeType,
+            sessionLength,
           }),
         }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate t-path');
+        throw new Error(errorData.error || 'Failed to generate workout plan');
       }
+
+      const result = await response.json();
+      const mainTPathId = result.mainTPath?.id;
+
+      if (!mainTPathId) {
+        throw new Error('Failed to retrieve main T-path ID from response');
+      }
+
+      console.log('[MyGymsCard] Setup complete, main T-path ID:', mainTPathId);
 
       // Fetch the generated t-path and child workouts
       const { data: mainTPath } = await supabase
@@ -812,7 +806,8 @@ export function MyGymsCardNew({
       const { data: childWorkouts } = await supabase
         .from('t_paths')
         .select('*, exercises:t_path_exercises(exercise_id, is_bonus_exercise, exercise:exercise_definitions(*))')
-        .eq('parent_t_path_id', mainTPathId);
+        .eq('parent_t_path_id', mainTPathId)
+        .eq('gym_id', currentGymId);
 
       // Transform child workouts to match expected format
       const transformedChildWorkouts = (childWorkouts || []).map((workout: any) => ({
@@ -845,7 +840,7 @@ export function MyGymsCardNew({
             is_bonus: mainTPath.is_bonus || false,
             created_at: mainTPath.created_at,
             updated_at: mainTPath.updated_at || mainTPath.created_at,
-            gym_id: mainTPath.gym_id || currentGymId,
+            gym_id: mainTPath.gym_id || null, // Main T-paths should have gym_id = null
             settings: mainTPath.settings ? JSON.stringify(mainTPath.settings) : null,
             progression_settings: mainTPath.progression_settings ? JSON.stringify(mainTPath.progression_settings) : null,
             version: mainTPath.version || 1,

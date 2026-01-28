@@ -69,10 +69,18 @@ const getCategoryIcon = (category: WorkoutCategory) => {
 
 const formatLastCompleted = (date: Date | null): string => {
   if (!date) return 'Never';
+  
   const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Compare calendar days (not time differences) to properly handle "today" vs "yesterday"
+  // Normalize both dates to midnight in local timezone for accurate day comparison
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const completedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  const diffTime = today.getTime() - completedDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
+  if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;

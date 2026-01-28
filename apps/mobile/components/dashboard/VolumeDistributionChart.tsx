@@ -174,15 +174,17 @@ export const VolumeDistributionChart: React.FC<VolumeDistributionChartProps> = (
                   )}
                 </View>
                 <View style={styles.volumeBarBackground}>
-                  <View
-                    style={[
-                      styles.volumeBarFill,
-                      {
-                        width: `${percentage}%`,
-                        backgroundColor: getWorkoutColor(workoutName).main
-                      }
-                    ]}
-                  />
+                  {volume > 0 && percentage > 0 && (
+                    <View
+                      style={[
+                        styles.volumeBarFill,
+                        {
+                          width: `${percentage}%`,
+                          backgroundColor: getWorkoutColor(workoutName).main
+                        }
+                      ]}
+                    />
+                  )}
                 </View>
               </TouchableOpacity>
             );

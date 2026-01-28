@@ -180,37 +180,43 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   // This ensures we catch T-path changes immediately even if local state hasn't updated
   const lastTPathIdRef = useRef<string | null>(null);
   const lastProgrammeTypeRef = useRef<string | null>(null);
+  const lastGymIdRef = useRef<string | null>(null);
   
   useEffect(() => {
     if (profile) {
       // If refs are null, this is the first time we've got a profile
       // We should just set the refs and NOT refresh, because the profile 
       // was likely just fetched by the initial refresh() call
-      if (lastTPathIdRef.current === null && lastProgrammeTypeRef.current === null) {
+      if (lastTPathIdRef.current === null && lastProgrammeTypeRef.current === null && lastGymIdRef.current === null) {
         lastTPathIdRef.current = profile.active_t_path_id;
         lastProgrammeTypeRef.current = profile.programme_type || null;
+        lastGymIdRef.current = profile.active_gym_id;
         return;
       }
 
       const tPathChanged = profile.active_t_path_id !== lastTPathIdRef.current;
       const programmeTypeChanged = profile.programme_type !== lastProgrammeTypeRef.current;
+      const gymChanged = profile.active_gym_id !== lastGymIdRef.current;
       
-      if (tPathChanged || programmeTypeChanged) {
-        log.debug('[useWorkoutLauncherData] T-path or programme type changed, clearing exercise cache and refreshing:', {
+      if (tPathChanged || programmeTypeChanged || gymChanged) {
+        log.debug('[useWorkoutLauncherData] T-path, programme type, or gym changed, clearing exercise cache and refreshing:', {
           oldTPath: lastTPathIdRef.current,
           newTPath: profile.active_t_path_id,
           oldType: lastProgrammeTypeRef.current,
           newType: profile.programme_type,
+          oldGym: lastGymIdRef.current,
+          newGym: profile.active_gym_id,
           source: 'useEffect_change_detection'
         });
         // CRITICAL: Clear exercise cache when T-path changes to prevent showing old exercises
         setWorkoutExercisesCache({});
         lastTPathIdRef.current = profile.active_t_path_id;
         lastProgrammeTypeRef.current = profile.programme_type || null;
+        lastGymIdRef.current = profile.active_gym_id;
         refresh();
       }
     }
-  }, [profile?.active_t_path_id, profile?.programme_type, refresh]);
+  }, [profile?.active_t_path_id, profile?.programme_type, profile?.active_gym_id, refresh]);
 
   // Compute derived data
   const derivedData = useMemo(() => {

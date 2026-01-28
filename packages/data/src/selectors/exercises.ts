@@ -15,9 +15,12 @@ export const filterExercises = (
   filters: ExerciseFilters
 ): FetchedExerciseDefinition[] => {
   return exercises.filter(exercise => {
-    // Muscle group filter
+    // Muscle group filter - handle comma-separated muscle groups
     if (filters.muscleGroup && filters.muscleGroup !== 'all') {
-      if (exercise.main_muscle !== filters.muscleGroup) {
+      const exerciseMuscles = exercise.main_muscle
+        ? exercise.main_muscle.split(',').map(m => m.trim())
+        : [];
+      if (!exerciseMuscles.includes(filters.muscleGroup)) {
         return false;
       }
     }
@@ -86,11 +89,16 @@ export const sortExercises = (
 };
 
 export const getUniqueMuscleGroups = (exercises: FetchedExerciseDefinition[]): string[] => {
-  const muscles = new Set();
+  const muscles = new Set<string>();
   exercises.forEach(ex => {
-    // Only include muscle groups that don't contain commas (single muscle groups)
-    if (!ex.main_muscle.includes(',')) {
-      muscles.add(ex.main_muscle.trim());
+    if (ex.main_muscle) {
+      // Split comma-separated muscle groups and include all muscles
+      const muscleList = ex.main_muscle.split(',').map(m => m.trim());
+      muscleList.forEach(muscle => {
+        if (muscle) {
+          muscles.add(muscle);
+        }
+      });
     }
   });
   return Array.from(muscles).sort() as string[];

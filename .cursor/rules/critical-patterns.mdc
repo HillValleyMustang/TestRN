@@ -1,0 +1,27 @@
+---
+description: Critical patterns that must be followed to avoid common bugs and crashes.
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+# Critical Patterns & Anti-Patterns
+
+## Provider Order (CRITICAL - Causes App Crashes)
+- **ALWAYS** place `DataProvider` OUTSIDE (wrapping) `AuthProvider` in component tree
+- DataProvider must initialize first to avoid circular dependency errors
+- Pattern: `<DataProvider><AuthProvider><App /></AuthProvider></DataProvider>` (DataProvider wraps AuthProvider)
+- Never import `useAuth` from auth-context in data-context - use Supabase client directly
+- If editing `_layout.tsx` or root providers, verify this order first
+- **Verification**: See `verification.mdc` for mandatory checks before committing provider changes
+
+## Data Loading & Race Conditions
+- **NEVER** check `userProfile === null` to determine loading state - use explicit `loading` boolean
+- **ALWAYS** wait for profile data before checking onboarding status: `userProfile !== null && userProfile !== undefined`
+- Consolidate multiple `useEffect` hooks that fetch the same data into a single effect
+- Use `useFocusEffect` for screen-level refreshes, not multiple competing effects
+- Add proper loading states during data transitions to prevent premature redirects
+- Avoid having 5+ different effects fetching the same data - consolidate them
+
+## Circular Dependencies
+- DataContext should NOT import from AuthContext
+- Use Supabase client directly: `import { supabase } from '@data/supabase/client-mobile'`
+- If you need auth state in DataContext, listen to Supabase auth state changes directly

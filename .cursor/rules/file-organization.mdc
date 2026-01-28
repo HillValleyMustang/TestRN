@@ -1,0 +1,53 @@
+---
+description: File organization and where code should live.
+globs: "**/*"
+alwaysApply: true
+---
+# File Organization
+
+## Mobile App Structure
+```
+apps/mobile/
+  app/              # Expo Router pages
+    (tabs)/         # Tab navigation screens
+    _contexts/      # React Context providers
+    _hooks/         # App-specific hooks
+    _lib/           # App-specific utilities
+    _components/    # App-specific components
+  components/       # Reusable components
+  hooks/            # Reusable hooks
+  lib/              # Utilities
+```
+
+## Web App Structure
+```
+apps/web/src/
+  app/              # Next.js App Router
+    api/            # API routes (proxy to edge functions)
+  components/       # React components
+    ui/             # Shadcn/UI components
+  hooks/            # Custom hooks
+  lib/              # Utilities
+```
+
+## Shared Packages
+```
+packages/
+  data/             # Supabase client, models, types
+  features/         # Shared business logic
+  ui/               # Cross-platform UI (if needed)
+```
+
+## Rules
+- Platform-specific code stays in respective `apps/` directories
+- Shared logic should live in `packages/`
+- Use path aliases: `@data/*`, `@features/*`, `@ui/*`
+- Test files: `__tests__/` directories
+
+## Code Organization Best Practices
+- [ ] Related code is grouped together
+- [ ] Large components are broken into smaller pieces
+- [ ] Reusable logic is extracted to hooks/utilities
+- [ ] Constants are defined at the top of files
+- [ ] Imports are organized (external, internal, relative)
+- [ ] File names follow conventions (PascalCase for components, camelCase for utilities)

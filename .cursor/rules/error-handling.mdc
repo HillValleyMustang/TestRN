@@ -1,0 +1,49 @@
+---
+description: Error handling patterns and logging standards.
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+# Error Handling Standards
+
+## Error Logging Pattern
+- **NEVER** log raw Supabase errors before custom error handling
+- **Mobile**: Use `createTaggedLogger` from `apps/mobile/lib/logger.ts` for all logging
+- **Web**: Use standard console methods with appropriate log levels (console.error for errors, console.warn for warnings)
+- Pattern: Catch error → Check error type → Show user-friendly alert → Log which alert was shown
+- Avoid `console.error` for user-facing errors - use Alert.alert (mobile) or toast notifications (web)
+- Check multiple error patterns: `error.message`, `error.code`, `error.toString()`
+
+## Logging Implementation
+
+**IMPORTANT**: All logs appear in terminal/console (where Expo Go runs). There is NO separate "cursor log file". Use proper logging utilities so logs are visible in terminal.
+
+### Mobile
+```typescript
+import { createTaggedLogger } from '../lib/logger';
+const log = createTaggedLogger('ComponentName');
+
+log.info('Important event');
+log.debug('Verbose technical detail');
+log.warn('Warning message');
+log.error('Error occurred', error);
+```
+
+### Web
+```typescript
+// Use standard console methods with appropriate levels
+console.error('[ComponentName] Error occurred', error);
+console.warn('[ComponentName] Warning message');
+```
+
+## Error Flow
+1. Catch the error
+2. Check error type/code/message
+3. Show user-friendly alert or toast
+4. Log which alert was shown (not the raw error)
+5. Handle gracefully with fallbacks
+
+## Debug Logs
+- By default, only `warn` and `error` show in dev
+- Set `global.ENABLE_DEBUG_LOGS = true` to see all logs
+- Production: Only errors are logged
+- Use `log.debug()` for verbose technical logs (state updates, calculations)

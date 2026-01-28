@@ -42,7 +42,26 @@
       { "label": "30-45 mins", "value": 45 },
       { "label": "45-60 mins", "value": 60 },
       { "label": "60-90 mins", "value": 90 }
-    ]
+    ],
+    "regeneration_confirm": {
+      "title": "Update Workout Plans?",
+      "message": "Changing your session duration will trigger our Training Intelligence to rebuild your plans.",
+      "dynamic_selection": "Dynamic Exercise Selection",
+      "injury_analysis": "AI Injury Analysis & Safety",
+      "custom_library": "Prioritizes Your Custom Library",
+      "gym_matching": "Gym-Specific Equipment Matching",
+      "subtitle": "Are you sure you want to proceed?",
+      "cancel": "No, Go Back",
+      "confirm": "Yes, Update"
+    },
+    "regeneration_success": {
+      "title": "Update Complete!",
+      "message": "Our Training Intelligence has successfully rebuilt your plans.",
+      "intelligence_applied": "Intelligence Applied",
+      "injury_management": "Injury Management",
+      "included_exercises": "Included Exercises",
+      "close": "Great, let's go!"
+    }
   },
   "programme_type": {
     "title": "Programme Type",

@@ -1,0 +1,28 @@
+---
+description: Next.js and web-specific patterns.
+globs: ["apps/web/**/*"]
+alwaysApply: false
+---
+# Web-Specific Patterns
+
+## Styling
+- **ONLY** use Tailwind CSS utility classes
+- Shadcn/UI components in `src/components/ui/`
+- Icons: `lucide-react` only
+- Global styles: `src/app/globals.css` for base styles only
+
+## Next.js
+- App Router (not Pages Router)
+- Server Actions for mutations
+- Route Handlers in `src/app/api/` for API endpoints
+- Use `next-themes` for theme management
+
+## Component Structure
+- Use Shadcn/UI components from `src/components/ui/`
+- Shared UI: Consider `packages/ui/` for truly cross-platform components
+- Keep components focused - extract complex logic to hooks or utilities
+
+## Data Fetching
+- Use React Query (`@tanstack/react-query`) for server state management
+- Use custom hooks in `src/hooks/` for data fetching logic
+- Cache invalidation: Use React Query's `invalidateQueries` after mutations

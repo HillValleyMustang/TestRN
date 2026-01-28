@@ -37,32 +37,47 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'gymId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Find the main T-Path associated with the target gym for this user
-    // Using .limit(1) and checking the array is more robust than .single() in some edge cases.
-    const { data: tPaths, error: tPathError } = await supabaseServiceRoleClient
-      .from('t_paths')
-      .select('id')
-      .eq('gym_id', gymId)
-      .eq('user_id', user.id)
-      .is('parent_t_path_id', null) // Ensure it's a main plan
-      .limit(1);
+    // NOTE: T-paths are NOT gym-specific. Users have ONE workout plan regardless of which gym they're at.
+    // We only update active_gym_id, but ensure active_t_path_id is set to the main T-path if it's null.
 
-    if (tPathError) {
-      console.error(`Error finding T-Path for gym ${gymId}:`, tPathError.message);
-      throw tPathError;
+    // First, check if active_t_path_id is null
+    const { data: profile, error: profileError } = await supabaseServiceRoleClient
+      .from('profiles')
+      .select('active_t_path_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError.message);
+      throw profileError;
     }
-    
-    const newActiveTPathId = (tPaths && tPaths.length > 0) ? tPaths[0].id : null;
-    console.log(`[switch-active-gym] For gym ${gymId}, found new active T-Path ID: ${newActiveTPathId}`);
 
+    const updateData: { active_gym_id: string; active_t_path_id?: string } = {
+      active_gym_id: gymId
+    };
+
+    // If active_t_path_id is null, find and set the main T-path
+    if (!profile.active_t_path_id) {
+      const { data: mainTPath, error: mainTPathError } = await supabaseServiceRoleClient
+        .from('t_paths')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('gym_id', null)
+        .is('parent_t_path_id', null)
+        .single();
+
+      if (!mainTPathError && mainTPath) {
+        updateData.active_t_path_id = mainTPath.id;
+        console.log(`[switch-active-gym] Setting active_t_path_id to main T-path: ${mainTPath.id}`);
+      } else {
+        console.warn('[switch-active-gym] Could not find main T-path for user');
+      }
+    }
 
     // Perform a single, safe update on the user's profile
     const { error: updateProfileError } = await supabaseServiceRoleClient
       .from('profiles')
-      .update({ 
-        active_gym_id: gymId, 
-        active_t_path_id: newActiveTPathId 
-      })
+      .update(updateData)
       .eq('id', user.id);
 
     if (updateProfileError) {

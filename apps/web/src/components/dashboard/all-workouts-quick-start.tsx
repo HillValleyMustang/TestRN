@@ -59,7 +59,7 @@ interface AllWorkoutsQuickStartProps {
   dataError: string | null; // NEW: Add dataError prop
 }
 
-export const AllWorkoutsQuickStart = ({
+const AllWorkoutsQuickStartComponent = ({
   profile,
   groupedTPaths,
   loadingPlans,
@@ -70,6 +70,12 @@ export const AllWorkoutsQuickStart = ({
 }: AllWorkoutsQuickStartProps) => {
   const router = useRouter();
   const isLoading = loadingPlans || loadingGyms;
+  
+  // Only show loading if we don't have data yet - if we have cached data, show it even during revalidation
+  // However, if we're processing but have no groupedTPaths yet, show skeleton to prevent layout shift
+  const hasData = !!groupedTPaths && groupedTPaths.length > 0 && !!profile && !!activeGym;
+  const isProcessing = isLoading && !hasData; // Processing but no data yet
+  const shouldShowLoading = isProcessing;
 
   const activeTPathGroup = useMemo(() => {
     if (!profile || !profile.active_t_path_id || groupedTPaths.length === 0) {
@@ -94,17 +100,25 @@ export const AllWorkoutsQuickStart = ({
   const isTrulyEmptyState = !activeMainTPath || childWorkouts.length === 0;
 
   return (
-    <Card>
+    <Card className="will-change-contents" style={{ contentVisibility: 'auto' }}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-center text-xl">
           <Dumbbell className="h-5 w-5" />
           All Workouts
         </CardTitle>
       </CardHeader>
-      <CardContent className="min-h-[120px] flex flex-col justify-center">
-        {isLoading ? (
-          // Render blank space during loading, matching the min-height of CardContent
-          <div className="h-[120px] w-full" />
+      <CardContent className="min-h-[120px] flex flex-col justify-center" style={{ containLayout: true }}>
+        {shouldShowLoading ? (
+          // Render skeleton that matches the actual content layout to prevent layout shift
+          <div className="space-y-3 animate-pulse">
+            <Skeleton className="h-6 w-40 mb-3" /> {/* Program name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Skeleton className="h-10 w-full" /> {/* Workout pill */}
+              <Skeleton className="h-10 w-full" /> {/* Workout pill */}
+              <Skeleton className="h-10 w-full" /> {/* Workout pill */}
+              <Skeleton className="h-10 w-full" /> {/* Workout pill */}
+            </div>
+          </div>
         ) : dataError ? (
           <p className="text-destructive">Error loading workouts: {dataError}</p>
         ) : !activeGym ? (
@@ -114,7 +128,7 @@ export const AllWorkoutsQuickStart = ({
         ) : isTrulyEmptyState ? (
           <p className="text-muted-foreground text-center py-4 animate-fade-in-fast">No workouts found for your active Transformation Path. This might happen if your session length is too short for any workouts.</p>
         ) : (
-          <div className="animate-fade-in-fast"> {/* Apply fast fade-in here */}
+          <div className="animate-fade-in-fast" style={{ minHeight: '120px' }}> {/* Apply fast fade-in here, maintain min-height to prevent layout shift */}
             <h3 className="text-lg font-semibold mb-3">{activeMainTPath?.template_name}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {childWorkouts.map((workout: WorkoutWithLastCompleted) => {
@@ -144,3 +158,16 @@ export const AllWorkoutsQuickStart = ({
     </Card>
   );
 };
+
+// Memoize to prevent unnecessary re-renders when props haven't changed
+export const AllWorkoutsQuickStart = React.memo(AllWorkoutsQuickStartComponent, (prevProps, nextProps) => {
+  // Only re-render if critical props actually changed
+  return (
+    prevProps.loadingPlans === nextProps.loadingPlans &&
+    prevProps.loadingGyms === nextProps.loadingGyms &&
+    prevProps.profile?.id === nextProps.profile?.id &&
+    prevProps.activeGym?.id === nextProps.activeGym?.id &&
+    prevProps.groupedTPaths?.length === nextProps.groupedTPaths?.length &&
+    JSON.stringify(prevProps.groupedTPaths) === JSON.stringify(nextProps.groupedTPaths)
+  );
+});

@@ -16,6 +16,7 @@ import { ColoredWorkoutButton } from '../components/workout-launcher';
 import { Card } from '../components/ui/Card';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { TextStyles } from '../constants/Typography';
+import { AdHocGeneratorDialog } from '../components/workout-flow/AdHocGeneratorDialog';
 
 export default function WorkoutLauncherScreen() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function WorkoutLauncherScreen() {
   const [activeTPath, setActiveTPath] = useState<any | null>(null);
   const [childWorkouts, setChildWorkouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdHocGeneratorOpen, setIsAdHocGeneratorOpen] = useState(false);
 
   useEffect(() => {
     loadActiveTPath();
@@ -67,7 +69,18 @@ export default function WorkoutLauncherScreen() {
   };
 
   const handleGenerate = () => {
-    router.push('/ai-generator');
+    setIsAdHocGeneratorOpen(true);
+  };
+
+  const handleWorkoutGenerated = (exercises: any[]) => {
+    // Navigate to workout screen with generated exercises
+    router.push({
+      pathname: '/(tabs)/workout',
+      params: { 
+        tPathId: 'ad-hoc',
+        generatedExercises: JSON.stringify(exercises)
+      },
+    });
   };
 
   const getWorkoutsList = () => {
@@ -137,6 +150,13 @@ export default function WorkoutLauncherScreen() {
           </View>
         </Card>
       </ScreenContainer>
+
+      <AdHocGeneratorDialog
+        visible={isAdHocGeneratorOpen}
+        onClose={() => setIsAdHocGeneratorOpen(false)}
+        onWorkoutGenerated={handleWorkoutGenerated}
+        activeGymName={activeTPath?.gym_name || null}
+      />
     </>
   );
 }

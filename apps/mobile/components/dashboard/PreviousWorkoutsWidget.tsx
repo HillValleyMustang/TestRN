@@ -2,16 +2,22 @@
  * PreviousWorkoutsWidget Component
  * Shows last 3 completed workouts with colored borders
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 9
+ * 
+ * Uses reactive hooks to fetch data automatically.
  */
 
-import React from 'react';
-import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
-import { TextStyles } from '../../constants/Typography';
 import { getWorkoutColor } from '../../lib/workout-colors';
+import { useRecentWorkouts } from '../../hooks/data';
+import { useAuth } from '../../app/_contexts/auth-context';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('PreviousWorkoutsWidget');
 
 interface WorkoutSession {
   id: string;
@@ -25,24 +31,45 @@ interface WorkoutSession {
 }
 
 interface PreviousWorkoutsWidgetProps {
-  workouts: WorkoutSession[];
+  /** Callback when a workout summary is requested */
   onViewSummary?: (sessionId: string) => void;
+  /** Callback when delete is requested */
   onDelete?: (sessionId: string, templateName: string) => void;
+  /** Callback when View All is pressed */
   onViewAll?: () => void;
-  loading?: boolean;
-  error?: string;
 }
 
 export function PreviousWorkoutsWidget({
-  workouts,
   onViewSummary,
   onDelete,
   onViewAll,
-  loading,
-  error,
 }: PreviousWorkoutsWidgetProps) {
   const router = useRouter();
-
+  
+  // Get userId for reactive hooks
+  const { userId } = useAuth();
+  
+  // Reactive data hook
+  const { 
+    data: hookWorkouts, 
+    loading, 
+    error 
+  } = useRecentWorkouts(userId, 3);
+  
+  // Transform hook data to WorkoutSession format
+  const workouts = useMemo((): WorkoutSession[] => {
+    if (!hookWorkouts) return [];
+    return hookWorkouts.map(w => ({
+      id: w.id,
+      sessionId: w.id,
+      template_name: w.template_name || 'Workout',
+      completed_at: w.completed_at,
+      exercise_count: w.exercise_count,
+      duration_string: w.duration_string || undefined,
+      gym_name: w.gym_name,
+    }));
+  }, [hookWorkouts]);
+  
   const formatTimeAgo = (dateString?: string | null): string => {
     if (!dateString) return 'N/A';
 
@@ -83,7 +110,6 @@ export function PreviousWorkoutsWidget({
   };
 
   const handleDelete = (sessionId: string, templateName: string) => {
-    // Delegate confirmation dialog to parent component (dashboard)
     if (onDelete) {
       onDelete(sessionId, templateName);
     }
@@ -97,13 +123,13 @@ export function PreviousWorkoutsWidget({
           <Text style={styles.title}>Previous Workouts</Text>
         </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error: {error}</Text>
+          <Text style={styles.errorText}>Error: {error.message}</Text>
         </View>
       </Card>
     );
   }
 
-  if (workouts.length === 0) {
+  if (!loading && workouts.length === 0) {
     return (
       <Card style={styles.container}>
         <View style={styles.header}>
@@ -119,8 +145,6 @@ export function PreviousWorkoutsWidget({
     );
   }
 
-  const displayWorkouts = workouts.slice(0, 3);
-
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
@@ -129,7 +153,7 @@ export function PreviousWorkoutsWidget({
       </View>
 
       <View style={styles.workoutsList}>
-        {displayWorkouts.map((workout) => {
+        {workouts.map((workout) => {
           const colors = getWorkoutColor(workout.template_name);
           const timeAgo = formatTimeAgo(workout.completed_at);
           const syncStatus = getSyncStatusDisplay(workout.sync_status);

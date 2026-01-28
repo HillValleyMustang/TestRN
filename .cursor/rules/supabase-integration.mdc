@@ -1,0 +1,83 @@
+---
+description: Supabase edge functions, database patterns, and authentication.
+globs: ["**/*.ts", "**/*.tsx", "supabase/**/*"]
+alwaysApply: true
+---
+# Supabase Integration
+
+## 🔴 CRITICAL: Connect to Supabase Database via MCP (MANDATORY FIRST STEP)
+
+**BEFORE making ANY database-related changes, you MUST connect to Supabase via MCP to verify the current state.**
+
+### How to Connect:
+1. **MCP Server Name**: `supabase` (configured in `.kilocode/mcp.json`)
+2. **Tool Name**: `execute_sql`
+3. **Project ID**: `mgbfevrzrbjjiajkqpti`
+
+### When to Use MCP:
+- **ALWAYS** before modifying database schema or migrations
+- **ALWAYS** before changing edge functions that interact with the database
+- **ALWAYS** to verify current data state (e.g., exercise counts, user profiles)
+- **ALWAYS** to check if a column exists before adding it
+- **ALWAYS** to verify RLS policies and permissions
+
+### Example Usage:
+```typescript
+// Query current state
+CallMcpTool({
+  server: "supabase",
+  toolName: "execute_sql",
+  arguments: {
+    query: "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'profiles';"
+  }
+})
+
+// Verify data counts
+CallMcpTool({
+  server: "supabase", 
+  toolName: "execute_sql",
+  arguments: {
+    query: "SELECT movement_pattern, COUNT(*) FROM exercise_definitions WHERE user_id IS NULL GROUP BY movement_pattern;"
+  }
+})
+```
+
+### Common Queries You Should Run:
+- **Check table schema**: `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'TABLE_NAME';`
+- **Verify data exists**: `SELECT COUNT(*) FROM table_name WHERE condition;`
+- **Check RLS policies**: Query `pg_policies` table
+- **Verify edge function deployment**: Check `t_path_generation_status` in profiles table
+
+### ⚠️ Common Mistakes to Avoid:
+- ❌ **DON'T** assume schema without querying first
+- ❌ **DON'T** guess column names - always verify
+- ❌ **DON'T** skip MCP connection "to save time"
+- ❌ **DON'T** use wrong server name (`supabase`, not `user-supabase` or `supabase-mcp-server-project`)
+- ✅ **DO** connect via MCP as the FIRST step in any database-related task
+- ✅ **DO** verify your assumptions with actual database queries
+- ✅ **DO** check if migrations have been applied by querying the schema
+
+## Edge Functions
+- Edge functions live in `supabase/functions/`
+- Call via Next.js API routes (`apps/web/src/app/api/*`) that proxy to edge functions
+- Mobile: Call edge functions directly via fetch with Authorization header
+- **ALWAYS** forward Authorization header: `Authorization: Bearer ${accessToken}`
+- Project ID: `mgbfevrzrbjjiajkqpti` (hardcoded in multiple places - consider env variable)
+
+## Database
+- **NEVER** modify Supabase schema directly - use migrations in `supabase/migrations/`
+- Mobile: Use `expo-sqlite` via `apps/mobile/app/_lib/database.ts`
+- Web: Use Dexie via `apps/web/src/lib/db.ts`
+- Offline-first: All writes go to local DB first, then sync queue
+- Sync queue: Use `addToSyncQueue()` for offline operations
+
+## Authentication
+- Use Supabase auth client: `@data/supabase/client-mobile` or `@data/supabase/client-web`
+- Session persistence: Handled automatically by Supabase
+- Auth state: Listen to Supabase auth state changes, don't poll
+
+## AI Integration
+- OpenAI client: `packages/data/src/ai/openai-client.ts`
+- AI services: `apps/mobile/lib/ai-workout-service.ts`
+- Edge functions for AI: `supabase/functions/*` (complete-onboarding, setup-gym-with-ai, etc.)
+- Always handle AI errors gracefully with fallbacks

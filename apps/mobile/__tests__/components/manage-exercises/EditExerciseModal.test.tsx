@@ -7,7 +7,7 @@ import { FetchedExerciseDefinition } from '../../../../../packages/data/src/type
 const mockExercise: FetchedExerciseDefinition = {
   id: '1',
   name: 'Bench Press',
-  main_muscle: 'Chest',
+  main_muscle: 'Pectorals',
   type: 'strength',
   category: 'Compound',
   description: 'A compound exercise targeting the chest muscles.',

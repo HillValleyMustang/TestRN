@@ -1,0 +1,98 @@
+---
+description: Planning and task breakdown for complex features - create detailed to-do lists before implementation.
+globs: "**/*"
+alwaysApply: true
+---
+# Task Planning & Breakdown Protocol
+
+## When to Create a Detailed Plan
+
+**For moderately to highly complex tasks, you MUST create a detailed plan before writing any code.**
+
+Complexity indicators:
+- Requires changes to multiple files/components
+- Involves new database schema or migrations
+- Requires new API endpoints or edge functions
+- Affects multiple user flows or screens
+- Requires integration with external services
+- Involves complex state management or data synchronization
+- Estimated to take more than 30 minutes of implementation
+
+## Planning Process
+
+### Step 1: Understand the Requirements
+- Ask clarifying questions if requirements are vague (see `clarification.mdc`)
+- Identify all affected areas (components, hooks, contexts, database, APIs)
+- Consider edge cases and error scenarios
+- Identify dependencies and prerequisites
+
+### Step 2: Break Down into Tasks
+Create a detailed to-do list with:
+- **Specific, actionable tasks** (not vague like "implement feature")
+- **Logical order** (prerequisites first, then dependent tasks)
+- **File/component names** where changes will be made
+- **Estimated complexity** for each task (simple/moderate/complex)
+
+### Step 3: Identify Dependencies
+- What needs to be done first?
+- What can be done in parallel?
+- What blocks other work?
+- Are there any external dependencies?
+
+### Step 4: Consider Implementation Strategy
+- Can this be done incrementally?
+- Should we build a prototype first?
+- Are there existing patterns to follow?
+- What's the rollback plan if something goes wrong?
+
+## Example Task Breakdown Format
+
+For a complex feature, present the plan like this:
+
+```markdown
+## Implementation Plan: [Feature Name]
+
+### Phase 1: Foundation
+- [ ] Create database migration (if needed)
+- [ ] Add TypeScript types/interfaces
+- [ ] Create base component structure
+
+### Phase 2: Core Functionality
+- [ ] Implement data fetching hook
+- [ ] Create main component
+- [ ] Add state management
+
+### Phase 3: Integration
+- [ ] Connect to existing contexts
+- [ ] Add error handling
+- [ ] Implement loading states
+
+### Phase 4: Polish
+- [ ] Add styling/theme
+- [ ] Handle edge cases
+- [ ] Add accessibility props
+- [ ] Test offline scenarios
+```
+
+## Before Starting Implementation
+
+Present the plan to the user and:
+1. **Get approval** on the approach
+2. **Confirm understanding** of requirements
+3. **Identify any missing pieces** or concerns
+4. **Agree on the order** of implementation
+
+## During Implementation
+
+- Check off tasks as you complete them
+- Update the plan if you discover new requirements
+- Communicate if the plan needs to change significantly
+- Break down any task that becomes too complex
+
+## Benefits
+
+- **Reduces errors**: Catch issues in planning phase
+- **Better estimates**: Understand scope before starting
+- **Clearer communication**: User knows what to expect
+- **Easier debugging**: Can identify which step had issues
+- **Incremental progress**: Can deliver value in phases

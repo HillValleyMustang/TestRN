@@ -2,16 +2,22 @@
  * AllWorkoutsQuickStart Component
  * Shows all workouts in the current program as colored pills with play buttons
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 7
+ * 
+ * Uses reactive hooks to fetch data automatically.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
-import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
-import { TextStyles } from '../../constants/Typography';
+import { Colors, Spacing } from '../../constants/Theme';
 import { getWorkoutColor } from '../../lib/workout-colors';
+import { useTPaths, useUserProfile, useRecentWorkouts } from '../../hooks/data';
+import { useAuth } from '../../app/_contexts/auth-context';
+import { createTaggedLogger } from '../../lib/logger';
+
+const log = createTaggedLogger('AllWorkoutsQuickStart');
 
 interface Workout {
   id: string;
@@ -19,21 +25,56 @@ interface Workout {
   last_completed_at?: string | null;
 }
 
-interface AllWorkoutsQuickStartProps {
-  programName?: string | undefined;
-  workouts: Workout[];
-  loading?: boolean;
-  error?: string;
-}
-
-export function AllWorkoutsQuickStart({
-  programName,
-  workouts,
-  loading,
-  error,
-}: AllWorkoutsQuickStartProps) {
+export function AllWorkoutsQuickStart() {
   const router = useRouter();
+  
+  // Get userId for reactive hooks
+  const { userId } = useAuth();
+  
+  // Reactive data hooks
+  const { data: profileData, loading: profileLoading, error: profileError } = useUserProfile(userId);
+  
+  const activeTPathId = profileData?.active_t_path_id || null;
+  
+  const { 
+    activeTPath, 
+    tPathWorkouts: hookTPathWorkouts, 
+    loading: tPathsLoading, 
+    error: tPathsError 
+  } = useTPaths(userId, activeTPathId, { enabled: !!activeTPathId });
 
+  // Fetch recent workouts to find last completion dates
+  const { data: recentWorkouts, loading: recentLoading } = useRecentWorkouts(userId, 50);
+  
+  // Transform hook data to Workout format
+  const workouts = useMemo((): Workout[] => {
+    if (!hookTPathWorkouts) return [];
+    
+    // Deduplicate by template_name to show only unique workout templates
+    const uniqueWorkouts = new Map<string, Workout>();
+    hookTPathWorkouts.forEach(workout => {
+      const normalizedName = workout.template_name.trim().toLowerCase();
+      if (!uniqueWorkouts.has(normalizedName)) {
+        // Find last completion date for this template from recent workouts
+        const lastSession = recentWorkouts?.find(r => 
+          r.template_name?.trim().toLowerCase() === normalizedName
+        );
+        
+        uniqueWorkouts.set(normalizedName, {
+          id: workout.id,
+          template_name: workout.template_name,
+          last_completed_at: lastSession?.completed_at || null,
+        });
+      }
+    });
+    
+    return Array.from(uniqueWorkouts.values());
+  }, [hookTPathWorkouts, recentWorkouts]);
+  
+  const programName = activeTPath?.template_name;
+  const loading = profileLoading || tPathsLoading || recentLoading;
+  const error = profileError?.message || tPathsError?.message;
+  
   const getWorkoutIcon = (workoutName: string): keyof typeof Ionicons.glyphMap => {
     const name = workoutName.toLowerCase();
     if (name.includes('upper')) return 'arrow-up';
@@ -66,6 +107,16 @@ export function AllWorkoutsQuickStart({
     router.push(`/workout?workoutId=${workoutId}`);
   };
 
+  if (error) {
+    return (
+      <Card style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </Card>
+    );
+  }
+
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
@@ -76,10 +127,6 @@ export function AllWorkoutsQuickStart({
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={Colors.actionPrimary} />
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : workouts.length > 0 ? (
         <>

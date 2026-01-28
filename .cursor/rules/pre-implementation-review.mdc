@@ -1,0 +1,36 @@
+---
+description: Challenge the approach before writing code - ask critical questions first.
+globs: ["apps/mobile/**/*"]
+alwaysApply: true
+---
+# Pre-Implementation Review (Challenge the Approach)
+
+**Before writing any code, you MUST ask these questions:**
+
+1. **Is this the simplest solution?** Could this be done with less code? Is there a simpler approach?
+2. **Can we reuse existing code?** Look for similar functionality - can we reuse existing components/hooks/utilities?
+3. **What's the performance impact?** Will this cause unnecessary re-renders? Should we memoize? Is this the right place for this logic?
+4. **Is this React Native best practice?** Are we using React Native patterns correctly? Are we avoiding web-only patterns?
+
+## Code Review Questions (Before Presenting Code)
+
+1. **Is this the simplest solution?** Can we reduce complexity?
+2. **Is this performant?** Will this cause performance issues on lower-end devices?
+3. **Is this maintainable?** Will other developers understand this in 6 months?
+4. **Is this testable?** Can this code be easily tested?
+5. **Is this consistent?** Does this follow existing patterns in the codebase?
+6. **Is this accessible?** Are accessibility props included where needed?
+7. **Is this offline-ready?** Does this handle offline scenarios gracefully?
+
+## React Native Anti-Patterns to Avoid
+
+- ❌ **Inline styles in render** - Use StyleSheet.create()
+- ❌ **Inline functions in render** - Use useCallback
+- ❌ **Using array index as key** - Use stable IDs
+- ❌ **Not cleaning up effects** - Always return cleanup function
+- ❌ **Storing derived state** - Compute in render or useMemo
+- ❌ **Nested ScrollViews** - Use FlatList or ScrollView with proper nesting
+- ❌ **Blocking the main thread** - Move heavy work off main thread
+- ❌ **Not handling loading/error states** - Always show appropriate UI states
+- ❌ **Direct Supabase calls in mobile** - Use sync queue for offline-first
+- ❌ **Using web-only APIs** - Check React Native compatibility

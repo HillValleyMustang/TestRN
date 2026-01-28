@@ -1,0 +1,19 @@
+---
+description: Global monorepo architecture and shared code patterns.
+globs: "**/*"
+alwaysApply: true
+---
+# Core Architecture Standards
+
+## 1. Monorepo Structure
+- `apps/web`: Next.js Web App.
+- `apps/mobile`: React Native/Expo Mobile App.
+- `packages/data`: Shared Supabase clients, models, and types.
+
+## 2. Code Sharing
+- Use path aliases: `@data/*`, `@features/*`, `@ui/*`.
+- **TypeScript**: Strict mode only. Prefer `interface` for object shapes, `type` for unions.
+- **Type Imports**: 
+  - Mobile/Shared: Import domain types from `@data/storage/models` (WorkoutSession, SetLog, TPath, Gym, etc.)
+  - Web: Use Supabase generated types from `apps/web/src/types/supabase-generated/` for database schema types
+  - Exception: `ExerciseDefinition` comes from `@data/types/exercise.ts` (not storage/models)

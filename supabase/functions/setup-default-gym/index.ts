@@ -54,13 +54,63 @@ function musclesIntersect(muscleString: string, muscleSet: Set<string>): boolean
     const muscles = muscleString.split(',').map(m => m.trim());
     return muscles.some(m => muscleSet.has(m));
 }
+async function getOrCreateMainTPath(
+  supabaseClient: any,
+  userId: string,
+  programmeType: 'ppl' | 'ulul',
+  profileSettings: { primary_goal?: string; preferred_muscles?: string; health_notes?: string }
+): Promise<string> {
+  // Check for existing main t-path (gym_id IS NULL, parent_t_path_id IS NULL)
+  const { data: existingTPaths, error: fetchError } = await supabaseClient
+    .from('t_paths')
+    .select('id, template_name, settings')
+    .eq('user_id', userId)
+    .is('gym_id', null)
+    .is('parent_t_path_id', null);
+  
+  if (fetchError) throw fetchError;
+  
+  // If exists, return it (ignore duplicate entries - should only be one)
+  if (existingTPaths && existingTPaths.length > 0) {
+    console.log(`[getOrCreateMainTPath] Found existing main t-path: ${existingTPaths[0].id}`);
+    return existingTPaths[0].id;
+  }
+  
+  // Create new main t-path with gym_id = NULL
+  const templateName = programmeType === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
+  const { data: newTPath, error: insertError } = await supabaseClient
+    .from('t_paths')
+    .insert({
+      user_id: userId,
+      gym_id: null, // CRITICAL: Main t-path has no gym association
+      template_name: templateName,
+      is_bonus: false,
+      parent_t_path_id: null,
+      settings: {
+        tPathType: programmeType,
+        experience: 'intermediate',
+        goalFocus: profileSettings.primary_goal,
+        preferredMuscles: profileSettings.preferred_muscles,
+        constraints: profileSettings.health_notes
+      }
+    })
+    .select('id')
+    .single();
+  
+  if (insertError) throw insertError;
+  
+  console.log(`[getOrCreateMainTPath] Created new main t-path: ${newTPath.id}`);
+  return newTPath.id;
+}
 async function generateWorkoutPlanForTPath(
   supabaseServiceRoleClient: any, userId: string, tPathId: string,
   sessionLength: string | null, activeGymId: string | null, useStaticDefaults: boolean
 ) {
   const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', userId).single();
   if (tPathError || !tPathData) throw new Error(`Main T-Path not found for user ${userId} and tPathId ${tPathId}.`);
-  const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', userId);
+  
+  // Only delete child workouts for THIS specific gym
+  const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', userId).eq('gym_id', activeGymId);
   if (fetchOldError) throw fetchOldError;
   if (oldChildWorkouts && oldChildWorkouts.length > 0) {
     const oldChildIds = oldChildWorkouts.map((w: { id: string }) => w.id);
@@ -194,21 +244,34 @@ serve(async (req: Request) => {
     if (profileError || !profile) throw new Error('User profile not found.');
     if (!profile.programme_type) throw new Error('User has no core programme type set.');
 
-    const tPathTemplateName = profile.programme_type === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
-    const { data: newTPath, error: newTPathError } = await supabaseServiceRoleClient
-      .from('t_paths')
-      .insert({ user_id: user.id, gym_id: gymId, template_name: tPathTemplateName, settings: { tPathType: profile.programme_type, experience: 'intermediate', goalFocus: profile.primary_goal, preferredMuscles: profile.preferred_muscles, constraints: profile.health_notes, equipmentMethod: 'skip' }, is_bonus: false, parent_t_path_id: null })
-      .select('id').single();
-    if (newTPathError) throw newTPathError;
+    // Use helper to get or create the SINGLE main t-path (gym_id = NULL)
+    const mainTPathId = await getOrCreateMainTPath(
+      supabaseServiceRoleClient,
+      user.id,
+      profile.programme_type,
+      {
+        primary_goal: profile.primary_goal,
+        preferred_muscles: profile.preferred_muscles,
+        health_notes: profile.health_notes
+      }
+    );
 
-    await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, newTPath.id, profile.preferred_session_length, gymId, true);
+    // Generate child workouts for THIS gym (child workouts are gym-specific)
+    await generateWorkoutPlanForTPath(
+      supabaseServiceRoleClient,
+      user.id,
+      mainTPathId,
+      profile.preferred_session_length,
+      gymId,
+      true
+    );
 
     // If no gym is active, make this new one active.
-    // Or if this gym was already active, ensure its new T-Path is set as active.
+    // Or if this gym was already active, ensure the main T-Path is set as active.
     if (profile.active_gym_id === null || profile.active_gym_id === gymId) {
       await supabaseServiceRoleClient.from('profiles').update({ 
         active_gym_id: gymId,
-        active_t_path_id: newTPath.id 
+        active_t_path_id: mainTPathId 
       }).eq('id', user.id);
     }
 

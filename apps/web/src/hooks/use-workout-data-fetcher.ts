@@ -64,13 +64,19 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   const prevStatusRef = useRef<string | null>(null);
   const [tempStatusMessage, setTempStatusMessage] = useState<{ message: string; type: 'added' | 'removed' | 'success' | 'error' } | null>(null);
   const [exerciseWorkoutsMap, setExerciseWorkoutsMap] = useState<Record<string, { id: string; name: string; isUserOwned: boolean; isBonus: boolean }[]>>({});
-  const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(true);
+  const [isProcessingDerivedData, setIsProcessingDerivedData] = useState(false); // Changed to false - only set true when actually processing
+  const [isCachedDataLoaded, setIsCachedDataLoaded] = useState(false); // Track if we've loaded cached groupedTPaths
 
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [loadingWeeklySummary, setLoadingWeeklySummary] = useState(true);
 
   const availableGymExerciseIdsRef = useRef<Set<string>>(new Set());
   const allGymExerciseIdsRef = useRef<Set<string>>(new Set());
+  
+  // Optimization refs: Track changes to avoid unnecessary recalculations
+  const lastTPathIdsHashRef = useRef<string>('');
+  const lastSessionCountRef = useRef<number>(0);
+  const hasInitializedRef = useRef<boolean>(false);
 
   const { data: cachedExercises, loading: loadingExercises, error: exercisesError, refresh: refreshExercises } = useCacheAndRevalidate<LocalExerciseDefinition>({
     cacheTable: 'exercise_definitions_cache',
@@ -245,6 +251,29 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [derivedAvailableGymExerciseIds, derivedAllGymExerciseIds]);
 
   const [groupedTPaths, setGroupedTPaths] = useState<GroupedTPath[]>([]);
+  
+  // Load cached groupedTPaths immediately on mount to prevent loading flicker
+  useEffect(() => {
+    if (!memoizedSessionUserId || isCachedDataLoaded) return;
+    
+    const loadCachedGroupedTPaths = async () => {
+      try {
+        const cacheKey = `grouped_t_paths_${memoizedSessionUserId}`;
+        const cached = await db.meta_cache.get(cacheKey);
+        
+        if (cached && cached.data) {
+          setGroupedTPaths(cached.data as GroupedTPath[]);
+          hasInitializedRef.current = true; // Mark as initialized from cache
+        }
+        setIsCachedDataLoaded(true);
+      } catch (error) {
+        console.error('[WorkoutDataFetcher] Failed to load cached groupedTPaths:', error);
+        setIsCachedDataLoaded(true);
+      }
+    };
+    
+    loadCachedGroupedTPaths();
+  }, [memoizedSessionUserId, isCachedDataLoaded]);
 
   const workoutExercisesCache = useMemo(() => {
     if (baseLoading || dataError || !memoizedSessionUserId || !cachedTPaths || !cachedTPathExercises || !cachedExercises) {
@@ -339,12 +368,35 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
         setGroupedTPaths([]);
         setExerciseWorkoutsMap({});
         setIsProcessingDerivedData(false);
+        hasInitializedRef.current = false; // Reset initialization flag when data is cleared
         return;
       }
 
+      // Optimization: Check if we need to recalculate
+      const allTPaths = cachedTPaths || [];
+      const currentTPathIdsHash = allTPaths
+        .filter(tp => tp.user_id === memoizedSessionUserId)
+        .map(tp => tp.id)
+        .sort()
+        .join(',');
+      const currentSessionCount = (cachedSessions || []).length;
+      
+      // Only skip if BOTH t-paths AND sessions haven't changed AND we have initialized data
+      const tPathsChanged = currentTPathIdsHash !== lastTPathIdsHashRef.current;
+      const sessionsChanged = currentSessionCount !== lastSessionCountRef.current;
+      
+      if (!tPathsChanged && !sessionsChanged && hasInitializedRef.current) {
+        // Nothing changed, skip expensive processing
+        setIsProcessingDerivedData(false);
+        return;
+      }
+
+      // Update refs to track current state
+      lastTPathIdsHashRef.current = currentTPathIdsHash;
+      lastSessionCountRef.current = currentSessionCount;
+      
       setIsProcessingDerivedData(true);
       try {
-        const allTPaths = cachedTPaths || [];
         const tPathExercisesData = cachedTPathExercises || [];
         const activeTPathId = profile.active_t_path_id;
         const preferredSessionLength = profile.preferred_session_length;
@@ -377,8 +429,24 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
             return { mainTPath, childWorkouts: enrichedChildWorkouts };
           })
         );
-        if (JSON.stringify(newGroupedTPaths) !== JSON.stringify(groupedTPaths)) {
+        
+        const pathsAreEqual = JSON.stringify(groupedTPaths) === JSON.stringify(newGroupedTPaths);
+        
+        if (!pathsAreEqual) {
           setGroupedTPaths(newGroupedTPaths);
+          hasInitializedRef.current = true; // Mark as initialized after first successful processing
+          
+          // Cache the computed groupedTPaths for instant loading on next mount
+          try {
+            const cacheKey = `grouped_t_paths_${memoizedSessionUserId}`;
+            db.meta_cache.put({
+              key: cacheKey,
+              data: newGroupedTPaths,
+              updated_at: new Date().toISOString()
+            });
+          } catch (error) {
+            console.error('[WorkoutDataFetcher] Failed to cache groupedTPaths:', error);
+          }
         }
 
         const { data: structureData, error: structureError } = await supabase
@@ -447,6 +515,7 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
   }, [
     memoizedSessionUserId, supabase, profile,
     cachedExercises, cachedTPaths, cachedTPathExercises,
+    cachedSessions, // ADDED: So it updates when workouts are completed
     baseLoading, dataError
   ]);
 
@@ -500,11 +569,13 @@ export const useWorkoutDataFetcher = (): UseWorkoutDataFetcherReturn => {
     };
   }, [status, refreshProfile, refreshAllData, profile?.t_path_generation_error]);
 
+  const loadingDataValue = baseLoading || isProcessingDerivedData;
+  
   return useMemo(() => ({
     allAvailableExercises,
     groupedTPaths,
     workoutExercisesCache,
-    loadingData: baseLoading || isProcessingDerivedData,
+    loadingData: loadingDataValue,
     dataError,
     refreshAllData,
     profile: profile || null,

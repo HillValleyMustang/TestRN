@@ -45,7 +45,6 @@ const getItemKey = (item: any, primaryKey: string | string[]): string | undefine
 export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic constraint
   { cacheTable, supabaseQuery, queryKey, supabase, sessionUserId }: UseCacheAndRevalidateProps<T>
 ) {
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isRevalidatingRef = useRef(false); // Use ref for isRevalidating
 
@@ -89,13 +88,12 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
     }
 
     if (sessionUserId === null || sessionUserId === undefined) {
-      setLoading(false);
       return;
     }
 
     isRevalidatingRef.current = true;
     setError(null);
-    setLoading(true);
+    // Don't set loading=true if we already have cached data - prevents flicker during background revalidation
 
     try {
       const { data: remoteData, error: remoteError } = await supabaseQuery(supabase);
@@ -179,10 +177,9 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
       setError(errorMessage);
       toast.error(`Failed to refresh data for ${queryKey}: ${errorMessage}`);
     } finally {
-      setLoading(false);
       isRevalidatingRef.current = false;
     }
-  }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId]);
+  }, [supabase, supabaseQuery, queryKey, cacheTable, sessionUserId, data]);
 
   useEffect(() => {
     fetchDataAndRevalidate();
@@ -192,5 +189,8 @@ export function useCacheAndRevalidate<T extends CacheItem>( // Updated generic c
     fetchDataAndRevalidate();
   }, [fetchDataAndRevalidate]);
 
-  return { data: data as T[] | null, loading: loading || data === undefined, error, refresh };
+  // Loading is only true if we don't have data yet - prevents flicker when we have cached data
+  const loading = data === undefined;
+  
+  return { data: data as T[] | null, loading, error, refresh };
 }

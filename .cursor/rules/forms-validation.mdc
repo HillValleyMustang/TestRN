@@ -1,0 +1,22 @@
+---
+description: Form handling and validation patterns.
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+# Forms & Validation
+
+## Form Management
+- **ALWAYS** use `react-hook-form` for all form logic (state, validation, submission)
+- **ALWAYS** use `zod` for schema-based validation with `react-hook-form` via `@hookform/resolvers`
+- Pattern: `useForm<FormType>({ resolver: zodResolver(schema) })`
+
+## Form Components
+- **Web**: Use Shadcn/UI form components from `src/components/ui/`
+- **Mobile**: Use custom form components or React Native form inputs
+- Always provide proper error messages and validation feedback
+
+## Validation Patterns
+- Define Zod schemas for all form data
+- Use TypeScript types derived from Zod schemas
+- Provide user-friendly error messages
+- Validate on submit, not on every keystroke (unless real-time validation is needed)

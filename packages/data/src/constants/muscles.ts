@@ -1,18 +1,18 @@
-// Muscle groups used in exercises
+// Canonical muscle groups - matches exercise creation form
+// This is the single source of truth for all muscle groups in the app
 export const MUSCLE_GROUPS = [
-  'Chest',
-  'Back',
-  'Shoulders',
+  'Pectorals',
+  'Deltoids',
+  'Lats',
+  'Traps',
   'Biceps',
   'Triceps',
-  'Forearms',
   'Quadriceps',
   'Hamstrings',
   'Glutes',
   'Calves',
+  'Abdominals',
   'Core',
-  'Abs',
-  'Obliques',
   'Full Body',
 ] as const;
 

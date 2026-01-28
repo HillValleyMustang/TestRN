@@ -3,7 +3,7 @@
  * Provides visual feedback with real-time calculations and category displays
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,14 @@ export const OnboardingSlider: React.FC<OnboardingSliderProps> = ({
 }) => {
   const sliderWidth = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [localValue, setLocalValue] = useState<number | null>(value);
+
+  // Sync local value with prop value when not dragging
+  useEffect(() => {
+    if (!isDragging) {
+      setLocalValue(value);
+    }
+  }, [value, isDragging]);
 
   const getPercentage = (val: number) => {
     return ((val - min) / (max - min)) * 100;
@@ -56,18 +64,24 @@ export const OnboardingSlider: React.FC<OnboardingSliderProps> = ({
 
     const { x } = event.nativeEvent;
     const newValue = getValueFromPosition(x, sliderWidth.current);
-    onValueChange(newValue);
+    if (newValue !== localValue) {
+      setLocalValue(newValue);
+      onValueChange(newValue);
+    }
   };
 
   const onHandlerStateChange = (event: PanGestureHandlerStateChangeEvent) => {
     if (event.nativeEvent.state === State.BEGAN) {
       setIsDragging(true);
-    } else if (event.nativeEvent.state === State.END) {
+    } else if (event.nativeEvent.state === State.END || event.nativeEvent.state === State.CANCELLED) {
       setIsDragging(false);
+      if (localValue !== null) {
+        onValueChange(localValue);
+      }
     }
   };
 
-  const percentage = value ? getPercentage(value) : 0;
+  const percentage = localValue ? getPercentage(localValue) : 0;
 
   return (
     <View style={styles.container}>
@@ -76,7 +90,7 @@ export const OnboardingSlider: React.FC<OnboardingSliderProps> = ({
       {/* Value Display */}
       <View style={styles.valueContainer}>
         <Text style={styles.value}>
-          {value !== null ? `${value} ${unit}` : '--'}
+          {localValue !== null ? `${localValue} ${unit}` : '--'}
         </Text>
         {showCategory && category && (
           <Text style={[styles.category, { color: categoryColor || Colors.foreground }]}>

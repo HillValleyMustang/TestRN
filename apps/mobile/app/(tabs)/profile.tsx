@@ -57,6 +57,8 @@ import { PhotoSourceSelectionModal } from '../../components/profile/PhotoSourceS
 import { GoalPhysiqueUploadModal } from '../../components/profile/GoalPhysiqueUploadModal';
 import { PhysiqueAnalysisModal } from '../../components/profile/PhysiqueAnalysisModal';
 import { GoalPhysiqueGallery } from '../../components/profile/GoalPhysiqueGallery';
+import { RegenerationErrorModal } from '../../components/profile/RegenerationErrorModal';
+import { RegenerationSuccessModal } from '../../components/profile/RegenerationSuccessModal';
 import { AIWorkoutService, OnboardingPayload } from '../../lib/ai-workout-service';
 import { database } from '../_lib/database';
 
@@ -120,6 +122,10 @@ export default function ProfileScreen() {
   const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loadingAchievements, setLoadingAchievements] = useState(false);
+  const [showRegenerationErrorModal, setShowRegenerationErrorModal] = useState(false);
+  const [showRegenerationSuccessModal, setShowRegenerationSuccessModal] = useState(false);
+  const [regenerationSummary, setRegenerationSummary] = useState<any>(null);
+  const [regenerationError, setRegenerationError] = useState('');
   const [complexAchievementProgress, setComplexAchievementProgress] = useState<{
     weekendWorkouts: number;
     earlyBirdWorkouts: number;
@@ -221,10 +227,10 @@ export default function ProfileScreen() {
     }
   }, [params.tab, params.scrollTo]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (silent = false) => {
     if (!userId) return;
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       console.log('[Profile] Starting profile load for user:', userId, 'at timestamp:', Date.now());
 
@@ -387,7 +393,7 @@ export default function ProfileScreen() {
       // Don't show error alert for now - just log it
       // Alert.alert('Error', 'Failed to load profile data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -432,8 +438,8 @@ export default function ProfileScreen() {
       // Small delay to ensure Supabase propagation
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Verify the update worked by reloading profile
-      await loadProfile();
+      // Verify the update worked by reloading profile silently
+      await loadProfile(true);
       
       console.log('[Profile] Profile update and cache refresh complete');
     } catch (error) {
@@ -493,7 +499,7 @@ export default function ProfileScreen() {
         
         const { data: profileStatus, error: statusError } = await supabase
           .from('profiles')
-          .select('t_path_generation_status, t_path_generation_error, active_t_path_id')
+          .select('t_path_generation_status, t_path_generation_error, t_path_generation_summary, active_t_path_id')
           .eq('id', userId)
           .single();
 
@@ -506,6 +512,7 @@ export default function ProfileScreen() {
         if (profileStatus?.t_path_generation_status === 'completed') {
           console.log('[Profile] Regeneration completed successfully');
           isComplete = true;
+          setRegenerationSummary(profileStatus.t_path_generation_summary);
           break;
         } else if (profileStatus?.t_path_generation_status === 'failed') {
           const errorMsg = profileStatus.t_path_generation_error || 'Unknown error';
@@ -743,8 +750,8 @@ export default function ProfileScreen() {
             invalidateAllCaches();
             setShouldRefreshDashboard(true);
 
-      // Step 9: Reload profile to get updated active_t_path_id
-      await loadProfile();
+      // Step 9: Reload profile silently to get updated active_t_path_id
+      await loadProfile(true);
       
       console.log('[Profile] T-Path regeneration for all gyms complete');
       
@@ -765,6 +772,144 @@ export default function ProfileScreen() {
     }
   };
 
+  // Helper function to convert number to session length string format
+  const numberToSessionLengthString = (value: number): string => {
+    switch (value) {
+      case 30: return '15-30';
+      case 45: return '30-45';
+      case 60: return '45-60';
+      case 90: return '60-90';
+      default: return '45-60'; // fallback
+    }
+  };
+
+  const handleRegenerateSessionLength = async (newSessionLength: number) => {
+    if (!userId || !session?.access_token || !profile?.active_t_path_id) {
+      console.error('[Profile] Missing required data for session length regeneration');
+      return;
+    }
+
+    const oldSessionLength = profile.preferred_session_length;
+
+    try {
+      console.log('[Profile] Starting session length regeneration:', newSessionLength);
+
+      // Call edge function directly
+      const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke('generate-t-path', {
+        body: { 
+          tPathId: profile.active_t_path_id,
+          preferred_session_length: numberToSessionLengthString(newSessionLength), // Convert to range format
+          old_session_length: oldSessionLength
+        }
+      });
+
+      if (edgeFunctionError) {
+        console.error('[Profile] Edge function error:', edgeFunctionError);
+        throw new Error(edgeFunctionError.message || 'Failed to regenerate workout plans');
+      }
+
+      // Poll for completion
+      console.log('[Profile] Polling for regeneration completion...');
+      let isComplete = false;
+      let pollAttempts = 0;
+      const maxPollAttempts = 60;
+      
+      while (!isComplete && pollAttempts < maxPollAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { data: profileStatus, error: statusError } = await supabase
+          .from('profiles')
+          .select('t_path_generation_status, t_path_generation_error, t_path_generation_summary')
+          .eq('id', userId)
+          .single();
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:827',message:'Polling status',data:{status:profileStatus?.t_path_generation_status, hasSummary:!!profileStatus?.t_path_generation_summary},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'2'})}).catch(()=>{});
+        // #endregion
+
+        if (statusError) {
+          console.warn('[Profile] Error checking generation status:', statusError);
+          pollAttempts++;
+          continue;
+        }
+
+        if (profileStatus?.t_path_generation_status === 'completed') {
+          isComplete = true;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/cf89fb70-89f1-4c6a-b7b8-8d2defa2257c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profile.tsx:832',message:'Regeneration completed',data:{summary:profileStatus.t_path_generation_summary},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'2,3'})}).catch(()=>{});
+          // #endregion
+          setRegenerationSummary(profileStatus.t_path_generation_summary);
+          break;
+        } else if (profileStatus?.t_path_generation_status === 'failed') {
+          throw new Error(profileStatus.t_path_generation_error || 'Regeneration failed');
+        }
+        pollAttempts++;
+      }
+
+      if (!isComplete) {
+        throw new Error('Regeneration timed out. Please check your workout plans manually.');
+      }
+
+      // Clear old t-paths from local database and sync new ones
+      const oldTPaths = await database.getTPaths(userId);
+      for (const tPath of oldTPaths) {
+        try {
+          await database.deleteTPath(tPath.id);
+        } catch (deleteError) {
+          console.warn('[Profile] Error deleting old t-path:', tPath.id, deleteError);
+        }
+      }
+
+      const { data: remoteTPaths } = await supabase
+        .from('t_paths')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (remoteTPaths) {
+        for (const tPath of remoteTPaths) {
+          await database.addTPath({
+            ...tPath,
+            is_main_program: tPath.gym_id === null && tPath.parent_t_path_id === null,
+            is_ai_generated: true,
+          });
+
+          const { data: remoteExercises } = await supabase
+            .from('t_path_exercises')
+            .select('*')
+            .eq('template_id', tPath.id);
+
+          if (remoteExercises) {
+            for (const ex of remoteExercises) {
+              await database.addTPathExercise({
+                id: ex.id,
+                t_path_id: ex.template_id,
+                exercise_id: ex.exercise_id,
+                order_index: ex.order_index,
+                is_bonus_exercise: ex.is_bonus_exercise,
+                target_sets: ex.target_sets || 3,
+                target_reps_min: ex.target_reps_min,
+                target_reps_max: ex.target_reps_max,
+                notes: ex.notes,
+                created_at: ex.created_at,
+              });
+            }
+          }
+        }
+      }
+
+      await loadProfile(true);
+      invalidateAllCaches();
+      setShouldRefreshDashboard(true);
+
+      setShowRegenerationSuccessModal(true);
+      
+    } catch (error: any) {
+      console.error('[Profile] Session length regeneration failed:', error);
+      setRegenerationError(error.message || 'Unknown error');
+      setShowRegenerationErrorModal(true);
+    }
+  };
+
   const handleRefreshGyms = async () => {
     if (!userId) return;
 
@@ -779,7 +924,8 @@ export default function ProfileScreen() {
     }
 
     // Also refresh profile to get updated active_gym_id
-    await loadProfile();
+    // Use silent mode to prevent global loading state which unmounts components
+    await loadProfile(true);
     
     // Invalidate caches so dashboard and other components refresh
     invalidateAllCaches();
@@ -1616,6 +1762,7 @@ export default function ProfileScreen() {
       <WorkoutPreferencesCard
         profile={profile}
         onUpdate={handleUpdateProfile}
+        onRegenerateTPath={handleRegenerateSessionLength}
       />
 
       <TrainingProfileCard profile={profile} onUpdate={handleUpdateProfile} />
@@ -2154,6 +2301,38 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      <RegenerationErrorModal
+        visible={showRegenerationErrorModal}
+        errorMessage={regenerationError}
+        onRetry={() => {
+          setShowRegenerationErrorModal(false);
+          if (profile?.preferred_session_length) {
+            handleRegenerateSessionLength(parseInt(profile.preferred_session_length.split('-')[1]) || 60);
+          }
+        }}
+        onCancel={() => {
+          setShowRegenerationErrorModal(false);
+          // Clear the error status in Supabase
+          if (userId) {
+            supabase
+              .from('profiles')
+              .update({ 
+                t_path_generation_status: 'completed',
+                t_path_generation_error: null
+              })
+              .eq('id', userId);
+          }
+        }}
+      />
+
+      <RegenerationSuccessModal
+        visible={showRegenerationSuccessModal}
+        summary={regenerationSummary}
+        onClose={() => {
+          setShowRegenerationSuccessModal(false);
+          setRegenerationSummary(null);
+        }}
+      />
     </View>
   );
 }

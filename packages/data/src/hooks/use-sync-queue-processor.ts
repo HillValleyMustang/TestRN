@@ -431,9 +431,6 @@ export const useSyncQueueProcessor = ({
       if (queueLengthTimeoutRef.current) {
         clearTimeout(queueLengthTimeoutRef.current);
       }
-      if (isSyncingTimeoutRef.current) {
-        clearTimeout(isSyncingTimeoutRef.current);
-      }
     };
   }, []);
 

@@ -29,6 +29,12 @@ import { WorkoutProgressBar } from '../../components/workout/WorkoutProgressBar'
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { createTaggedLogger } from '../../lib/logger';
 import { WeeklyWorkoutAnalyzer } from '@data/ai/weekly-workout-analyzer';
+import { AdHocGeneratorDialog } from '../../components/workout-flow/AdHocGeneratorDialog';
+import { ExerciseAdditionSection } from '../../components/workout-flow/ExerciseAdditionSection';
+import Toast from 'react-native-toast-message';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
+import { Ionicons } from '@expo/vector-icons';
+import { BorderRadius } from '../../constants/Theme';
 
 const log = createTaggedLogger('WorkoutScreen');
 
@@ -142,10 +148,13 @@ export default function WorkoutLauncherScreen() {
     completedExercises,
     currentSessionId,
     resetWorkoutSession,
+    addExerciseToSession,
     confirmLeave,
     loadSavedWorkoutState,
     resumeWorkout,
   } = useWorkoutFlow();
+  const [isAdHocGeneratorOpen, setIsAdHocGeneratorOpen] = useState(false);
+  const enableAdHocAIGeneration = useFeatureFlag('ENABLE_ADHOC_AI_GENERATION');
   const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, refreshing, error, refresh } = useWorkoutLauncherData();
   const { forceRefresh } = useData();
   
@@ -612,9 +621,47 @@ export default function WorkoutLauncherScreen() {
   }, [selectedWorkout, childWorkouts, showResumeDialog, userId, resetWorkoutSession, selectWorkout, setUserHasSelectedWorkout]);
 
   // Memoize ad-hoc onClick handler
-  const handleAdHocClick = useCallback(() => {
-    handleSelectWorkout('ad-hoc');
-  }, [handleSelectWorkout]);
+  const handleAdHocClick = useCallback(async () => {
+    // If already selected and active, reset to start UI
+    if (selectedWorkout === 'ad-hoc' && isWorkoutActiveInline) {
+      await resetWorkoutSession();
+      setSelectedWorkout('ad-hoc');
+      setIsWorkoutActiveInline(false);
+      return;
+    }
+    // Clear any previous workout exercises by calling selectWorkout
+    // This ensures exercisesForSession is empty when showing the ad-hoc start UI
+    await selectWorkout('ad-hoc');
+    // Set selectedWorkout to 'ad-hoc' to show the "Start Ad-Hoc Workout" UI
+    // User can then choose "Start Empty" or "Generate" (if feature flag enabled)
+    setSelectedWorkout('ad-hoc');
+    // Ensure isWorkoutActiveInline is false so the start UI shows, not the exercise addition section
+    setIsWorkoutActiveInline(false);
+  }, [selectWorkout, selectedWorkout, isWorkoutActiveInline, resetWorkoutSession]);
+
+  const handleWorkoutGenerated = useCallback(async (exercises: any[]) => {
+    log.debug('[WorkoutScreen] Processing generated exercises:', exercises.length);
+    
+    // First select ad-hoc workout
+    setSelectedWorkout('ad-hoc');
+    await selectWorkout('ad-hoc');
+    setIsWorkoutActiveInline(true);
+    setUserHasSelectedWorkout(true);
+
+    // Then add each exercise to the session
+    for (const exercise of exercises) {
+      await addExerciseToSession(exercise);
+    }
+    
+    Toast.show({
+      type: 'success',
+      text1: 'Workout Generated!',
+      text2: `${exercises.length} exercises added to your ad-hoc workout.`,
+    });
+    
+    log.debug('[WorkoutScreen] Successfully added generated exercises to session');
+  }, [selectWorkout, addExerciseToSession]);
+
 
   // Memoize workout pills array to prevent recreation on every render
   const workoutPills = useMemo(() => {
@@ -638,11 +685,12 @@ export default function WorkoutLauncherScreen() {
       const completedAt = lastCompletedDates[workout.id] || null;
       const displayName = getWorkoutDisplayName(workout.template_name, isUpperLowerSplit);
 
-            return (
+      return (
         <WorkoutPill
           key={workout.id}
           id={workout.id}
           title={displayName}
+
           category={category}
           completedAt={completedAt}
           isSelected={isSelected}
@@ -1744,7 +1792,7 @@ export default function WorkoutLauncherScreen() {
               </View>
 
               {/* Workout Controls */}
-              {(isWorkoutActiveInline && selectedWorkout) || loadingExercises || (childWorkouts.length > 0 && !selectedWorkout && !activeWorkout) ? (
+              {(isWorkoutActiveInline && selectedWorkout) || loadingExercises || (childWorkouts.length > 0 && !selectedWorkout && !activeWorkout) || selectedWorkout === 'ad-hoc' ? (
                 <View style={styles.contentArea}>
                   {loadingExercises || (!selectedWorkout && childWorkouts.length > 0) ? (
                     <View style={styles.loadingExercisesContainer}>
@@ -1757,12 +1805,20 @@ export default function WorkoutLauncherScreen() {
                           <WorkoutPill
                             id={selectedWorkout}
                             title={(() => {
+                              // Check for ad-hoc first
+                              if (selectedWorkout === 'ad-hoc') {
+                                return 'Ad-Hoc';
+                              }
                               const workout = childWorkouts.find(w => w.id === selectedWorkout);
                               const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
                               const workoutName = activeWorkout?.template_name || workout?.template_name || 'Workout';
                               return getWorkoutDisplayName(workoutName, isUpperLowerSplit);
                             })()}
                             category={(() => {
+                              // Check for ad-hoc first
+                              if (selectedWorkout === 'ad-hoc') {
+                                return 'ad-hoc';
+                              }
                               const workout = childWorkouts.find(w => w.id === selectedWorkout);
                               if (workout) {
                                 const lowerTitle = workout.template_name.toLowerCase();
@@ -1785,6 +1841,44 @@ export default function WorkoutLauncherScreen() {
                             hideLastCompleted={true}
                           />
                         </View>
+                      )}
+                      {selectedWorkout === 'ad-hoc' && !isWorkoutActiveInline && (
+                        <View style={styles.adHocStartContainer}>
+                          <Text style={styles.adHocStartTitle}>Start Ad-Hoc Workout</Text>
+                          <Text style={styles.adHocStartSubtitle}>
+                            Start a workout without a T-Path. Add exercises as you go.
+                          </Text>
+                          <View style={styles.adHocStartButtons}>
+                            <Pressable 
+                              style={styles.emptyButton} 
+                              onPress={async () => {
+                                await selectWorkout('ad-hoc');
+                                setSelectedWorkout('ad-hoc');
+                                setIsWorkoutActiveInline(true);
+                                setUserHasSelectedWorkout(true);
+                              }}
+                            >
+                              <Text style={styles.emptyButtonText}>Start Empty</Text>
+                            </Pressable>
+                            {enableAdHocAIGeneration && (
+                              <Pressable 
+                                style={styles.generateButton} 
+                                onPress={() => setIsAdHocGeneratorOpen(true)}
+                              >
+                                <Ionicons name="sparkles" size={20} color="white" />
+                                <Text style={styles.generateButtonText}>Generate</Text>
+                              </Pressable>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      {selectedWorkout === 'ad-hoc' && isWorkoutActiveInline && (
+                        <ExerciseAdditionSection
+                          onAddExercise={addExerciseToSession}
+                          activeGym={userGyms.find(g => g.is_active) || null}
+                          existingExerciseIds={new Set(exercisesForSession.map(ex => ex.id!))}
+                        />
                       )}
 
                       {exercisesForSession.length > 0 && (
@@ -2094,6 +2188,15 @@ export default function WorkoutLauncherScreen() {
         onSaveWorkout={handleSaveWorkout}
         onRateWorkout={handleRateWorkout}
       />
+
+      {enableAdHocAIGeneration && (
+        <AdHocGeneratorDialog
+          visible={isAdHocGeneratorOpen}
+          onClose={() => setIsAdHocGeneratorOpen(false)}
+          onWorkoutGenerated={handleWorkoutGenerated}
+          activeGymName={activeTPath?.gym_name || null}
+        />
+      )}
 
       {/* Resume Workout Dialog */}
       <Modal
@@ -2652,5 +2755,62 @@ const styles = StyleSheet.create({
     ...TextStyles.body,
     color: Colors.mutedForeground,
     textAlign: 'center',
+  },
+  adHocStartContainer: {
+    padding: Spacing.lg,
+    marginVertical: Spacing.md,
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.mutedForeground,
+  },
+  adHocStartTitle: {
+    ...TextStyles.h2,
+    color: Colors.foreground,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  adHocStartSubtitle: {
+    ...TextStyles.body,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  adHocStartButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    justifyContent: 'center',
+  },
+  emptyButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.mutedForeground,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyButtonText: {
+    ...TextStyles.button,
+    color: Colors.foreground,
+    fontWeight: '600',
+  },
+  generateButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  generateButtonText: {
+    ...TextStyles.button,
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

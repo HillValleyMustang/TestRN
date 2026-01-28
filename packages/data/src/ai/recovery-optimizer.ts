@@ -677,7 +677,7 @@ class RecoveryOptimizerService {
   private async analyzeMuscleGroupBalance(userId: string, sessions: any[]): Promise<MuscleGroupLoad[]> {
     // This would require mapping exercises to muscle groups
     // Simplified implementation - would need actual exercise data
-    const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'];
+    const muscleGroups = ['Pectorals', 'Lats', 'Deltoids', 'Biceps', 'Quadriceps', 'Core'];
 
     return muscleGroups.map(group => ({
       muscleGroup: group,

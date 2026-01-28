@@ -1,0 +1,131 @@
+---
+description: Enhance user prompts with technical context, relevant rules, and codebase-specific information for better results.
+globs: "**/*"
+alwaysApply: true
+---
+# Prompt Enhancement Protocol
+
+## When User Provides a Vague Request
+
+**Before starting work, expand the user's prompt with:**
+
+1. **Technical Context**: Identify the specific files/components affected
+2. **Related Rules**: Reference relevant rule files that apply
+3. **Codebase Patterns**: Note existing patterns/utilities to use
+4. **Expected Outcome**: Clarify what "done" looks like
+5. **Complexity Assessment**: Determine if this needs a detailed plan (see `task-planning.mdc`)
+
+## Prompt Expansion Process
+
+### Step 1: Analyze the Request
+- What files/components are likely affected?
+- What type of change is this? (bug fix, feature, optimization, refactor)
+- What's the scope? (single file, multiple files, cross-platform)
+
+### Step 2: Add Technical Context
+- Identify specific file paths
+- Note related components/hooks/utilities
+- Reference existing patterns in codebase
+- Identify dependencies
+
+### Step 3: Reference Relevant Rules
+Automatically include relevant rules:
+- **Performance issues** → `performance.mdc`, `react-native-checklist.mdc`
+- **Loading/state issues** → `critical-patterns.mdc`, `state-management.mdc`
+- **Styling/UI** → `style.mdc`, `mobile-patterns.mdc` or `web-patterns.mdc`
+- **Database/data** → `supabase-integration.mdc`, `typescript-patterns.mdc`
+- **Complex features** → `task-planning.mdc`, `clarification.mdc`
+
+### Step 4: Add Codebase-Specific Context
+- Note existing utilities/functions to use
+- Reference similar implementations
+- Identify anti-patterns to avoid
+- Note platform-specific considerations (mobile vs web)
+
+### Step 5: Clarify Expected Outcome
+- What does "fixed" or "done" look like?
+- Are there specific edge cases to handle?
+- What's the user experience goal?
+
+## Example: Vague Prompt Expansion
+
+**User says:** "fix dashboard loading"
+
+**AI expands to:**
+```
+User Request: "fix dashboard loading"
+
+Expanded Context:
+- Target: apps/mobile/app/(tabs)/dashboard.tsx
+- Issue: Jarring/unsmooth loading experience
+- Related Rules: 
+  - critical-patterns.mdc (consolidate effects, proper loading states)
+  - react-native-checklist.mdc (memoization, performance optimization)
+  - performance.mdc (optimization patterns)
+  - state-management.mdc (cache invalidation, data fetching)
+- Codebase Context:
+  - Uses loadDashboardSnapshot from DataContext
+  - Has multiple useEffect hooks (likely competing effects)
+  - Uses userProfile === null for loading (anti-pattern per critical-patterns.mdc)
+  - Should use explicit loading boolean instead
+- Expected Outcome: 
+  - Smooth loading with skeleton screens (per style.mdc)
+  - No jarring transitions
+  - Proper loading states per widget
+  - Consolidated data fetching
+- Complexity: Moderate-High (affects multiple components, state management)
+- Action: Create detailed plan per task-planning.mdc
+```
+
+## Example: Feature Request Expansion
+
+**User says:** "add dark mode toggle"
+
+**AI expands to:**
+```
+User Request: "add dark mode toggle"
+
+Expanded Context:
+- Target: 
+  - Mobile: apps/mobile/app/_contexts/preferences-context.tsx
+  - Web: apps/web/src/components/theme-toggle.tsx (if exists)
+- Related Rules:
+  - mobile-patterns.mdc (React Native patterns)
+  - web-patterns.mdc (Next.js, next-themes)
+  - style.mdc (theme constants, styling)
+  - task-planning.mdc (multi-file change, needs plan)
+- Codebase Context:
+  - Mobile: Uses PreferencesContext for user preferences
+  - Web: Uses next-themes (per web-patterns.mdc)
+  - Theme constants in apps/mobile/constants/Theme.ts
+  - Should persist preference to database
+- Expected Outcome:
+  - Toggle in settings/profile
+  - Persists across sessions
+  - Applies to all components
+  - Smooth theme transition
+- Complexity: Moderate (affects multiple files, requires persistence)
+- Action: Create detailed plan per task-planning.mdc
+```
+
+## Guidelines
+
+- **Be specific**: Don't just repeat the user's words - add actionable context
+- **Reference rules**: Always note which rules apply to this request
+- **Note patterns**: Identify existing codebase patterns to follow
+- **Clarify scope**: Make it clear what files/components are involved
+- **Set expectations**: Define what "done" looks like
+
+## Integration with Other Rules
+
+- **Before** `task-planning.mdc`: Use this to understand scope before creating plan
+- **Before** `clarification.mdc`: Use this to identify what questions to ask
+- **Before** `pre-implementation-review.mdc`: Use this to challenge the approach with full context
+- **During** implementation: Reference this expanded context throughout
+
+## Benefits
+
+- **Better understanding**: AI has full context from the start
+- **Fewer iterations**: Less back-and-forth clarification needed
+- **More accurate**: References existing patterns and rules automatically
+- **Faster results**: Clear scope and expectations from the beginning

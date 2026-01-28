@@ -15,12 +15,36 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
+import { RegenerationConfirmationModal } from './RegenerationConfirmationModal';
 
 interface WorkoutPreferencesCardProps {
   profile: any;
   onUpdate: (updates: any) => Promise<void>;
-  onRegenerateTPath?: (sessionLength?: number) => Promise<void>;
+  onRegenerateTPath: (sessionLength: number) => Promise<void>;
 }
+
+// Convert number (upper bound) to database string format
+const numberToSessionLengthString = (value: number): string => {
+  switch (value) {
+    case 30: return '15-30';
+    case 45: return '30-45';
+    case 60: return '45-60';
+    case 90: return '60-90';
+    default: return '45-60'; // fallback
+  }
+};
+
+// Convert database string format to number (upper bound) for comparison
+const sessionLengthStringToNumber = (value: string | number | null | undefined): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const match = value.match(/(\d+)-(\d+)/);
+    if (match) return parseInt(match[2], 10); // Extract upper bound
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 60; // default
+};
 
 export function WorkoutPreferencesCard({ 
   profile, 
@@ -35,6 +59,7 @@ export function WorkoutPreferencesCard({
   const [isSaving, setIsSaving] = useState(false);
   const [rollingStatus, setRollingStatus] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const [primaryGoal, setPrimaryGoal] = useState('');
   const [sessionLength, setSessionLength] = useState<number>(60);
@@ -63,23 +88,43 @@ export function WorkoutPreferencesCard({
   }, [profile, isEditing]);
 
   const handleSave = async () => {
+    // Normalize profile session length for comparison
+    const normalizedProfileSessionLength = sessionLengthStringToNumber(profile?.preferred_session_length);
+    
+    // Check if session length actually changed
+    const sessionLengthChanged = sessionLength !== normalizedProfileSessionLength;
+
+    // If session length changed, we need confirmation
+    if (sessionLengthChanged && profile.active_t_path_id) {
+      setShowConfirmation(true);
+      return;
+    }
+
+    // Otherwise proceed with normal save
+    await executeSave();
+  };
+
+  const executeSave = async () => {
     setIsSaving(true);
     try {
       const updates = {
         primary_goal: primaryGoal,
-        preferred_session_length: sessionLength,
+        preferred_session_length: numberToSessionLengthString(sessionLength), // Convert to string format
       };
 
+      // Normalize profile session length for comparison
+      const normalizedProfileSessionLength = sessionLengthStringToNumber(profile?.preferred_session_length);
+      
       // Check if any values actually changed
       const hasChanges =
         primaryGoal !== (profile?.primary_goal || '') ||
-        sessionLength !== (profile?.preferred_session_length || 60);
+        sessionLength !== normalizedProfileSessionLength;
 
       if (hasChanges) {
         await onUpdate(updates);
 
         if (
-          sessionLength !== profile.preferred_session_length &&
+          sessionLength !== normalizedProfileSessionLength &&
           profile.active_t_path_id &&
           onRegenerateTPath
         ) {
@@ -102,6 +147,7 @@ export function WorkoutPreferencesCard({
       }, 2500);
     } finally {
       setIsSaving(false);
+      setShowConfirmation(false);
     }
   };
 
@@ -221,6 +267,12 @@ export function WorkoutPreferencesCard({
           )}
         </View>
       </View>
+
+      <RegenerationConfirmationModal
+        visible={showConfirmation}
+        onConfirm={executeSave}
+        onCancel={() => setShowConfirmation(false)}
+      />
     </View>
   );
 }

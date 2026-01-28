@@ -126,7 +126,8 @@ export const MuscleBreakdownChart: React.FC<MuscleBreakdownChartProps> = ({
         <View style={styles.volumeChartContainer}>
           {filteredData.map(([muscle, volume]) => {
             const percentage = totalVolume > 0 ? ((volume / totalVolume) * 100) : 0;
-            const maxVolumeInFiltered = Math.max(...filteredData.map(([, vol]) => vol));
+            const maxVolumeInFiltered = Math.max(...filteredData.map(([, vol]) => vol), 0.001); // Prevent division by 0
+            const barWidth = maxVolumeInFiltered > 0 ? (volume / maxVolumeInFiltered) * 100 : 0;
 
             return (
               <View key={`insights-${muscle}`} style={styles.volumeBarRow}>
@@ -137,15 +138,17 @@ export const MuscleBreakdownChart: React.FC<MuscleBreakdownChartProps> = ({
                   </Text>
                 </View>
                 <View style={styles.volumeBarBackground}>
-                  <View
-                    style={[
-                      styles.volumeBarFill,
-                      {
-                        width: `${(volume / maxVolumeInFiltered) * 100}%`,
-                        backgroundColor: getWorkoutColor(workoutName).main
-                      }
-                    ]}
-                  />
+                  {volume > 0 && (
+                    <View
+                      style={[
+                        styles.volumeBarFill,
+                        {
+                          width: `${barWidth}%`,
+                          backgroundColor: getWorkoutColor(workoutName).main
+                        }
+                      ]}
+                    />
+                  )}
                 </View>
               </View>
             );

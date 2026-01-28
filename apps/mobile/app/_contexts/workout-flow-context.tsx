@@ -204,6 +204,30 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Reset workout session
   const resetWorkoutSession = useCallback(async () => {
+    // Capture sessionId before resetting state (since _resetLocalState clears it)
+    const sessionIdToDelete = currentSessionId;
+    
+    // CRITICAL: Only delete INCOMPLETE sessions from database
+    // Completed sessions should be preserved for dashboard display
+    if (sessionIdToDelete) {
+      try {
+        // Check if session is completed before deleting
+        const session = await database.getWorkoutSessionById(sessionIdToDelete);
+        
+        if (session && session.completed_at) {
+          log.debug('[WorkoutFlow] Session is completed, NOT deleting:', sessionIdToDelete);
+          // Don't delete completed sessions - they should persist for dashboard
+        } else {
+          log.debug('[WorkoutFlow] Deleting incomplete workout session:', sessionIdToDelete);
+          await database.deleteWorkoutSession(sessionIdToDelete);
+          log.debug('[WorkoutFlow] Successfully deleted incomplete workout session');
+        }
+      } catch (error) {
+        log.error('[WorkoutFlow] Error handling workout session deletion:', error);
+        // Don't block the reset if deletion fails
+      }
+    }
+    
     _resetLocalState();
     // Clear saved workout state from AsyncStorage
     if (userId) {
@@ -213,7 +237,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         log.error('[WorkoutFlow] Error clearing workout state:', error);
       }
     }
-  }, [_resetLocalState, userId]);
+  }, [_resetLocalState, userId, currentSessionId]);
 
   // Select workout
   const selectWorkout = useCallback(async (workoutId: string | null) => {

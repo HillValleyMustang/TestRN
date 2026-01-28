@@ -186,7 +186,7 @@ export class AppDatabase extends Dexie {
 
   constructor() {
     super('WorkoutTrackerDB');
-    this.version(14).stores({ // Increment version number
+    this.version(15).stores({ // Increment version number for meta_cache
       workout_sessions: '&id, user_id, session_date, t_path_id, template_name',
       set_logs: '&id, session_id, exercise_id',
       sync_queue: '++id, timestamp, table', // ADDED 'table' INDEX
@@ -201,6 +201,7 @@ export class AppDatabase extends Dexie {
       gyms_cache: '&id, user_id',
       activity_logs: '&id, user_id, log_date',
       gym_exercises_cache: '[gym_id+exercise_id]', // NEW: Define primary key for gym_exercises_cache
+      meta_cache: '&key, updated_at', // NEW: Generic cache table for derived data
     });
   }
 }

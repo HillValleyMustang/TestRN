@@ -40,13 +40,25 @@ export default function Index() {
             // Check if user has completed onboarding
             const { data: profile, error: profileError } = await supabase
               .from('profiles')
-              .select('id, onboarding_completed')
+              .select('id, onboarding_completed, t_path_generation_status')
               .eq('id', userId)
               .single();
 
             log.debug('[Index] Profile check result:', { profile: !!profile, onboarding_completed: profile?.onboarding_completed, profileError, timestamp: new Date().toISOString() });
 
             if (profile) {
+              // Check for stale regeneration status
+              if (profile.t_path_generation_status === 'in_progress') {
+                log.info('[Index] Detected stale in_progress status, marking as failed');
+                await supabase
+                  .from('profiles')
+                  .update({ 
+                    t_path_generation_status: 'failed',
+                    t_path_generation_error: 'Regeneration was interrupted. Please try again.'
+                  })
+                  .eq('id', userId);
+              }
+
               if (profile.onboarding_completed) {
                 if (__DEV__) {
                   log.debug('[Index] User has completed onboarding, redirecting to dashboard');

@@ -1,6 +1,8 @@
 /**
  * SimpleVolumeChart Component
  * Displays weekly volume as simple bar chart with Y-axis values and workout type colors
+ * 
+ * Uses reactive hooks to fetch data automatically.
  */
 
 import React, { useMemo } from 'react';
@@ -9,60 +11,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
+import { useVolumeHistory } from '../../hooks/data';
+import { useAuth } from '../../app/_contexts/auth-context';
+import { createTaggedLogger } from '../../lib/logger';
+import { getWorkoutColor } from '../../lib/workout-colors';
 
+const log = createTaggedLogger('SimpleVolumeChart');
 
-interface VolumeData {
-  date: string;
-  volume: number;
-  workoutType?: string; // Added for color mapping
-}
-
-interface SimpleVolumeChartProps {
-  data: VolumeData[];
-}
-
-// Color mapping for different workout types using exact pre-defined colors
-const getWorkoutColor = (workoutType?: string): string => {
-  switch (workoutType?.toLowerCase()) {
-    case 'push':
-      return '#3B82F6'; // Blue for Push workouts
-    case 'pull':
-      return '#10B981'; // Green for Pull workouts
-    case 'legs':
-      return '#F59E0B'; // Orange for Legs workouts
-    case 'upper body a':
-    case 'upper a':
-      return '#1e3a8a'; // Dark Blue for Upper Body A
-    case 'upper body b':
-    case 'upper b':
-      return '#EF4444'; // Red for Upper Body B
-    case 'lower body a':
-    case 'lower a':
-      return '#0891b2'; // Cyan for Lower Body A
-    case 'lower body b':
-    case 'lower b':
-      return '#6b21a8'; // Purple for Lower Body B
-    case 'bonus':
-      return '#F59E0B'; // Orange for Bonus (same as Legs)
-    case 'ad hoc workout':
-      return '#64748B'; // Slate for Ad Hoc
-    default:
-      return '#8E8E93'; // Gray for unknown/other workouts
-  }
-};
-
-export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
-  // Use the data prop directly - no internal state needed
-  // This ensures the chart always shows the latest data from the parent
-  const chartData = data;
-
+export function SimpleVolumeChart() {
+  // Get userId for reactive hooks
+  const { userId } = useAuth();
+  
+  // Reactive data hook
+  const { data: chartData = [], loading, error } = useVolumeHistory(userId, 7);
+  
   // Memoize maxVolume calculation to prevent recalculation on every render
   const maxVolume = useMemo(() => {
     if (chartData.length === 0) return 1;
     return Math.max(...chartData.map(d => d.volume), 1);
   }, [chartData]);
-
-  // Debug logging removed - too verbose
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -107,7 +74,6 @@ export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
       <View style={styles.chartContainer}>
         {/* Y-axis with title and labels */}
         <View style={styles.yAxisContainer}>
-          {/* Y-axis labels with improved positioning */}
           <View style={styles.yAxisLabels}>
             {yAxisLabels.map((label, index) => (
               <View key={index} style={styles.yAxisLabelRow}>
@@ -132,7 +98,7 @@ export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
                       styles.bar,
                       {
                         height: `${Math.max(heightPercent, 5)}%`,
-                        backgroundColor: (point.volume > 0 && point.workoutType) ? getWorkoutColor(point.workoutType) : Colors.muted,
+                        backgroundColor: (point.volume > 0 && point.workoutType) ? getWorkoutColor(point.workoutType).main : Colors.muted,
                       },
                     ]}
                   />
@@ -144,7 +110,7 @@ export function SimpleVolumeChart({ data }: SimpleVolumeChartProps) {
         </View>
       </View>
 
-      {chartData.length === 0 && (
+      {chartData.length === 0 && !loading && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>No volume data yet</Text>
         </View>
@@ -175,16 +141,8 @@ const styles = StyleSheet.create({
     height: 250,
   },
   yAxisContainer: {
-    width: 50, // Increased width to accommodate larger numbers and 0 label
+    width: 50,
     marginRight: Spacing.sm,
-  },
-  yAxisTitle: {
-    ...TextStyles.caption,
-    color: Colors.mutedForeground,
-    fontSize: 10,
-    textAlign: 'right',
-    marginBottom: 4,
-    fontWeight: '600',
   },
   yAxisLabels: {
     flex: 1,
@@ -236,5 +194,4 @@ const styles = StyleSheet.create({
     ...TextStyles.caption,
     color: Colors.mutedForeground,
   },
-
 });

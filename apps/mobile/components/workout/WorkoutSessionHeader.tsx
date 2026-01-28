@@ -22,7 +22,7 @@ export const WorkoutSessionHeader: React.FC<WorkoutSessionHeaderProps> = ({
   onShowSummary,
 }) => {
   const router = useRouter();
-  const { finishWorkout, requestNavigation, hasUnsavedChanges } = useWorkoutFlow();
+  const { finishWorkout, requestNavigation, hasUnsavedChanges, resetWorkoutSession } = useWorkoutFlow();
   const [elapsedTime, setElapsedTime] = useState('00:00');
 
   // Debug logging
@@ -50,10 +50,12 @@ export const WorkoutSessionHeader: React.FC<WorkoutSessionHeaderProps> = ({
     return () => clearInterval(interval);
   }, [startTime]);
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (hasUnsavedChanges) {
       requestNavigation(() => router.back());
     } else {
+      // Clean up incomplete workout session even if no unsaved changes
+      await resetWorkoutSession();
       router.back();
     }
   };

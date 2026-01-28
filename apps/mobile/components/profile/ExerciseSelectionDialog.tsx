@@ -84,6 +84,7 @@ export const ExerciseSelectionDialog: React.FC<ExerciseSelectionDialogProps> = (
 
   const newExercisesCount = exercises.filter(ex => ex.duplicate_status === 'none').length;
   const confirmedCount = confirmedExercises.size;
+  const allExercisesExist = exercises.length > 0 && newExercisesCount === 0;
 
   return (
     <Modal
@@ -105,21 +106,34 @@ export const ExerciseSelectionDialog: React.FC<ExerciseSelectionDialogProps> = (
               <Text style={styles.title}>Detected Exercises</Text>
               <Text style={styles.subtitle}>
                 Our AI identified {exercises.length} exercise{exercises.length > 1 ? 's' : ''} from your gym equipment. 
-                Select which ones to add to "{gymName}".
+                {allExercisesExist 
+                  ? ' All exercises already exist in your library.' 
+                  : ` Select which ones to add to "${gymName}".`}
               </Text>
             </View>
 
             {/* Exercise Count Summary */}
-            {newExercisesCount > 0 && (
+            {exercises.length > 0 && (
               <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>New Exercises:</Text>
-                  <Text style={styles.summaryValue}>{newExercisesCount}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Confirmed:</Text>
-                  <Text style={styles.summaryValueHighlight}>{confirmedCount}</Text>
-                </View>
+                {newExercisesCount > 0 ? (
+                  <>
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>New Exercises:</Text>
+                      <Text style={styles.summaryValue}>{newExercisesCount}</Text>
+                    </View>
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Confirmed:</Text>
+                      <Text style={styles.summaryValueHighlight}>{confirmedCount}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.allExistMessage}>
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                    <Text style={styles.allExistText}>
+                      All detected exercises already exist in your library. You can proceed to create your workout plan.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -202,16 +216,16 @@ export const ExerciseSelectionDialog: React.FC<ExerciseSelectionDialogProps> = (
               style={[
                 styles.confirmButton,
                 styles.confirmButtonFullWidth,
-                confirmedCount === 0 && styles.confirmButtonDisabled,
               ]}
               onPress={handleConfirm}
-              disabled={confirmedCount === 0}
             >
               <Ionicons name="checkmark-circle" size={20} color="#fff" />
               <Text style={styles.confirmButtonText}>
                 {confirmedCount > 0
                   ? `Confirm ${confirmedCount} Exercise${confirmedCount > 1 ? 's' : ''}`
-                  : 'Select Exercises'}
+                  : allExercisesExist
+                  ? 'Continue to Plan'
+                  : 'Skip & Continue'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -283,6 +297,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.success,
+  },
+  allExistMessage: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  allExistText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: FontFamily.regular,
+    color: Colors.foreground,
+    lineHeight: 20,
   },
   exercisesList: {
     marginBottom: Spacing.lg,

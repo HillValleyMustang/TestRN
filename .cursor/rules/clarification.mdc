@@ -1,0 +1,16 @@
+---
+description: Rules for handling ambiguity, edge cases, and Q&A.
+globs: "**/*"
+alwaysApply: true
+---
+# Clarification & Edge Case Protocol
+
+## Handling Ambiguity
+- If a product requirement is vague (e.g., "add points for workouts"), you MUST stop and ask for clarification on the logic (e.g., "How many points per set? Are there daily caps?").
+- **PM Mode**: When unsure about a feature's behavior, provide 2–3 "Product Options" with pros/cons before writing any code.
+
+## Mandatory Edge Case Consideration
+For every feature, you must explicitly address:
+1. **Network Failure**: What happens if the user is in a gym with no signal? (Ensure offline-first sync).
+2. **Data Conflicts**: What happens if a user logs a workout on two devices simultaneously?
+3. **Empty States**: What does the UI look like when a user has 0 points or no photos uploaded?

@@ -96,47 +96,20 @@ export default function WorkoutHistoryPage() {
         exerciseLookup.set(ex.id, ex);
       });
 
-      // Helper function to map exercise names to muscle groups
+      // Helper function to get muscle group from exercise definition
       const getMuscleGroupFromExercise = (ex: any, staticEx: any): string => {
-        const name = (ex?.name || staticEx?.name || '').toLowerCase();
-        
-        // Chest exercises
-        if (name.includes('bench') || name.includes('press') || name.includes('fly') ||
-            name.includes('push up') || name.includes('dip') || name.includes('pec')) {
-          return 'Chest';
+        // First try to get main_muscle from database exercise
+        if (ex?.main_muscle) {
+          return ex.main_muscle;
         }
         
-        // Back exercises
-        if (name.includes('row') || name.includes('pull') || name.includes('lat') ||
-            name.includes('deadlift') || name.includes('shrug') || name.includes('face pull')) {
-          return 'Back';
+        // Then try to get from static exercise (primaryMuscles)
+        if (staticEx?.primaryMuscles && staticEx.primaryMuscles.length > 0) {
+          // Join multiple primary muscles with comma
+          return staticEx.primaryMuscles.join(', ');
         }
         
-        // Legs exercises
-        if (name.includes('squat') || name.includes('lunge') || name.includes('leg') ||
-            name.includes('deadlift') || name.includes('hip') || name.includes('calf')) {
-          return 'Legs';
-        }
-        
-        // Shoulders exercises
-        if (name.includes('shoulder') || name.includes('overhead') || name.includes('raise') ||
-            name.includes('arnold') || name.includes('upright')) {
-          return 'Shoulders';
-        }
-        
-        // Arms exercises
-        if (name.includes('curl') || name.includes('extension') || name.includes('tricep') ||
-            name.includes('bicep') || name.includes('hammer')) {
-          return 'Arms';
-        }
-        
-        // Core exercises
-        if (name.includes('crunch') || name.includes('plank') || name.includes('sit') ||
-            name.includes('leg raise') || name.includes('Russian twist')) {
-          return 'Core';
-        }
-        
-        // Default to Unknown if we can't determine
+        // Fallback: return 'Unknown'
         return 'Unknown';
       };
 

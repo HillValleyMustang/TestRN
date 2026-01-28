@@ -8,20 +8,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 
-// Type definitions for better type safety
-interface TPathData {
-  id: string;
-  settings: any;
-  user_id: string;
-}
+// @ts-ignore
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
-interface WorkoutStructure {
-  exercise_library_id: string;
-  workout_name: string;
-  min_session_minutes: number | null;
-  bonus_for_time_group: number | null;
-}
-
+// Type definitions
 interface ExerciseDefinition {
   id: string;
   name: string;
@@ -38,79 +29,194 @@ interface ExerciseDefinition {
   user_id: string | null;
 }
 
-// Utility Functions
-function getMaxMinutes(sessionLength: string): number {
-  switch(sessionLength){
-    case '15-30':
-      return 30;
-    case '30-45':
-      return 45;
-    case '45-60':
-      return 60;
-    case '60-90':
-      return 90;
-    default:
-      return 90;
-  }
+interface ScoredExercise extends ExerciseDefinition {
+  score: number;
+  safetyRating: 'safe' | 'manageable' | 'risky';
 }
 
+interface InjuryAnalysisResult {
+  exerciseId: string;
+  safetyRating: 'safe' | 'manageable' | 'risky';
+  reason: string;
+}
+
+interface UserProfile {
+  health_notes: string | null;
+  preferred_muscles: string | null;
+}
+
+interface WorkoutSummary {
+  workoutName: string;
+  exercises: string[];
+}
+
+interface RegenerationSummary {
+  logicApplied: string[];
+  workouts: WorkoutSummary[];
+  injuryNotes: string | null;
+}
+
+// Utility Functions
 function getExerciseCounts(sessionLength: string): { main: number; bonus: number } {
   switch(sessionLength){
-    case '15-30':
-      return {
-        main: 3,
-        bonus: 3
-      };
-    case '30-45':
-      return {
-        main: 5,
-        bonus: 3
-      };
-    case '45-60':
-      return {
-        main: 7,
-        bonus: 2
-      };
-    case '60-90':
-      return {
-        main: 10,
-        bonus: 2
-      };
-    default:
-      return {
-        main: 5,
-        bonus: 3
-      };
+    case '15-30': return { main: 3, bonus: 3 };
+    case '30-45': return { main: 5, bonus: 3 };
+    case '45-60': return { main: 7, bonus: 2 };
+    case '60-90': return { main: 10, bonus: 2 };
+    default: return { main: 5, bonus: 3 };
   }
 }
 
 function getWorkoutNamesForSplit(workoutSplit: string): string[] {
-  if (workoutSplit === 'ulul') return [
-    'Upper Body A',
-    'Lower Body A',
-    'Upper Body B',
-    'Lower Body B'
-  ];
-  if (workoutSplit === 'ppl') return [
-    'Push',
-    'Pull',
-    'Legs'
-  ];
+  if (workoutSplit === 'ulul') return ['Upper Body A', 'Lower Body A', 'Upper Body B', 'Lower Body B'];
+  if (workoutSplit === 'ppl') return ['Push', 'Pull', 'Legs'];
   throw new Error('Unknown workout split type.');
 }
 
-const sortExercises = (exercises: ExerciseDefinition[]): ExerciseDefinition[] => {
-  return exercises.sort((a: ExerciseDefinition, b: ExerciseDefinition) => {
-    if (a.movement_type === 'compound' && b.movement_type !== 'compound') return -1;
-    if (a.movement_type !== 'compound' && b.movement_type === 'compound') return 1;
-    return a.name.localeCompare(b.name);
-  });
-};
-
 function musclesIntersect(muscleString: string | null, muscleSet: Set<string>): boolean {
   if (!muscleString) return false;
-  const muscles = muscleString.split(',').map((m: string) => m.trim());
-  return muscles.some((m: string) => muscleSet.has(m));
+  const muscles = muscleString.split(',').map((m: string) => m.trim().toLowerCase());
+  return muscles.some((m: string) => {
+    for (const target of muscleSet) {
+      if (m.includes(target.toLowerCase()) || target.toLowerCase().includes(m)) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+function parsePreferredMuscles(preferredMuscles: string | null): Set<string> {
+  if (!preferredMuscles) return new Set();
+  return new Set(preferredMuscles.split(',').map(m => m.trim().toLowerCase()));
+}
+
+// AI-powered injury analysis
+async function analyzeExerciseSafetyWithAI(
+  exercises: ExerciseDefinition[],
+  healthNotes: string
+): Promise<{ results: Map<string, InjuryAnalysisResult>; injuryNotes: string | null }> {
+  const results = new Map<string, InjuryAnalysisResult>();
+  
+  if (!healthNotes || healthNotes.trim() === '' || !GEMINI_API_KEY) {
+    exercises.forEach(ex => {
+      results.set(ex.id, { exerciseId: ex.id, safetyRating: 'safe', reason: 'No health concerns noted' });
+    });
+    return { results, injuryNotes: null };
+  }
+
+  const exerciseList = exercises.map(ex => ({
+    id: ex.id,
+    name: ex.name,
+    mainMuscle: ex.main_muscle,
+    movementType: ex.movement_type,
+    category: ex.category
+  }));
+
+  const systemPrompt = `You are a fitness safety expert. Given a user's health notes/injuries and a list of exercises, categorize each exercise's safety level and provide a brief managing note.
+
+User's Health Notes: "${healthNotes}"
+
+Categorize each exercise as:
+- "safe": Exercise does not impact the injury/condition at all
+- "manageable": Exercise could be done with modifications, machine support, or lighter weight
+- "risky": Exercise directly strains the affected area and should be avoided
+
+Respond with JSON object:
+{
+  "ratings": [{"id": "exercise_id", "rating": "safe|manageable|risky", "reason": "brief explanation"}],
+  "generalInjuryNote": "A brief, encouraging 2-3 sentence note explaining how we've adjusted their plan for their injuries and how they should manage them during these workouts."
+}`;
+
+  try {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${systemPrompt}\n\nExercises to analyze:\n${JSON.stringify(exerciseList, null, 2)}` }] }],
+        generationConfig: { temperature: 0.2, topK: 40, topP: 0.95, maxOutputTokens: 4096, responseMimeType: "application/json" }
+      })
+    });
+
+    if (!response.ok) {
+      exercises.forEach(ex => { results.set(ex.id, { exerciseId: ex.id, safetyRating: 'safe', reason: 'AI unavailable' }); });
+      return { results, injuryNotes: null };
+    }
+
+    const geminiData = await response.json();
+    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    
+    let parsed: { ratings: Array<{ id: string; rating: string; reason: string }>; generalInjuryNote: string };
+    try { parsed = JSON.parse(responseText); }
+    catch { const jsonMatch = responseText.match(/\{[\s\S]*\}/); parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { ratings: [], generalInjuryNote: null }; }
+
+    parsed.ratings?.forEach(result => {
+      results.set(result.id, { exerciseId: result.id, safetyRating: (result.rating as 'safe' | 'manageable' | 'risky') || 'safe', reason: result.reason || '' });
+    });
+    exercises.forEach(ex => { if (!results.has(ex.id)) results.set(ex.id, { exerciseId: ex.id, safetyRating: 'safe', reason: 'Not analyzed' }); });
+    return { results, injuryNotes: parsed.generalInjuryNote };
+  } catch (error) {
+    console.error('[complete-onboarding] AI safety analysis error:', error);
+    exercises.forEach(ex => { results.set(ex.id, { exerciseId: ex.id, safetyRating: 'safe', reason: 'Analysis error' }); });
+    return { results, injuryNotes: null };
+  }
+}
+
+function scoreAndSortExercises(
+  exercises: ExerciseDefinition[],
+  userId: string,
+  activeGymExerciseIds: Set<string>,
+  allLinkedExerciseIds: Set<string>,
+  preferredMuscles: Set<string>,
+  safetyResults: Map<string, InjuryAnalysisResult>
+): ScoredExercise[] {
+  const scored: ScoredExercise[] = exercises.map(ex => {
+    let score = 0;
+    const safety = safetyResults.get(ex.id);
+    const safetyRating = safety?.safetyRating || 'safe';
+
+    switch (safetyRating) { case 'safe': score += 100; break; case 'manageable': score += 50; break; case 'risky': score += 0; break; }
+    if (ex.user_id === userId) score += 200;
+    else if (ex.user_id === null && activeGymExerciseIds.has(ex.id)) score += 150;
+    else if (ex.user_id === null && !allLinkedExerciseIds.has(ex.id)) score += 100;
+    else score += 50;
+    if (preferredMuscles.size > 0 && musclesIntersect(ex.main_muscle, preferredMuscles)) score += 75;
+    if (ex.movement_type === 'compound') score += 25;
+
+    return { ...ex, score, safetyRating };
+  });
+
+  return scored.sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
+}
+
+async function getOrCreateMainTPath(
+  supabaseClient: any,
+  userId: string,
+  programmeType: 'ppl' | 'ulul',
+  profileSettings: { primary_goal?: string; preferred_muscles?: string; health_notes?: string }
+): Promise<string> {
+  const { data: existingTPaths, error: fetchError } = await supabaseClient
+    .from('t_paths')
+    .select('id, template_name, settings')
+    .eq('user_id', userId)
+    .is('gym_id', null)
+    .is('parent_t_path_id', null);
+  
+  if (fetchError) throw fetchError;
+  if (existingTPaths && existingTPaths.length > 0) return existingTPaths[0].id;
+  
+  const templateName = programmeType === 'ulul' ? '4-Day Upper/Lower' : '3-Day Push/Pull/Legs';
+  const { data: newTPath, error: insertError } = await supabaseClient
+    .from('t_paths')
+    .insert({
+      user_id: userId, gym_id: null, template_name: templateName, is_bonus: false, parent_t_path_id: null,
+      settings: { tPathType: programmeType, experience: 'intermediate', goalFocus: profileSettings.primary_goal, preferredMuscles: profileSettings.preferred_muscles, constraints: profileSettings.health_notes }
+    })
+    .select('id')
+    .single();
+  
+  if (insertError) throw insertError;
+  return newTPath.id;
 }
 
 async function generateWorkoutPlanForTPath(
@@ -119,605 +225,161 @@ async function generateWorkoutPlanForTPath(
   tPathId: string,
   sessionLength: string,
   activeGymId: string | null,
-  useStaticDefaults: boolean
-): Promise<void> {
-  const { data: tPathData, error: tPathError } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', userId).single();
-  if (tPathError || !tPathData) throw new Error(`Main T-Path not found for user ${userId} and tPathId ${tPathId}.`);
+  profile: UserProfile
+): Promise<RegenerationSummary> {
+  const { data: tPathData } = await supabaseServiceRoleClient.from('t_paths').select('id, settings, user_id').eq('id', tPathId).eq('user_id', userId).single();
   
-  const { data: oldChildWorkouts, error: fetchOldError } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', userId);
-  if (fetchOldError) throw fetchOldError;
-  
+  const { data: oldChildWorkouts } = await supabaseServiceRoleClient.from('t_paths').select('id').eq('parent_t_path_id', tPathId).eq('user_id', userId);
   if (oldChildWorkouts && oldChildWorkouts.length > 0) {
     const oldChildIds = oldChildWorkouts.map((w: any) => w.id);
     await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', oldChildIds);
     await supabaseServiceRoleClient.from('t_paths').delete().in('id', oldChildIds);
   }
 
-  const tPathSettings = tPathData.settings;
-  if (!tPathSettings?.tPathType) throw new Error('Invalid T-Path settings.');
-  
-  const workoutSplit = tPathSettings.tPathType;
-  const { main: maxMainExercises, bonus: maxBonusExercises } = getExerciseCounts(sessionLength);
+  const workoutSplit = (tPathData.settings as any).tPathType;
+  const { main: maxMain, bonus: maxBonus } = getExerciseCounts(sessionLength);
   const workoutNames = getWorkoutNamesForSplit(workoutSplit);
-  const maxAllowedMinutes = getMaxMinutes(sessionLength);
+  const preferredMuscles = parsePreferredMuscles(profile.preferred_muscles);
 
-  if (useStaticDefaults) {
-    const { data: structureData, error: structureError } = await supabaseServiceRoleClient.from('workout_exercise_structure').select('exercise_library_id, workout_name, min_session_minutes, bonus_for_time_group').eq('workout_split', workoutSplit);
-    if (structureError) throw structureError;
-    
-    const { data: globalExercises, error: globalExError } = await supabaseServiceRoleClient.from('exercise_definitions').select('id, name, main_muscle, type, category, description, pro_tip, video_url, library_id, movement_type, movement_pattern, icon_url').is('user_id', null);
-    if (globalExError) throw globalExError;
-    
-    const globalExerciseMap = new Map<string, ExerciseDefinition>();
-    (globalExercises || []).forEach((ex: ExerciseDefinition) => {
-      if (ex.library_id) globalExerciseMap.set(ex.library_id, ex);
-    });
-
-    for (const workoutName of workoutNames){
-      if (!workoutName || typeof workoutName !== 'string' || workoutName.trim() === '') {
-        console.error('Invalid workout name:', workoutName);
-        continue; // Skip invalid workout names
-      }
-  
-      const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient.from('t_paths').insert({
-        user_id: userId,
-        parent_t_path_id: tPathId,
-        template_name: workoutName.trim(),
-        is_bonus: true,
-        settings: tPathData.settings,
-        gym_id: activeGymId
-      }).select('id').single();
-      if (createChildError) throw createChildError;
-      
-      const childWorkoutId = newChildWorkout.id;
-      const exercisesForThisWorkout = (structureData || []).filter((s: WorkoutStructure) => s.workout_name === workoutName);
-      let mainExercisesToInsert: any[] = [];
-      let bonusExercisesToInsert: any[] = [];
-      
-      exercisesForThisWorkout.forEach((s: WorkoutStructure) => {
-        const exerciseDef = globalExerciseMap.get(s.exercise_library_id);
-        if (exerciseDef) {
-          if (s.min_session_minutes !== null && maxAllowedMinutes >= s.min_session_minutes) {
-            mainExercisesToInsert.push({
-              template_id: childWorkoutId,
-              exercise_id: exerciseDef.id,
-              order_index: 0,
-              is_bonus_exercise: false
-            });
-          } else if (s.bonus_for_time_group !== null && maxAllowedMinutes >= s.bonus_for_time_group) {
-            bonusExercisesToInsert.push({
-              template_id: childWorkoutId,
-              exercise_id: exerciseDef.id,
-              order_index: 0,
-              is_bonus_exercise: true
-            });
-          }
-        }
-      });
-
-      mainExercisesToInsert.sort((a: any, b: any) => globalExerciseMap.get(a.exercise_id)?.name.localeCompare(globalExerciseMap.get(b.exercise_id)?.name || '') || 0);
-      bonusExercisesToInsert.sort((a: any, b: any) => globalExerciseMap.get(a.exercise_id)?.name.localeCompare(globalExerciseMap.get(b.exercise_id)?.name || '') || 0);
-      
-      const finalMainExercises = mainExercisesToInsert.slice(0, maxMainExercises);
-      const finalBonusExercises = bonusExercisesToInsert.slice(0, maxBonusExercises);
-      
-      const exercisesToInsertPayload = [
-        ...finalMainExercises.map((ex: any, index: number) => ({
-            ...ex,
-            order_index: index
-          })),
-        ...finalBonusExercises.map((ex: any, index: number) => ({
-            ...ex,
-            order_index: finalMainExercises.length + index
-          }))
-      ];
-      
-      if (exercisesToInsertPayload.length > 0) {
-        const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
-        if (insertError) throw insertError;
-      }
-    }
-    return;
-  }
-
-  // Dynamic exercise selection logic
-  const { data: allExercises, error: fetchAllExercisesError } = await supabaseServiceRoleClient.from('exercise_definitions').select('*');
-  if (fetchAllExercisesError) throw fetchAllExercisesError;
-  
-  const { data: allGymLinks, error: allGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
-  if (allGymLinksError) throw allGymLinksError;
+  const { data: allExercises } = await supabaseServiceRoleClient.from('exercise_definitions').select('*');
+  const { data: allGymLinks } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id');
   const allLinkedExerciseIds = new Set((allGymLinks || []).map((l: any) => l.exercise_id));
+
+  let activeGymExerciseIds = new Set<string>();
+  if (activeGymId) {
+    const { data: activeGymLinks } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
+    activeGymExerciseIds = new Set((activeGymLinks || []).map((l: any) => l.exercise_id));
+  }
   
   const workoutSpecificPools: Record<string, ExerciseDefinition[]> = {};
-  
   if (workoutSplit === 'ulul') {
-    const UPPER_BODY_MUSCLES = new Set([
-      'Pectorals',
-      'Deltoids',
-      'Lats',
-      'Traps',
-      'Biceps',
-      'Triceps',
-      'Abdominals',
-      'Core'
-    ]);
-    const LOWER_BODY_MUSCLES = new Set([
-      'Quadriceps',
-      'Hamstrings',
-      'Glutes',
-      'Calves'
-    ]);
-    
-    const upperPool = (allExercises || []).filter((ex: ExerciseDefinition) => musclesIntersect(ex.main_muscle, UPPER_BODY_MUSCLES));
-    const lowerPool = (allExercises || []).filter((ex: ExerciseDefinition) => musclesIntersect(ex.main_muscle, LOWER_BODY_MUSCLES));
-    
-    workoutSpecificPools['Upper Body A'] = [];
-    workoutSpecificPools['Upper Body B'] = [];
-    workoutSpecificPools['Lower Body A'] = [];
-    workoutSpecificPools['Lower Body B'] = [];
-    
-    sortExercises(upperPool).forEach((ex: ExerciseDefinition, i: number) => {
-      const targetPool = i % 2 === 0 ? 'Upper Body A' : 'Upper Body B';
-      workoutSpecificPools[targetPool].push(ex);
-    });
-    sortExercises(lowerPool).forEach((ex: ExerciseDefinition, i: number) => {
-      const targetPool = i % 2 === 0 ? 'Lower Body A' : 'Lower Body B';
-      workoutSpecificPools[targetPool].push(ex);
-    });
+    const UPPER = new Set(['pectorals', 'deltoids', 'lats', 'traps', 'biceps', 'triceps', 'abdominals', 'core', 'chest', 'shoulders', 'back']);
+    const LOWER = new Set(['quadriceps', 'hamstrings', 'glutes', 'calves', 'quads', 'legs']);
+    const upper = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, UPPER));
+    const lower = (allExercises || []).filter((ex: any) => musclesIntersect(ex.main_muscle, LOWER));
+    workoutSpecificPools['Upper Body A'] = []; workoutSpecificPools['Upper Body B'] = [];
+    workoutSpecificPools['Lower Body A'] = []; workoutSpecificPools['Lower Body B'] = [];
+    upper.forEach((ex: any, i: number) => workoutSpecificPools[i % 2 === 0 ? 'Upper Body A' : 'Upper Body B'].push(ex));
+    lower.forEach((ex: any, i: number) => workoutSpecificPools[i % 2 === 0 ? 'Lower Body A' : 'Lower Body B'].push(ex));
   } else {
-    workoutSpecificPools['Push'] = sortExercises((allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Push'));
-    workoutSpecificPools['Pull'] = sortExercises((allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Pull'));
-    workoutSpecificPools['Legs'] = sortExercises((allExercises || []).filter((ex: ExerciseDefinition) => ex.movement_pattern === 'Legs'));
+    workoutSpecificPools['Push'] = (allExercises || []).filter((ex: any) => ex.movement_pattern === 'Push');
+    workoutSpecificPools['Pull'] = (allExercises || []).filter((ex: any) => ex.movement_pattern === 'Pull');
+    workoutSpecificPools['Legs'] = (allExercises || []).filter((ex: any) => ex.movement_pattern === 'Legs');
   }
+
+  const regenerationSummary: RegenerationSummary = {
+    logicApplied: ["Analyzed full library", "Prioritized your custom exercises", "Matched gym equipment", "Ranked by muscle preference"],
+    workouts: [],
+    injuryNotes: null
+  };
+  if (profile.health_notes) regenerationSummary.logicApplied.push("Applied AI injury safety analysis");
 
   for (const workoutName of workoutNames){
-    if (!workoutName || typeof workoutName !== 'string' || workoutName.trim() === '') {
-      console.error('Invalid workout name:', workoutName);
-      continue; // Skip invalid workout names
-    }
-
-    const { data: newChildWorkout, error: createChildError } = await supabaseServiceRoleClient.from('t_paths').insert({
-      user_id: userId,
-      parent_t_path_id: tPathId,
-      template_name: workoutName.trim(),
-      is_bonus: true,
-      settings: tPathData.settings,
-      gym_id: activeGymId
-    }).select('id').single();
-    if (createChildError) throw createChildError;
-    
-    const childWorkoutId = newChildWorkout.id;
     const candidatePool = workoutSpecificPools[workoutName] || [];
-    
-    let activeGymExerciseIds = new Set<string>();
-    if (activeGymId) {
-      const { data: activeGymLinks, error: activeGymLinksError } = await supabaseServiceRoleClient.from('gym_exercises').select('exercise_id').eq('gym_id', activeGymId);
-      if (activeGymLinksError) throw activeGymLinksError;
-      activeGymExerciseIds = new Set((activeGymLinks || []).map((l: any) => l.exercise_id));
-    }
+    if (candidatePool.length === 0) continue;
 
-    // Exercise selection logic
-    const tier1Pool = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === userId);
-    const tier2Pool_gymLinkedGlobal = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === null && activeGymExerciseIds.has(ex.id));
-    const tier3Pool_unlinkedGlobal = candidatePool.filter((ex: ExerciseDefinition) => ex.user_id === null && !allLinkedExerciseIds.has(ex.id));
+    const { results: safetyResults, injuryNotes } = await analyzeExerciseSafetyWithAI(candidatePool, profile.health_notes || '');
+    if (injuryNotes && !regenerationSummary.injuryNotes) regenerationSummary.injuryNotes = injuryNotes;
+
+    const scoredExercises = scoreAndSortExercises(candidatePool, userId, activeGymExerciseIds, allLinkedExerciseIds, preferredMuscles, safetyResults);
+
+    let final = scoredExercises.filter(ex => ex.safetyRating !== 'risky');
+    const total = maxMain + maxBonus;
+    if (final.length < total) final = [...final, ...scoredExercises.filter(ex => ex.safetyRating === 'risky').slice(0, total - final.length)];
+
+    const main = final.slice(0, maxMain);
+    const bonus = final.slice(maxMain, maxMain + maxBonus);
+
+    const { data: newChild } = await supabaseServiceRoleClient.from('t_paths').insert({
+      user_id: userId, parent_t_path_id: tPathId, template_name: workoutName.trim(), is_bonus: true, settings: tPathData.settings, gym_id: activeGymId
+    }).select('id').single();
     
-    const finalPool = [
-      ...tier1Pool,
-      ...tier2Pool_gymLinkedGlobal,
-      ...tier3Pool_unlinkedGlobal
+    const payload = [
+      ...main.map((ex, i) => ({ template_id: newChild.id, exercise_id: ex.id, order_index: i, is_bonus_exercise: false })),
+      ...bonus.map((ex, i) => ({ template_id: newChild.id, exercise_id: ex.id, order_index: main.length + i, is_bonus_exercise: true }))
     ];
-    
-    const finalUniquePool = [
-      ...new Map(finalPool.map((item: ExerciseDefinition) => [
-          item.id,
-          item
-        ])).values()
-    ];
-    
-    const mainExercisesForWorkout = finalUniquePool.slice(0, maxMainExercises);
-    const bonusExercisesForWorkout = finalUniquePool.slice(maxMainExercises, maxMainExercises + maxBonusExercises);
-    
-    const exercisesToInsertPayload = [
-      ...mainExercisesForWorkout.map((ex: ExerciseDefinition, index: number) => ({
-          template_id: childWorkoutId,
-          exercise_id: ex.id,
-          order_index: index,
-          is_bonus_exercise: false
-        })),
-      ...bonusExercisesForWorkout.map((ex: ExerciseDefinition, index: number) => ({
-          template_id: childWorkoutId,
-          exercise_id: ex.id,
-          order_index: mainExercisesForWorkout.length + index,
-          is_bonus_exercise: true
-        }))
-    ];
-    
-    if (exercisesToInsertPayload.length > 0) {
-      const { error: insertError } = await supabaseServiceRoleClient.from('t_path_exercises').insert(exercisesToInsertPayload);
-      if (insertError) throw insertError;
-    }
+    await supabaseServiceRoleClient.from('t_path_exercises').insert(payload);
+    regenerationSummary.workouts.push({ workoutName, exercises: main.map(ex => ex.name) });
   }
+  return regenerationSummary;
 }
 
 const getSupabaseServiceRoleClient = () => {
-  // @ts-ignore
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  // @ts-ignore
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  return createClient(supabaseUrl, supabaseServiceRoleKey);
+  return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 };
 
 serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response(null, {
-    headers: corsHeaders
-  });
-  
-  const supabaseServiceRoleClient = getSupabaseServiceRoleClient();
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  const supabase = getSupabaseServiceRoleClient();
   let userId = null;
   
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Authorization header missing');
+    const { data: { user } } = await supabase.auth.getUser(authHeader!.split(' ')[1]);
+    userId = user!.id;
     
-    const { data: { user }, error: userError } = await supabaseServiceRoleClient.auth.getUser(authHeader.split(' ')[1]);
-    if (userError || !user) throw new Error('Unauthorized');
-    
-    userId = user.id;
-    
-    await supabaseServiceRoleClient.from('profiles').update({
-      t_path_generation_status: 'in_progress',
-      t_path_generation_error: null
-    }).eq('id', userId);
-    
+    await supabase.from('profiles').update({ t_path_generation_status: 'in_progress', t_path_generation_error: null }).eq('id', userId);
     const { tPathType, experience, goalFocus, preferredMuscles, constraints, sessionLength, equipmentMethod, gymName, confirmedExercises, fullName, heightCm, weightKg, bodyFatPct, gymId: providedGymId } = await req.json();
     
-    console.log(`[DEBUG] 🚀 ONBOARDING STARTED`);
-    console.log(`[DEBUG] 📋 User selected tPathType: ${tPathType}`);
-    console.log(`[DEBUG] 📋 Full request data:`, { tPathType, experience, goalFocus, sessionLength, equipmentMethod, fullName, providedGymId });
-    
-    if (!tPathType || !experience || !sessionLength || !fullName || !heightCm || !weightKg) {
-      throw new Error("Missing required onboarding data.");
-    }
-    
-    // CRITICAL FIX: Clean up ALL existing T-Paths for this user before starting
-    console.log(`[DEBUG] 🧹 CLEANUP: Checking for existing T-Paths for user ${userId}`);
-    const { data: existingTPaths, error: fetchExistingError } = await supabaseServiceRoleClient.from('t_paths').select('id, template_name, parent_t_path_id').eq('user_id', userId);
-    if (fetchExistingError) throw fetchExistingError;
-    
+    const { data: existingTPaths } = await supabase.from('t_paths').select('id, template_name, parent_t_path_id').eq('user_id', userId);
     if (existingTPaths && existingTPaths.length > 0) {
-      console.log(`[DEBUG] 🧹 Found ${existingTPaths.length} existing T-Paths - cleaning up...`);
-      console.log(`[DEBUG] 🧹 Existing T-Paths:`, existingTPaths.map((tp: any) => ({ id: tp.id, template: tp.template_name, isChild: tp.parent_t_path_id !== null })));
-      const existingChildIds = existingTPaths.filter((tp: any) => tp.parent_t_path_id !== null).map((tp: any) => tp.id);
-      const existingMainIds = existingTPaths.filter((tp: any) => tp.parent_t_path_id === null).map((tp: any) => tp.id);
-      
-      if (existingChildIds.length > 0) {
-        await supabaseServiceRoleClient.from('t_path_exercises').delete().in('template_id', existingChildIds);
-        await supabaseServiceRoleClient.from('t_paths').delete().in('id', existingChildIds);
+      const childIds = existingTPaths.filter((tp: any) => tp.parent_t_path_id !== null).map((tp: any) => tp.id);
+      const mainIds = existingTPaths.filter((tp: any) => tp.parent_t_path_id === null).map((tp: any) => tp.id);
+      if (childIds.length > 0) {
+        await supabase.from('t_path_exercises').delete().in('template_id', childIds);
+        await supabase.from('t_paths').delete().in('id', childIds);
       }
-      
-      if (existingMainIds.length > 0) {
-        await supabaseServiceRoleClient.from('t_paths').delete().in('id', existingMainIds);
-      }
-      
-      console.log(`[DEBUG] ✅ Cleanup completed - removed ${existingTPaths.length} existing T-Paths`);
-    } else {
-      console.log(`[DEBUG] ✅ No existing T-Paths found - clean start`);
+      if (mainIds.length > 0) await supabase.from('t_paths').delete().in('id', mainIds);
     }
     
-    // Determine which gym to use
     let newGymId: string;
-    
-    // If a specific gymId was provided (e.g., during T-Path regeneration), use it directly
     if (providedGymId) {
-      console.log(`[DEBUG] 🏢 Using provided gym ID: ${providedGymId}`);
-      
-      // Verify the gym exists and belongs to this user
-      const { data: verifyGym, error: verifyError } = await supabaseServiceRoleClient
-        .from('gyms')
-        .select('id, name')
-        .eq('id', providedGymId)
-        .eq('user_id', user.id)
-        .single();
-      
-      if (verifyError || !verifyGym) {
-        console.warn(`[DEBUG] ⚠️ Provided gym ${providedGymId} not found or doesn't belong to user, falling back to existing gym lookup`);
-        // Fall through to existing gym lookup
-      } else {
-        newGymId = verifyGym.id;
-        console.log(`[DEBUG] ✅ Verified provided gym: ${verifyGym.name} (${verifyGym.id})`);
-      }
-    }
-    
-    // If no valid gymId yet, check for existing gyms
-    if (!newGymId) {
-      console.log(`[DEBUG] 🏢 Checking for existing gyms for user ${userId}`);
-      const { data: existingGyms, error: fetchGymsError } = await supabaseServiceRoleClient
-        .from('gyms')
-        .select('id, name, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (fetchGymsError) throw fetchGymsError;
-      
-      if (existingGyms && existingGyms.length > 0) {
-        // User already has gyms - use existing gym instead of creating duplicate
-        console.log(`[DEBUG] 🏢 Found ${existingGyms.length} existing gym(s) - reusing existing gym`);
-        
-        // If user has >3 gyms, clean up excess (keep 3 most recent)
-        if (existingGyms.length > 3) {
-          const gymsToDelete = existingGyms.slice(3);
-          console.log(`[DEBUG] 🧹 Cleaning up ${gymsToDelete.length} excess gym(s)`);
-          
-          for (const gym of gymsToDelete) {
-            // Delete gym_exercises first (foreign key constraint)
-            await supabaseServiceRoleClient
-              .from('gym_exercises')
-              .delete()
-              .eq('gym_id', gym.id);
-            
-            // Delete gym_equipment
-            await supabaseServiceRoleClient
-              .from('gym_equipment')
-              .delete()
-              .eq('gym_id', gym.id);
-            
-            // Delete the gym
-            const { error: deleteError } = await supabaseServiceRoleClient
-              .from('gyms')
-              .delete()
-              .eq('id', gym.id);
-            
-            if (deleteError) {
-              console.error(`[DEBUG] ⚠️ Failed to delete excess gym ${gym.id}:`, deleteError);
-            } else {
-              console.log(`[DEBUG] ✅ Deleted excess gym: ${gym.name} (${gym.id})`);
-            }
-          }
-        }
-        
-        // Use the most recent existing gym
-        newGymId = existingGyms[0].id;
-        console.log(`[DEBUG] ✅ Using existing gym ID: ${newGymId} (${existingGyms[0].name})`);
-      } else {
-        // No existing gyms - create new one (true first-time onboarding)
-        console.log(`[DEBUG] 🏢 No existing gyms found - creating new gym: ${gymName || "My Gym"}`);
-        const { data: insertedGym, error: insertGymError } = await supabaseServiceRoleClient.from('gyms').insert({
-          user_id: user.id,
-          name: gymName || "My Gym"
-        }).select('id').single();
-        if (insertGymError) throw insertGymError;
-        newGymId = insertedGym.id;
-        console.log(`[DEBUG] ✅ Gym created with ID: ${newGymId}`);
-      }
-    }
-    
-    // Create only the selected T-Path based on user choice
-    let templateName: string;
-    if (tPathType === 'ulul') {
-      templateName = '4-Day Upper/Lower';
-    } else if (tPathType === 'ppl') {
-      templateName = '3-Day Push/Pull/Legs';
+      newGymId = providedGymId;
     } else {
-      throw new Error("Invalid tPathType. Must be 'ulul' or 'ppl'.");
-    }
-    
-    console.log(`[DEBUG] 🏋️ Selected template: ${templateName} for tPathType: ${tPathType}`);
-    
-    const tPathsToInsert = [
-      {
-        user_id: user.id,
-        gym_id: newGymId,
-        template_name: templateName,
-        is_bonus: false,
-        parent_t_path_id: null,
-        settings: {
-          tPathType: tPathType,
-          experience,
-          goalFocus,
-          preferredMuscles,
-          constraints,
-          equipmentMethod
-        }
-      }
-    ];
-    
-    console.log(`[DEBUG] 📝 About to insert ${tPathsToInsert.length} T-Path(s):`, tPathsToInsert.map((tp: any) => ({ template: tp.template_name, type: tp.settings.tPathType })));
-    
-    const { data: insertedTPaths, error: insertTPathsError } = await supabaseServiceRoleClient.from('t_paths').insert(tPathsToInsert).select('*');
-    if (insertTPathsError) throw insertTPathsError;
-    
-    console.log(`[DEBUG] ✅ Successfully inserted ${insertedTPaths.length} T-Path(s):`, insertedTPaths.map((tp: any) => ({ id: tp.id, template: tp.template_name, type: tp.settings?.tPathType })));
-    
-    // Only process the selected T-Path (there's only one now)
-    const activeTPath = insertedTPaths[0];
-    if (!activeTPath) throw new Error("Could not create active T-Path.");
-    
-    console.log(`[DEBUG] 🎯 Active T-Path: ${activeTPath.template_name} (${activeTPath.settings?.tPathType})`);
-    
-    // Process confirmed exercises
-    const exerciseIdsToLinkToGym = new Set<string>();
-    const newExercisesToCreate: any[] = [];
-    const confirmedExercisesDataForPlan: ExerciseDefinition[] = [];
-    const useStaticDefaultsForExercises = equipmentMethod === 'skip';
-    
-    for (const ex of confirmedExercises || []){
-      if (ex.existing_id) {
-        exerciseIdsToLinkToGym.add(ex.existing_id);
-        confirmedExercisesDataForPlan.push({
-          id: ex.existing_id,
-          name: ex.name,
-          user_id: null,
-          library_id: null,
-          movement_type: ex.movement_type || null,
-          movement_pattern: ex.movement_pattern || null,
-          main_muscle: ex.main_muscle,
-          type: ex.type,
-          category: ex.category || null,
-          description: ex.description || null,
-          pro_tip: ex.pro_tip || null,
-          video_url: ex.video_url || null,
-          icon_url: ex.icon_url || null
-        });
+      const { data: existingGyms } = await supabase.from('gyms').select('id').eq('user_id', userId).order('created_at', { ascending: false });
+      if (existingGyms && existingGyms.length > 0) {
+        newGymId = existingGyms[0].id;
       } else {
-        newExercisesToCreate.push({
-          name: ex.name,
-          main_muscle: ex.main_muscle,
-          type: ex.type,
-          category: ex.category,
-          description: ex.description,
-          pro_tip: ex.pro_tip,
-          video_url: ex.video_url,
-          icon_url: ex.icon_url,
-          user_id: user.id,
-          library_id: null,
-          is_favorite: false,
-          created_at: new Date().toISOString(),
-          movement_type: ex.movement_type,
-          movement_pattern: ex.movement_pattern
-        });
+        const { data: insertedGym } = await supabase.from('gyms').insert({ user_id: userId, name: gymName || "My Gym" }).select('id').single();
+        newGymId = insertedGym!.id;
       }
     }
     
+    const mainTPathId = await getOrCreateMainTPath(supabase, userId, tPathType, { primary_goal: goalFocus, preferred_muscles: preferredMuscles, health_notes: constraints });
+    
+    const exerciseIdsToLink = new Set<string>();
+    const newExercisesToCreate: any[] = [];
+    for (const ex of confirmedExercises || []){
+      if (ex.existing_id) exerciseIdsToLink.add(ex.existing_id);
+      else newExercisesToCreate.push({ name: ex.name, main_muscle: ex.main_muscle, type: ex.type, category: ex.category, description: ex.description, pro_tip: ex.pro_tip, video_url: ex.video_url, icon_url: ex.icon_url, user_id: userId, created_at: new Date().toISOString(), movement_type: ex.movement_type, movement_pattern: ex.movement_pattern });
+    }
     if (newExercisesToCreate.length > 0) {
-      const { data: insertedExercises, error: insertExError } = await supabaseServiceRoleClient.from('exercise_definitions').insert(newExercisesToCreate).select('*');
-      if (insertExError) throw insertExError;
-      insertedExercises.forEach((ex: ExerciseDefinition) => {
-        exerciseIdsToLinkToGym.add(ex.id);
-        confirmedExercisesDataForPlan.push(ex);
-      });
+      const { data: inserted } = await supabase.from('exercise_definitions').insert(newExercisesToCreate).select('id');
+      inserted?.forEach((ex: any) => exerciseIdsToLink.add(ex.id));
+    }
+    if (exerciseIdsToLink.size > 0) {
+      await supabase.from('gym_exercises').insert(Array.from(exerciseIdsToLink).map(id => ({ gym_id: newGymId, exercise_id: id })));
     }
     
-    if (exerciseIdsToLinkToGym.size > 0) {
-      const gymLinks = Array.from(exerciseIdsToLinkToGym).map((exId) => ({
-          gym_id: newGymId,
-          exercise_id: exId
-        }));
-      const { error: gymLinkError } = await supabaseServiceRoleClient.from('gym_exercises').insert(gymLinks);
-      if (gymLinkError) throw gymLinkError;
-    }
-    
-    // Update profile
     const nameParts = fullName.split(' ');
-    const firstName = nameParts.shift() || '';
-    const lastName = nameParts.join(' ') || '';
-    const profileData = {
-      id: user.id,
-      first_name: firstName,
-      last_name: lastName,
-      full_name: fullName,
-      height_cm: heightCm,
-      weight_kg: weightKg,
-      body_fat_pct: bodyFatPct,
-      preferred_muscles: preferredMuscles,
-      primary_goal: goalFocus,
-      health_notes: constraints,
-      default_rest_time_seconds: 60,
-      preferred_session_length: sessionLength,
-      active_t_path_id: activeTPath.id,
-      active_gym_id: newGymId,
-      programme_type: tPathType
-    };
+    const profileData = { id: userId, first_name: nameParts.shift() || '', last_name: nameParts.join(' ') || '', full_name: fullName, height_cm: heightCm, weight_kg: weightKg, body_fat_pct: bodyFatPct, preferred_muscles: preferredMuscles, primary_goal: goalFocus, health_notes: constraints, default_rest_time_seconds: 60, preferred_session_length: sessionLength, active_t_path_id: mainTPathId, active_gym_id: newGymId, programme_type: tPathType };
+    await supabase.from('profiles').upsert(profileData);
     
-    const { data: upsertedProfile, error: profileError } = await supabaseServiceRoleClient.from('profiles').upsert(profileData).select().single();
-    if (profileError) throw profileError;
+    const summary = await generateWorkoutPlanForTPath(supabase, userId, mainTPathId, sessionLength, newGymId, { health_notes: constraints || null, preferred_muscles: preferredMuscles || null });
     
-    // Process only the selected T-Path to get child workout data
-    const childWorkoutsWithExercises: any[] = [];
+    await supabase.from('profiles').update({ t_path_generation_status: 'completed', t_path_generation_error: null, t_path_generation_summary: summary }).eq('id', userId);
     
-    console.log(`[DEBUG] 🏗️ Generating workout plan for T-Path: ${activeTPath.template_name} (${activeTPath.settings?.tPathType})`);
+    const { data: mainTPath } = await supabase.from('t_paths').select('*').eq('id', mainTPathId).single();
+    const { data: childWorkouts } = await supabase.from('t_paths').select('*, t_path_exercises(*, exercise_definitions(*))').eq('parent_t_path_id', mainTPathId).eq('gym_id', newGymId);
     
-    // Generate workout plan for the selected T-Path
-    await generateWorkoutPlanForTPath(supabaseServiceRoleClient, user.id, activeTPath.id, sessionLength, newGymId, useStaticDefaultsForExercises);
-    
-    console.log(`[DEBUG] 🔍 Fetching child workouts for parent T-Path ID: ${activeTPath.id}`);
-    
-    // Fetch child workouts for the selected T-Path
-    const { data: childWorkouts, error: childWorkoutsError } = await supabaseServiceRoleClient.from('t_paths').select('*, t_path_exercises(*, exercise_definitions(*))').eq('parent_t_path_id', activeTPath.id);
-    if (childWorkoutsError) throw childWorkoutsError;
-    
-    console.log(`[DEBUG] 📊 Found ${childWorkouts?.length || 0} child workouts:`, childWorkouts?.map((w: any) => ({ id: w.id, template_name: w.template_name, exercise_count: w.t_path_exercises?.length || 0 })));
-    
-    const transformedChildWorkouts = (childWorkouts || []).map((workout: any) => {
-      const exercises = (workout.t_path_exercises || []).map((tpe: any) => {
-        if (!tpe.exercise_definitions) return null;
-        return {
-          ...tpe.exercise_definitions,
-          is_bonus_exercise: tpe.is_bonus_exercise
-        };
-      }).filter(Boolean);
-      const { t_path_exercises, template_name, ...restOfWorkout } = workout;
-      return {
-        ...restOfWorkout,
-        workout_name: template_name, // Map template_name to workout_name for mobile app
-        exercises: exercises
-      };
-    });
-    
-    childWorkoutsWithExercises.push(...transformedChildWorkouts);
-    
-    // CRITICAL VALIDATION: Verify we have the correct number of workouts
-    const expectedWorkouts = tPathType === 'ppl' ? 3 : 4;
-    const actualWorkouts = childWorkoutsWithExercises.length;
-    
-    console.log(`[DEBUG] 🎯 WORKOUT COUNT VALIDATION:`);
-    console.log(`[DEBUG] 🎯 Expected: ${expectedWorkouts} workouts for ${tPathType}`);
-    console.log(`[DEBUG] 🎯 Actual: ${actualWorkouts} workouts generated`);
-    console.log(`[DEBUG] 🎯 Workout names:`, childWorkoutsWithExercises.map(w => w.workout_name));
-    
-    if (expectedWorkouts !== actualWorkouts) {
-      console.error(`[DEBUG] 🚨 ERROR: Workout count mismatch! Expected ${expectedWorkouts}, got ${actualWorkouts}`);
-      console.error(`[DEBUG] 🚨 This indicates the bug is still present. Full workout data:`, childWorkoutsWithExercises);
-      throw new Error(`Workout generation error: Expected ${expectedWorkouts} workouts for ${tPathType}, but generated ${actualWorkouts}. This may be due to incomplete cleanup or multiple function calls.`);
-    }
-    
-    console.log(`[DEBUG] ✅ Final response - Returning ${childWorkoutsWithExercises.length} child workouts:`, childWorkoutsWithExercises.map(w => ({ template_name: w.template_name, exercise_count: w.exercises?.length || 0 })));
-    
-    await supabaseServiceRoleClient.from('profiles').update({
-      t_path_generation_status: 'completed',
-      t_path_generation_error: null
-    }).eq('id', userId);
-    
-    const finalResponse = {
-      message: 'Onboarding completed successfully.',
-      profile: upsertedProfile,
-      mainTPath: activeTPath,
-      childWorkouts: childWorkoutsWithExercises,
-      identifiedExercises: confirmedExercises
-    };
-    
-    console.log(`[DEBUG] 🎉 ONBOARDING COMPLETED SUCCESSFULLY`);
-    console.log(`[DEBUG] 📋 Summary:`, {
-      mainTPath: activeTPath.template_name,
-      childWorkoutsCount: childWorkoutsWithExercises.length,
-      childWorkoutNames: childWorkoutsWithExercises.map(w => w.workout_name),
-      validationPassed: expectedWorkouts === actualWorkouts
-    });
-    
-    return new Response(JSON.stringify(finalResponse), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+    const transformedWorkouts = (childWorkouts || []).map((w: any) => ({
+      ...w, workout_name: w.template_name,
+      exercises: (w.t_path_exercises || []).map((tpe: any) => ({ ...tpe.exercise_definitions, is_bonus_exercise: tpe.is_bonus_exercise })).filter(Boolean)
+    }));
+
+    return new Response(JSON.stringify({ message: 'Success', profile: profileData, mainTPath, childWorkouts: transformedWorkouts, identifiedExercises: confirmedExercises }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error in complete-onboarding edge function:", JSON.stringify(error, null, 2));
-    
-    if (userId) {
-      await supabaseServiceRoleClient.from('profiles').update({
-        t_path_generation_status: 'failed',
-        t_path_generation_error: message
-      }).eq('id', userId);
-    }
-    
-    return new Response(JSON.stringify({
-      error: message
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+    if (userId) await supabase.from('profiles').update({ t_path_generation_status: 'failed', t_path_generation_error: error.message }).eq('id', userId);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

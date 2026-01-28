@@ -13,8 +13,8 @@ export const EXERCISES: Exercise[] = [
     name: 'Bench Press',
     category: 'chest',
     equipment: 'Barbell',
-    primaryMuscles: ['Chest'],
-    secondaryMuscles: ['Triceps', 'Shoulders'],
+    primaryMuscles: ['Pectorals'],
+    secondaryMuscles: ['Triceps', 'Deltoids'],
   },
   {
     id: 'squat',
@@ -29,7 +29,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Deadlift',
     category: 'back',
     equipment: 'Barbell',
-    primaryMuscles: ['Back', 'Hamstrings'],
+    primaryMuscles: ['Lats', 'Hamstrings'],
     secondaryMuscles: ['Glutes', 'Core'],
   },
   {
@@ -37,7 +37,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Overhead Press',
     category: 'shoulders',
     equipment: 'Barbell',
-    primaryMuscles: ['Shoulders'],
+    primaryMuscles: ['Deltoids'],
     secondaryMuscles: ['Triceps', 'Core'],
   },
   {
@@ -45,7 +45,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Pull Up',
     category: 'back',
     equipment: 'Bodyweight',
-    primaryMuscles: ['Lats', 'Back'],
+    primaryMuscles: ['Lats'],
     secondaryMuscles: ['Biceps'],
   },
   {
@@ -61,7 +61,7 @@ export const EXERCISES: Exercise[] = [
     category: 'arms',
     equipment: 'Bodyweight',
     primaryMuscles: ['Triceps'],
-    secondaryMuscles: ['Chest', 'Shoulders'],
+    secondaryMuscles: ['Pectorals', 'Deltoids'],
   },
   {
     id: 'leg_press',
@@ -83,7 +83,7 @@ export const EXERCISES: Exercise[] = [
     name: 'Dumbbell Row',
     category: 'back',
     equipment: 'Dumbbell',
-    primaryMuscles: ['Back', 'Lats'],
+    primaryMuscles: ['Lats'],
     secondaryMuscles: ['Biceps'],
   },
   {
@@ -91,8 +91,8 @@ export const EXERCISES: Exercise[] = [
     name: 'Incline Bench Press',
     category: 'chest',
     equipment: 'Barbell',
-    primaryMuscles: ['Upper Chest'],
-    secondaryMuscles: ['Shoulders', 'Triceps'],
+    primaryMuscles: ['Pectorals'],
+    secondaryMuscles: ['Deltoids', 'Triceps'],
   },
   {
     id: 'leg_curl',
@@ -113,21 +113,21 @@ export const EXERCISES: Exercise[] = [
     name: 'Plank',
     category: 'core',
     equipment: 'Bodyweight',
-    primaryMuscles: ['Core', 'Abs'],
+    primaryMuscles: ['Core', 'Abdominals'],
   },
   {
     id: 'crunch',
     name: 'Crunch',
     category: 'core',
     equipment: 'Bodyweight',
-    primaryMuscles: ['Abs'],
+    primaryMuscles: ['Abdominals'],
   },
   {
     id: 'running',
     name: 'Running',
     category: 'cardio',
     equipment: 'Treadmill',
-    primaryMuscles: ['Legs', 'Cardiovascular'],
+    primaryMuscles: ['Quadriceps', 'Hamstrings'],
   },
 ];
 
