@@ -2,6 +2,8 @@
  * WeeklyTargetWidget Component
  * Shows weekly workout targets with circular color-coded pills
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 3
+ * 
+ * Uses reactive hooks to fetch data automatically.
  */
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
@@ -11,40 +13,80 @@ import { Card } from '../ui/Card';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { getWorkoutColor } from '../../lib/workout-colors';
+import { WorkoutSelectorModal } from './WorkoutSelectorModal';
+import { useWeeklySummary, useUserProfile } from '../../hooks/data';
+import { useAuth } from '../../app/_contexts/auth-context';
+import { createTaggedLogger } from '../../lib/logger';
 
-interface CompletedWorkout {
-  id: string;
-  name: string;
-  sessionId?: string;
-}
+const log = createTaggedLogger('WeeklyTargetWidget');
 
 interface WeeklyTargetWidgetProps {
-  completedWorkouts: CompletedWorkout[];
-  goalTotal: number;
-  programmeType: 'ppl' | 'ulul';
-  totalSessions?: number;
+  /** Callback when calendar icon is pressed */
   onViewCalendar?: () => void;
+  /** Callback when a workout summary is requested */
   onViewWorkoutSummary?: (sessionId: string) => void;
-  activitiesCount?: number;
+  /** Callback when activities link is pressed */
   onViewActivities?: () => void;
-  loading?: boolean;
-  error?: string;
 }
 
 export function WeeklyTargetWidget({
-  completedWorkouts = [],
-  goalTotal,
-  programmeType,
-  totalSessions,
   onViewCalendar,
   onViewWorkoutSummary,
-  activitiesCount = 0,
   onViewActivities,
-  loading,
-  error,
 }: WeeklyTargetWidgetProps) {
+  // Get userId for reactive hooks
+  const { userId } = useAuth();
+  
+  // Reactive data hooks
+  const { data: profileData, loading: profileLoading, error: profileError } = useUserProfile(userId);
+  
+  const programmeType = profileData?.programme_type || 'ppl';
+    
+  const { 
+    data: weeklySummaryData, 
+    sessionsByWorkoutType: hookSessionsByWorkoutType,
+    loading: summaryLoading, 
+    error: summaryError 
+  } = useWeeklySummary(userId, programmeType);
+  
+  // Data derived from hooks
+  const completedWorkouts = useMemo(() => {
+    if (weeklySummaryData) {
+      return weeklySummaryData.completed_workouts.map(w => ({
+        id: w.id,
+        name: w.name,
+        sessionId: w.sessionId,
+        completedAt: null,
+      }));
+    }
+    return [];
+  }, [weeklySummaryData]);
+  
+  const sessionsByWorkoutType = useMemo(() => {
+    if (hookSessionsByWorkoutType) {
+      const transformed: Record<string, Array<{ id: string; name: string; completedAt: string | null }>> = {};
+      for (const [key, sessions] of Object.entries(hookSessionsByWorkoutType)) {
+        transformed[key] = sessions.map(s => ({
+          id: s.id,
+          name: s.template_name || key,
+          completedAt: s.completed_at,
+        }));
+      }
+      return transformed;
+    }
+    return {};
+  }, [hookSessionsByWorkoutType]);
+  
+  const goalTotal = weeklySummaryData?.goal_total || (programmeType === 'ulul' ? 4 : 3);
+  const totalSessions = weeklySummaryData?.total_sessions || 0;
+  const loading = profileLoading || summaryLoading;
+  const error = profileError?.message || summaryError?.message;
+  
+  const [selectorVisible, setSelectorVisible] = useState(false);
+  const [selectorWorkoutName, setSelectorWorkoutName] = useState('');
+  const [selectorSessions, setSelectorSessions] = useState<Array<{ id: string; name: string; completedAt: string | null }>>([]);
+
   // Use a ref to track the previous completedWorkouts IDs for comparison
-  // Optimized: Use simple ID string comparison instead of expensive JSON.stringify
   const workoutIds = useMemo(() => completedWorkouts.map(w => w.id).sort().join(','), [completedWorkouts]);
   const prevWorkoutIdsRef = useRef<string>(workoutIds);
   const [renderKey, setRenderKey] = useState(0);
@@ -53,7 +95,6 @@ export function WeeklyTargetWidget({
   useEffect(() => {
     if (prevWorkoutIdsRef.current !== workoutIds) {
       prevWorkoutIdsRef.current = workoutIds;
-      // Force a re-render by incrementing the render key
       setRenderKey(prev => prev + 1);
     }
   }, [workoutIds]);
@@ -61,14 +102,11 @@ export function WeeklyTargetWidget({
   // Construct progress text safely
   const progressText = useMemo(() => {
     const baseText = `${completedWorkouts.length} / ${goalTotal} T-Path Workouts Completed This Week`;
-    if (totalSessions && typeof totalSessions === 'number' && totalSessions > completedWorkouts.length) {
+    if (totalSessions > completedWorkouts.length) {
       return `${baseText} (${totalSessions} sessions)`;
     }
     return baseText;
   }, [completedWorkouts.length, goalTotal, totalSessions]);
-  
-
-  
 
   // Memoize workoutTypes to prevent unnecessary recalculations
   const workoutTypes = useMemo(() => 
@@ -88,6 +126,8 @@ export function WeeklyTargetWidget({
     return workoutName.charAt(0).toUpperCase();
   }, []);
 
+  const isWeekComplete = completedWorkouts.length >= goalTotal;
+
   if (error) {
     return (
       <Card style={styles.container}>
@@ -99,24 +139,18 @@ export function WeeklyTargetWidget({
     );
   }
 
-  if (!programmeType) {
-    return (
-      <Card style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            No programme type set. Complete onboarding or set one in your profile.
-          </Text>
-        </View>
-      </Card>
-    );
-  }
-
   return (
-    <Card style={styles.container}>
+    <Card style={styles.container} testID="weekly-target-widget">
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Ionicons name="barbell" size={20} color={Colors.foreground} />
           <Text style={styles.title}>Weekly Target</Text>
+          {isWeekComplete && (
+            <View style={styles.weeklyCompletionBadge}>
+              <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
+              <Text style={styles.weeklyCompletionText}>Complete</Text>
+            </View>
+          )}
         </View>
         {onViewCalendar && (
           <Pressable onPress={onViewCalendar} hitSlop={10}>
@@ -127,22 +161,12 @@ export function WeeklyTargetWidget({
 
       <View style={[
         styles.circlesContainer,
-        { justifyContent: 'center' } // Always center since additional circles are commented out
+        { justifyContent: 'center' }
       ]}>
         {(() => {
-           const hasAdditionalWorkouts = totalSessions ? totalSessions > goalTotal : false;
-           const additionalWorkoutsCount = Math.min(
-             Math.max(0, (totalSessions || 0) - completedWorkouts.length),
-             7 - goalTotal // Max additional circles to reach 7 total
-           );
-           
-           // Debug logging removed - too verbose
-
           const coreWorkouts = workoutTypes.slice(0, goalTotal);
 
-          // Render core workout circles
-          const coreCircles = coreWorkouts.map((workoutType, index) => {
-            // Find the completed workout that matches this workout type
+          return coreWorkouts.map((workoutType, index) => {
             const matchingWorkout = completedWorkouts.find(workout =>
               workout.name.toLowerCase() === workoutType.toLowerCase()
             );
@@ -154,16 +178,33 @@ export function WeeklyTargetWidget({
               return (
                 <Pressable
                   key={`core-${index}`}
+                  testID={`core-circle-${index}`}
                   style={[
                     styles.circle,
                     styles.completedCircle,
                     { backgroundColor: colors.main }
                   ]}
                   onPress={() => {
-                    const sessionId = matchingWorkout.sessionId || matchingWorkout.id;
-                    // Debug logging removed - too verbose
-                    if (sessionId) {
-                      onViewWorkoutSummary?.(sessionId);
+                    const key = workoutType.toLowerCase();
+                    const rawSessions = sessionsByWorkoutType?.[key] || [];
+                    
+                    if (rawSessions.length > 1) {
+                      const mappedSessions = rawSessions.map((s: any) => ({
+                        id: s.id || s.sessionId,
+                        name: s.name || s.template_name,
+                        completedAt: s.completedAt || s.completed_at || s.session_date
+                      }));
+                      
+                      setSelectorWorkoutName(workoutType);
+                      setSelectorSessions(mappedSessions);
+                      setSelectorVisible(true);
+                    } else {
+                      const sessionId = rawSessions.length === 1 
+                        ? (rawSessions[0].id || (rawSessions[0] as any).sessionId)
+                        : (matchingWorkout.sessionId || matchingWorkout.id);
+                      if (sessionId) {
+                        onViewWorkoutSummary?.(sessionId);
+                      }
                     }
                   }}
                 >
@@ -175,6 +216,7 @@ export function WeeklyTargetWidget({
             return (
               <View
                 key={`core-${index}`}
+                testID={`core-circle-incomplete-${index}`}
                 style={[
                   styles.circle,
                   styles.incompleteCircle,
@@ -187,41 +229,6 @@ export function WeeklyTargetWidget({
               </View>
             );
           });
-
-          // TEMPORARILY COMMENTED OUT: Additional circles logic
-          // This can be re-enabled later if needed
-          /*
-          const additionalCircles = [];
-          if (hasAdditionalWorkouts && additionalWorkoutsCount > 0) {
-            // Debug logging removed - too verbose
-            // Add gap between core and additional circles
-            additionalCircles.push(
-              <View key="gap" style={styles.circleGap} />
-            );
-
-            // Get the color of the most completed workout type for additional circles
-            const mostCompletedWorkout = completedWorkouts[0]; // Since they're deduplicated, first one represents the type
-            const additionalColor = mostCompletedWorkout ? getWorkoutColor(mostCompletedWorkout.name).main : Colors.primary;
-
-            for (let i = 0; i < additionalWorkoutsCount; i++) {
-              additionalCircles.push(
-                <Pressable
-                  key={`additional-${i}`}
-                  style={[
-                    styles.circle,
-                    styles.completedCircle,
-                    { backgroundColor: additionalColor }
-                  ]}
-                  onPress={() => onViewWorkoutSummary?.('')} // Empty string since we don't have specific session IDs for additional workouts
-                >
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                </Pressable>
-              );
-            }
-          }
-          */
-
-          return coreCircles; // Only return core circles, additional circles commented out
         })()}
       </View>
 
@@ -229,13 +236,15 @@ export function WeeklyTargetWidget({
         {progressText}
       </Text>
 
-      {activitiesCount > 0 && onViewActivities && (
-        <Pressable onPress={onViewActivities} style={styles.activitiesLink}>
-          <Text style={styles.activitiesText}>
-            {activitiesCount} {activitiesCount === 1 ? 'Activity' : 'Activities'} Completed This Week
-          </Text>
-        </Pressable>
-      )}
+      <WorkoutSelectorModal
+        visible={selectorVisible}
+        onClose={() => setSelectorVisible(false)}
+        workoutName={selectorWorkoutName}
+        sessions={selectorSessions}
+        onSelect={(sessionId) => {
+          onViewWorkoutSummary?.(sessionId);
+        }}
+      />
     </Card>
   );
 }
@@ -261,6 +270,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  weeklyCompletionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 195, 125, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(142, 195, 125, 0.3)',
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 2,
+    marginLeft: Spacing.xs,
+  },
+  weeklyCompletionText: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 10,
+    color: Colors.success,
+    fontWeight: '500',
   },
   title: {
     fontFamily: 'Poppins_600SemiBold',
@@ -305,26 +332,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
   },
-  sessionsText: {
-    fontFamily: 'Poppins_400Regular',
-    fontSize: 12,
-    color: Colors.mutedForeground,
-  },
-  circleGap: {
-    width: Spacing.md,
-  },
-  activitiesLink: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  activitiesText: {
-    fontFamily: 'Poppins_400Regular',
-    fontSize: 14,
-    color: Colors.mutedForeground,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-  },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -337,16 +344,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.destructive,
-  },
-  emptyContainer: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-  },
-  emptyText: {
-    fontFamily: 'Poppins_400Regular',
-    fontSize: 14,
-    color: Colors.mutedForeground,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

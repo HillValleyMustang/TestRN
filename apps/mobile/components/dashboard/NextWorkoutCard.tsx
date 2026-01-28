@@ -2,44 +2,57 @@
  * NextWorkoutCard Component
  * Shows the user's next scheduled workout with dynamic color button
  * Reference: MOBILE_SPEC_02_DASHBOARD.md Section 6
+ * 
+ * Uses reactive hooks to fetch data automatically.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
-import { TextStyles } from '../../constants/Typography';
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { NextWorkoutInfoModal } from './NextWorkoutInfoModal';
 import { HapticPressable } from '../HapticPressable';
+import { useNextWorkout, useUserProfile, useGyms } from '../../hooks/data';
+import { useAuth } from '../../app/_contexts/auth-context';
+import { createTaggedLogger } from '../../lib/logger';
 
-interface NextWorkoutCardProps {
-  workoutId?: string | undefined;
-  workoutName?: string | undefined;
-  estimatedDuration?: string;
-  lastWorkoutName?: string;
-  loading?: boolean;
-  error?: string;
-  noActiveGym?: boolean;
-  noActiveTPath?: boolean;
-  recommendationReason?: 'weekly_completion' | 'normal_cycling';
-}
+const log = createTaggedLogger('NextWorkoutCard');
 
-export function NextWorkoutCard({
-  workoutId,
-  workoutName,
-  estimatedDuration,
-  lastWorkoutName,
-  loading,
-  error,
-  noActiveGym,
-  noActiveTPath,
-  recommendationReason,
-}: NextWorkoutCardProps) {
+export function NextWorkoutCard() {
   const router = useRouter();
   const [showInfoModal, setShowInfoModal] = useState(false);
+  
+  // Get userId for reactive hooks
+  const { userId } = useAuth();
+  
+  // Reactive data hooks
+  const { data: profileData, loading: profileLoading, error: profileError } = useUserProfile(userId);
+  
+  const { activeGym, loading: gymsLoading, error: gymsError } = useGyms(userId);
+  
+  const activeTPathId = profileData?.active_t_path_id || null;
+  const programmeType = profileData?.programme_type || 'ppl';
+  
+  const { data: nextWorkoutData, loading: nextWorkoutLoading, error: nextWorkoutError } = useNextWorkout(
+    userId,
+    activeTPathId,
+    programmeType,
+    { enabled: !!activeTPathId }
+  );
+  
+  const workoutId = nextWorkoutData?.id;
+  const workoutName = nextWorkoutData?.template_name;
+  const estimatedDuration = profileData?.preferred_session_length || '45 minutes';
+  const recommendationReason = nextWorkoutData?.recommendationReason;
+  
+  const loading = profileLoading || gymsLoading || nextWorkoutLoading;
+  const error = profileError?.message || gymsError?.message || nextWorkoutError?.message;
+  
+  const noActiveGym = !activeGym && !gymsLoading;
+  const noActiveTPath = !activeTPathId && !profileLoading;
 
   const handleStartWorkout = () => {
     if (workoutId) {
@@ -123,23 +136,18 @@ export function NextWorkoutCard({
                   {workoutName}
                 </Text>
               </View>
-              {recommendationReason === 'weekly_completion' && (
+              {/* {recommendationReason === 'weekly_completion' && (
                 <View style={styles.weeklyCompletionBadge}>
                   <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
                   <Text style={styles.weeklyCompletionText}>Complete week</Text>
                 </View>
-              )}
+              )} */}
             </View>
             {estimatedDuration && (
               <View style={styles.durationRow}>
                 <Ionicons name="time-outline" size={16} color={Colors.mutedForeground} />
                 <Text style={styles.duration}>Estimated {estimatedDuration}</Text>
               </View>
-            )}
-            {lastWorkoutName && (
-              <Text style={styles.lastWorkout} numberOfLines={1}>
-                Last workout: {lastWorkoutName}
-              </Text>
             )}
           </View>
 
@@ -208,7 +216,7 @@ const styles = StyleSheet.create({
   weeklyCompletionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(142, 195, 125, 0.1)', // success color with opacity
+    backgroundColor: 'rgba(142, 195, 125, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(142, 195, 125, 0.3)',
     paddingHorizontal: Spacing.xs,
@@ -232,12 +240,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
-  },
-  lastWorkout: {
-    fontFamily: 'Poppins_400Regular',
-    fontSize: 12,
-    color: Colors.mutedForeground,
-    minHeight: 16,
   },
   startButton: {
     paddingVertical: Spacing.md,
