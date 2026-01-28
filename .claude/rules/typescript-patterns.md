@@ -1,0 +1,25 @@
+---
+paths:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+# TypeScript Patterns
+
+## Type Imports
+- **Mobile/Shared**: Import types from `@data/storage/models`: `WorkoutSession`, `SetLog`, `WorkoutTemplate`, `TPath`, `Gym`, etc.
+- **Web**: Use Supabase generated types from `apps/web/src/types/supabase-generated/` for database schema types
+- **Exception**: `ExerciseDefinition` comes from `@data/types/exercise.ts` (not storage/models) - use this for both web and mobile
+- Always type function parameters and return values
+- Use `interface` for object shapes, `type` for unions/intersections
+
+## Type Safety
+- Avoid `any` - use `unknown` and type guards if needed
+- Use type assertions sparingly: `as Type` only when absolutely certain
+- Prefer optional chaining: `userProfile?.onboarding_completed` over `userProfile && userProfile.onboarding_completed`
+- Strict mode is enabled - leverage TypeScript's type checking
+
+## Common Types
+- `WorkoutSession`, `SetLog`, `WorkoutTemplate` from `@data/storage/models`
+- `TPath`, `TPathExercise`, `TPathProgress`, `TPathWithExercises` from `@data/storage/models`
+- `Gym` from `@data/storage/models`
+- `ExerciseDefinition` from `@data/types/exercise.ts`

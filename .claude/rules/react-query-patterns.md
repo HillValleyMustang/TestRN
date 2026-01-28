@@ -1,0 +1,33 @@
+---
+paths:
+  - "apps/web/**/*"
+---
+# React Query Patterns (Web App)
+
+## Setup
+- React Query is used for server state management in the web app only
+- Query client configured in `apps/web/src/app/_components/QueryProvider.tsx`
+- Use custom hooks in `apps/web/src/hooks/` that wrap React Query hooks
+
+## Data Fetching
+- Use `useQuery` for read operations (GET requests)
+- Use `useMutation` for write operations (POST, PUT, DELETE)
+- Always provide query keys that match the data structure
+- Use `queryClient.invalidateQueries()` after mutations to refresh related data
+
+## Cache Management
+- Invalidate caches after mutations: `queryClient.invalidateQueries(['workouts'])`
+- Use `queryClient.setQueryData()` for optimistic updates when appropriate
+- Clear caches on logout or user changes
+- Use `staleTime` and `cacheTime` appropriately for different data types
+
+## Error Handling
+- Handle errors in mutation `onError` callbacks
+- Show user-friendly error messages via toast notifications (Sonner)
+- Don't log raw errors - show user-friendly alerts first
+
+## Best Practices
+- Create custom hooks that encapsulate React Query logic
+- Use TypeScript types from Supabase generated types
+- Batch related queries when possible
+- Use `useSuspenseQuery` for critical data that blocks rendering

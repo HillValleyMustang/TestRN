@@ -1,0 +1,24 @@
+---
+paths:
+  - "**/*"
+---
+# Self-Verification Protocol
+
+Before presenting any code, you MUST perform the following checks:
+
+1. **Schema Check**: If modifying a database-related file, verify the column names against the existing schema in `apps/web/src/types/supabase-generated/` (web) or `@data/storage/models` (mobile/shared).
+2. **Provider Order**: If editing root layouts, ensure `DataProvider` is wrapped OUTSIDE of `AuthProvider`.
+3. **Circular Dependencies**: Check that `DataContext` is not importing from `AuthContext`.
+4. **Offline First**: Verify that mobile data writes are routed through the sync queue (`addToSyncQueue`) rather than calling Supabase directly.
+5. **Types**: Ensure no `any` types are used. Prefer `unknown` with type guards if a type is ambiguous.
+
+## Final Checklist Before Presenting Code
+
+- [ ] Code follows all patterns from other rule files
+- [ ] Use proper logging utilities: Mobile -> createTaggedLogger (outputs to terminal/console), Web -> console methods. All logs appear in terminal/console - there is NO separate "cursor log file". Do NOT use raw untagged console.log - always use createTaggedLogger for mobile.
+- [ ] All TypeScript errors are resolved
+- [ ] No ESLint warnings (unless justified)
+- [ ] Code is properly formatted (Prettier)
+- [ ] Comments explain "why" not "what" (code should be self-documenting)
+- [ ] Edge cases are handled (empty states, loading, errors)
+- [ ] Offline scenarios are considered (mobile)
