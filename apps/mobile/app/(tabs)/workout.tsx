@@ -16,7 +16,7 @@ import { BackgroundRoot } from '../../components/BackgroundRoot';
 import { useData } from '../_contexts/data-context';
 import { useAuth } from '../_contexts/auth-context';
 import { database, addToSyncQueue } from '../_lib/database';
-import { supabase } from '../_lib/supabase';
+import { supabase, fetchExerciseDefinitions } from '../_lib/supabase';
 import type { Gym } from '@data/storage/models';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
@@ -28,6 +28,7 @@ import { WorkoutPill } from '../../components/workout-launcher';
 import { WorkoutProgressBar } from '../../components/workout/WorkoutProgressBar';
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { createTaggedLogger } from '../../lib/logger';
+import { WeeklyWorkoutAnalyzer } from '@data/ai/weekly-workout-analyzer';
 
 const log = createTaggedLogger('WorkoutScreen');
 
@@ -146,6 +147,15 @@ export default function WorkoutLauncherScreen() {
     resumeWorkout,
   } = useWorkoutFlow();
   const { profile, activeTPath, childWorkouts, adhocWorkouts, workoutExercisesCache, lastCompletedDates, loading, refreshing, error, refresh } = useWorkoutLauncherData();
+  const { forceRefresh } = useData();
+  
+  // Use refs for profile and activeTPath to reduce recreations of ensureWorkoutSelected
+  const profileRef = useRef(profile);
+  const activeTPathRef = useRef(activeTPath);
+  useEffect(() => {
+    profileRef.current = profile;
+    activeTPathRef.current = activeTPath;
+  }, [profile, activeTPath]);
 
   // Disable LayoutAnimation on Android to prevent automatic animations
   useEffect(() => {
@@ -193,17 +203,187 @@ export default function WorkoutLauncherScreen() {
   // Track last known T-path to detect changes and reset workout state
   const lastTPathIdRef = useRef<string | null>(null);
   
-  // Track if we've attempted initial auto-select
-  const hasAttemptedInitialAutoSelectRef = useRef<boolean>(false);
   // Track manually selected workout name to preserve it across gym changes
   const manuallySelectedWorkoutNameRef = useRef<string | null>(null);
   // Track previous childWorkouts IDs to detect when they change unnecessarily
   const previousChildWorkoutIdsRef = useRef<string[]>([]);
+  // Track if selection is currently in progress to prevent race conditions
+  const isSelectingRef = useRef<boolean>(false);
+  // Track if gym change is in progress to prevent cleanup effect from running during gym toggle
+  const isGymChangeInProgressRef = useRef<boolean>(false);
+  
+  // Helper function to find default workout (Push for PPL, Upper Body A for ULUL)
+  const getDefaultWorkout = useCallback((workouts: typeof childWorkouts, isULUL: boolean) => {
+    if (workouts.length === 0) return null;
+    
+    if (isULUL) {
+      // For ULUL, find Upper Body A or Upper A
+      const defaultWorkout = workouts.find(workout => {
+        const lowerName = workout.template_name.toLowerCase();
+        return (lowerName.includes('upper') && lowerName.includes('a')) || 
+               lowerName === 'upper a' || 
+               lowerName === 'upper body a';
+      });
+      if (defaultWorkout) {
+        log.debug('[WorkoutScreen] Found default ULUL workout:', defaultWorkout.template_name);
+        return defaultWorkout;
+      } else {
+        console.warn('[WorkoutScreen] ULUL program detected but Upper Body A workout not found:', workouts.map(w => w.template_name));
+      }
+    } else {
+      // For PPL, find Push workout
+      const defaultWorkout = workouts.find(workout =>
+        workout.template_name.toLowerCase().includes('push')
+      );
+      if (defaultWorkout) {
+        log.debug('[WorkoutScreen] Found default PPL workout:', defaultWorkout.template_name);
+        return defaultWorkout;
+      } else {
+        console.warn('[WorkoutScreen] PPL program detected but Push workout not found:', workouts.map(w => w.template_name));
+      }
+    }
+    
+    // Fallback to first workout if default not found
+    return workouts[0] || null;
+  }, []);
+  
+  // Unified function to ensure a workout is selected
+  // Handles: preserved workout re-selection, auto-select default, error handling
+  const ensureWorkoutSelected = useCallback(async () => {
+    console.log('[WorkoutScreen] === ensureWorkoutSelected called ===');
+    
+    // Prevent race conditions - don't run if already selecting
+    if (isSelectingRef.current) {
+      console.log('[WorkoutScreen] Selection already in progress, skipping');
+      return;
+    }
+    
+    // Use refs for profile/activeTPath to reduce recreations
+    const currentProfile = profileRef.current;
+    const currentActiveTPath = activeTPathRef.current;
+    
+    console.log('[WorkoutScreen] Checking conditions - childWorkouts:', childWorkouts.length, 'profile:', !!currentProfile, 'activeWorkout:', !!activeWorkout, 'selectedWorkout:', selectedWorkout);
+    
+    // Early exits - don't select if:
+    if (!childWorkouts.length || !currentProfile?.id) {
+      console.log('[WorkoutScreen] Early exit: no workouts or no profile');
+      isSelectingRef.current = false;
+      return; // No workouts or no profile
+    }
+    if (activeWorkout || currentSessionId) {
+      console.log('[WorkoutScreen] Early exit: active workout/session in progress');
+      isSelectingRef.current = false;
+      return; // Active workout/session takes priority
+    }
+    if (selectedWorkout) {
+      console.log('[WorkoutScreen] Early exit: workout already selected:', selectedWorkout);
+      isSelectingRef.current = false;
+      return; // Already selected
+    }
+    
+    console.log('[WorkoutScreen] Proceeding with selection...');
+    console.log('[WorkoutScreen] Setting isSelectingRef = true');
+    isSelectingRef.current = true;
+    
+    try {
+      // Try to re-select preserved workout first (selection from previous gym)
+      const preservedWorkoutName = manuallySelectedWorkoutNameRef.current;
+      console.log('[WorkoutScreen] Preserved workout name:', preservedWorkoutName);
+      
+      if (preservedWorkoutName) {
+        console.log('[WorkoutScreen] Looking for preserved workout in', childWorkouts.length, 'workouts:', childWorkouts.map(w => w.template_name));
+        const workoutToReselect = childWorkouts.find(w => 
+          w.template_name.toLowerCase() === preservedWorkoutName.toLowerCase()
+        );
+        
+        if (workoutToReselect) {
+          console.log('[WorkoutScreen] ✓ Found preserved workout, re-selecting:', workoutToReselect.template_name);
+          try {
+            setSelectedWorkout(workoutToReselect.id);
+            await selectWorkout(workoutToReselect.id);
+            setIsWorkoutActiveInline(true);
+            setUserHasSelectedWorkout(true);
+            console.log('[WorkoutScreen] ✓ Successfully re-selected preserved workout');
+            console.log('[WorkoutScreen] After re-selection - selectedWorkout:', workoutToReselect.id, 'activeWorkout:', activeWorkout?.id, 'isGymChangeInProgress:', isGymChangeInProgressRef.current);
+            return; // Successfully re-selected
+          } catch (error) {
+            console.error('[WorkoutScreen] ✗ Failed to re-select preserved workout:', error);
+            // On error, clear the preserved workout and fall through to auto-select
+            manuallySelectedWorkoutNameRef.current = null;
+            setUserHasSelectedWorkout(false);
+          }
+        } else {
+          console.log('[WorkoutScreen] ✗ Preserved workout not found in current gym, will auto-select default');
+          manuallySelectedWorkoutNameRef.current = null;
+          setUserHasSelectedWorkout(false);
+          // Fall through to auto-select
+        }
+      } else {
+        console.log('[WorkoutScreen] No preserved workout, will auto-select default');
+      }
+      
+      // Auto-select default workout (Push for PPL, Upper Body A for ULUL)
+      const isULUL = currentProfile?.programme_type === 'ulul' || 
+                     currentActiveTPath?.template_name?.toLowerCase().includes('upper/lower');
+      console.log('[WorkoutScreen] Program type - isULUL:', isULUL, 'profile.programme_type:', currentProfile?.programme_type, 'tpath:', currentActiveTPath?.template_name);
+      
+      const defaultWorkout = getDefaultWorkout(childWorkouts, isULUL);
+      console.log('[WorkoutScreen] Default workout selected by getDefaultWorkout:', defaultWorkout?.template_name);
+      
+      if (defaultWorkout) {
+        // Verify workout exists in childWorkouts before selecting
+        const workoutExists = childWorkouts.some(w => w.id === defaultWorkout.id);
+        if (!workoutExists) {
+          console.error('[WorkoutScreen] ✗ Default workout not found in childWorkouts:', defaultWorkout.id);
+          return;
+        }
+        
+        console.log('[WorkoutScreen] ✓ Auto-selecting default workout:', defaultWorkout.template_name);
+        try {
+          setSelectedWorkout(defaultWorkout.id);
+          await selectWorkout(defaultWorkout.id);
+          setIsWorkoutActiveInline(true);
+          // IMPORTANT: Preserve auto-selected workout for gym toggles
+          manuallySelectedWorkoutNameRef.current = defaultWorkout.template_name;
+          setUserHasSelectedWorkout(true);
+          console.log('[WorkoutScreen] ✓ Auto-select successful, preserved for future gym toggles');
+          setTimeout(() => {
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          }, 100);
+        } catch (error) {
+          console.error('[WorkoutScreen] ✗ Failed to auto-select workout:', error);
+          // Reset state on error to allow retry
+          console.log('[WorkoutScreen] ⚠️ Auto-select error: Clearing selectedWorkout');
+          setSelectedWorkout(null);
+          setIsWorkoutActiveInline(false);
+          manuallySelectedWorkoutNameRef.current = null;
+          setUserHasSelectedWorkout(false);
+        }
+      } else {
+        console.warn('[WorkoutScreen] ✗ No default workout found to auto-select. childWorkouts:', childWorkouts.map(w => w.template_name));
+      }
+    } finally {
+      console.log('[WorkoutScreen] Clearing isSelectingRef = false');
+      isSelectingRef.current = false;
+    }
+  }, [childWorkouts, selectedWorkout, activeWorkout, currentSessionId, selectWorkout, getDefaultWorkout]);
   
   // Reset workout when T-path changes
   useEffect(() => {
     const currentTPathId = activeTPath?.id || profile?.active_t_path_id || null;
+    const tPathSource = activeTPath?.id ? 'activeTPath.id' : (profile?.active_t_path_id ? 'profile.active_t_path_id' : 'null');
+    console.log('[Workout] T-path effect running - currentTPathId:', currentTPathId, 'lastTPathId:', lastTPathIdRef.current, 'willClear:', currentTPathId && currentTPathId !== lastTPathIdRef.current && lastTPathIdRef.current !== null, 'source:', tPathSource, 'isGymChangeInProgress:', isGymChangeInProgressRef.current);
+    
     if (currentTPathId && currentTPathId !== lastTPathIdRef.current && lastTPathIdRef.current !== null) {
+      // BLOCK T-path change effect during gym switches - T-path should NOT change when switching gyms
+      if (isGymChangeInProgressRef.current) {
+        console.log('[Workout] ⚠️ T-PATH CHANGE DETECTED during gym switch - BLOCKED (T-path should not change)');
+        // Still update the ref to prevent this from triggering again, but don't clear state
+        lastTPathIdRef.current = currentTPathId;
+        return;
+      }
+      
+      console.log('[Workout] ⚠️ T-PATH CHANGE DETECTED - This should NOT happen during gym switch!');
       log.debug('[Workout] T-path changed detected, resetting workout state and clearing selection:', {
         oldTPathId: lastTPathIdRef.current,
         newTPathId: currentTPathId,
@@ -219,8 +399,6 @@ export default function WorkoutLauncherScreen() {
       // Clear ALL flags so auto-select can run for new T-path
       setUserHasSelectedWorkout(false);
       setHasJustReset(false);
-      // CRITICAL: Reset auto-select attempt flag when T-path changes to allow Push/Upper A selection for new T-path
-      hasAttemptedInitialAutoSelectRef.current = false;
       log.debug('[Workout] T-path changed - cleared all flags to allow auto-select for new T-path');
     }
     if (currentTPathId) {
@@ -246,6 +424,7 @@ export default function WorkoutLauncherScreen() {
     duration?: string | undefined;
     historicalWorkout?: any;
     weeklyVolumeData?: any;
+    allAvailableMuscleGroups?: string[];
     nextWorkoutSuggestion?: any;
     isOnTPath?: boolean;
     historicalRating?: number;
@@ -260,113 +439,13 @@ export default function WorkoutLauncherScreen() {
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [savedWorkoutState, setSavedWorkoutState] = useState<any>(null);
 
-  // Auto-select the first Push workout (PPL) or Upper Body A (ULUL) on component mount for better UX
+  // Unified effect to ensure a workout is selected
+  // Handles all selection scenarios: preserved workout re-selection, auto-select default
+  // CRITICAL: Also depend on childWorkouts to trigger auto-select when T-path changes
   useEffect(() => {
-    log.debug('[WorkoutScreen] Auto-select effect check:', {
-      childWorkoutsLength: childWorkouts.length,
-      childWorkoutNames: childWorkouts.map(w => w.template_name),
-      selectedWorkout,
-      hasProfileId: !!profile?.id,
-      isWorkoutActiveInline,
-      hasActiveWorkout: !!activeWorkout,
-      currentSessionId: !!currentSessionId
-    });
-    
-    // CRITICAL FIX: Always auto-select if no workout is selected (unless there's an active workout/session)
-    // This ensures Push/Upper A is always pre-selected on page load
-    // Ignore blocking flags if there's no active workout/session to ensure auto-select always runs
-    // BUT: Don't auto-select if there's a preserved workout name (let re-selection effect handle it first)
-    const hasPreservedWorkout = !!manuallySelectedWorkoutNameRef.current;
-    const shouldAutoSelect = childWorkouts.length > 0 && 
-                             !selectedWorkout && 
-                             profile?.id && 
-                             !isWorkoutActiveInline && 
-                             !activeWorkout && 
-                             !currentSessionId &&
-                             !hasPreservedWorkout; // Skip auto-select if re-selection will handle it
-    
-    if (shouldAutoSelect) {
-      log.debug('[WorkoutScreen] shouldAutoSelect=true, proceeding with auto-select');
-      log.debug('[WorkoutScreen] Auto-selecting workout - conditions met:', {
-        childWorkoutsCount: childWorkouts.length,
-        selectedWorkout,
-        profileId: profile?.id,
-        isWorkoutActiveInline,
-        activeWorkout: !!activeWorkout,
-        programmeType: profile?.programme_type
-      });
-      
-      // Mark that we've attempted initial auto-select
-      hasAttemptedInitialAutoSelectRef.current = true;
-      
-      // Determine if this is a ULUL program
-      const isULUL = profile?.programme_type === 'ulul' || activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-      
-      let defaultWorkout;
-      if (isULUL) {
-        // For ULUL, find Upper Body A or Upper A
-        defaultWorkout = childWorkouts.find(workout => {
-          const lowerName = workout.template_name.toLowerCase();
-          return (lowerName.includes('upper') && lowerName.includes('a')) || 
-                 lowerName === 'upper a' || 
-                 lowerName === 'upper body a';
-        });
-        if (defaultWorkout) {
-          log.debug('[WorkoutScreen] Auto-selecting Upper Body A workout (ULUL):', defaultWorkout.id, defaultWorkout.template_name);
-        } else {
-          console.warn('[WorkoutScreen] ULUL program detected but Upper Body A workout not found in childWorkouts:', childWorkouts.map(w => w.template_name));
-        }
-      } else {
-        // For PPL, find Push workout
-        defaultWorkout = childWorkouts.find(workout =>
-          workout.template_name.toLowerCase().includes('push')
-        );
-        if (defaultWorkout) {
-          log.debug('[WorkoutScreen] Auto-selecting Push workout (PPL):', defaultWorkout.id, defaultWorkout.template_name);
-        } else {
-          console.warn('[WorkoutScreen] PPL program detected but Push workout not found in childWorkouts:', childWorkouts.map(w => w.template_name));
-        }
-      }
-      
-      if (defaultWorkout) {
-        // Verify workout exists in childWorkouts before selecting
-        const workoutExists = childWorkouts.some(w => w.id === defaultWorkout.id);
-        if (!workoutExists) {
-          console.error('[WorkoutScreen] Default workout not found in childWorkouts:', defaultWorkout.id);
-          return;
-        }
-        
-        log.debug('[WorkoutScreen] Setting selected workout and calling selectWorkout:', defaultWorkout.id);
-        setSelectedWorkout(defaultWorkout.id);
-        selectWorkout(defaultWorkout.id).then(() => {
-          log.debug('[WorkoutScreen] Workout selected successfully, setting inline state');
-          setIsWorkoutActiveInline(true);
-          setTimeout(() => {
-            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-          }, 100);
-        }).catch((error) => {
-          console.error('[WorkoutScreen] Failed to select workout:', error);
-          // Reset state on error to allow retry
-          setSelectedWorkout(null);
-          setIsWorkoutActiveInline(false);
-          // Reset the attempt flag so auto-select can retry
-          hasAttemptedInitialAutoSelectRef.current = false;
-        });
-      } else {
-        console.warn('[WorkoutScreen] No default workout found to auto-select. childWorkouts:', childWorkouts.map(w => w.template_name));
-      }
-    } else {
-      log.debug('[WorkoutScreen] Auto-select skipped:', {
-        reason: !childWorkouts.length ? 'no workouts' :
-                selectedWorkout ? 'already selected' :
-                !profile?.id ? 'no profile' :
-                isWorkoutActiveInline ? 'workout active' :
-                activeWorkout ? 'active workout exists' :
-                currentSessionId ? 'session exists' :
-                hasPreservedWorkout ? 'has preserved workout' : 'unknown'
-      });
-    }
-  }, [childWorkouts, selectedWorkout, profile?.id, profile?.programme_type, activeTPath?.template_name, isWorkoutActiveInline, activeWorkout, selectWorkout, currentSessionId]);
+    console.log('[Workout] Selection effect triggered - childWorkouts:', childWorkouts.length, 'selectedWorkout:', selectedWorkout);
+    ensureWorkoutSelected();
+  }, [ensureWorkoutSelected, childWorkouts.length]);
 
   // Track childWorkouts changes to detect unnecessary reloads
   useEffect(() => {
@@ -385,77 +464,6 @@ export default function WorkoutLauncherScreen() {
     }
   }, [childWorkouts]);
 
-  // Re-select preserved workout after gym change or auto-select default if no manual selection
-  useEffect(() => {
-    const preservedWorkoutName = manuallySelectedWorkoutNameRef.current;
-    
-        
-    // Only attempt re-selection if we have workouts, no current selection, and no active workout/session
-    if (childWorkouts.length > 0 && !selectedWorkout && !activeWorkout && !currentSessionId && profile?.id) {
-      if (preservedWorkoutName) {
-        // Try to find and re-select the preserved manually selected workout
-        const workoutToReselect = childWorkouts.find(w => 
-          w.template_name.toLowerCase() === preservedWorkoutName.toLowerCase()
-        );
-        
-        if (workoutToReselect) {
-          log.debug('[WorkoutScreen] Re-selecting preserved workout after gym change:', workoutToReselect.template_name);
-          setSelectedWorkout(workoutToReselect.id);
-          selectWorkout(workoutToReselect.id).then(() => {
-            setIsWorkoutActiveInline(true);
-            // Keep userHasSelectedWorkout true since we're re-selecting their manual choice
-            setUserHasSelectedWorkout(true);
-          }).catch((error) => {
-            console.error('[WorkoutScreen] Failed to re-select preserved workout:', error);
-            // On error, clear the preserved workout and allow auto-select to run
-            manuallySelectedWorkoutNameRef.current = null;
-            setUserHasSelectedWorkout(false);
-            hasAttemptedInitialAutoSelectRef.current = false;
-          });
-          return; // Exit early, don't run auto-select
-        } else {
-          log.debug('[WorkoutScreen] Preserved workout not found in new gym, clearing preservation and auto-selecting default');
-          manuallySelectedWorkoutNameRef.current = null;
-          setUserHasSelectedWorkout(false);
-          hasAttemptedInitialAutoSelectRef.current = false;
-          
-          // Trigger auto-select directly since we just cleared the preserved workout
-          // Find default workout (Push for PPL, Upper A for ULUL)
-          const isULUL = profile?.programme_type === 'ulul' || activeTPath?.template_name?.toLowerCase().includes('upper/lower');
-          let defaultWorkout;
-          if (isULUL) {
-            defaultWorkout = childWorkouts.find(workout => {
-              const lowerName = workout.template_name.toLowerCase();
-              return (lowerName.includes('upper') && lowerName.includes('a')) || 
-                     lowerName === 'upper a' || 
-                     lowerName === 'upper body a';
-            });
-          } else {
-            defaultWorkout = childWorkouts.find(workout =>
-              workout.template_name.toLowerCase().includes('push')
-            );
-          }
-          
-          if (defaultWorkout) {
-            log.debug('[WorkoutScreen] Auto-selecting default workout after preserved workout not found:', defaultWorkout.template_name);
-            hasAttemptedInitialAutoSelectRef.current = true;
-            setSelectedWorkout(defaultWorkout.id);
-            selectWorkout(defaultWorkout.id).then(() => {
-              setIsWorkoutActiveInline(true);
-            }).catch((error) => {
-              console.error('[WorkoutScreen] Failed to auto-select default workout:', error);
-              setSelectedWorkout(null);
-              setIsWorkoutActiveInline(false);
-            });
-          }
-        }
-      } else {
-        // No preserved workout - allow auto-select to run
-        hasAttemptedInitialAutoSelectRef.current = false;
-      }
-    }
-  }, [childWorkouts, selectedWorkout, activeWorkout, currentSessionId, profile?.id, profile?.programme_type, activeTPath?.template_name, selectWorkout]);
-
   // Track previous sorted array to maintain stable reference
   const previousSortedWorkoutsRef = useRef<any[]>([]);
   const previousWorkoutIdsKeyRef = useRef<string>('');
@@ -468,7 +476,6 @@ export default function WorkoutLauncherScreen() {
   // Only recalculate when workout IDs or program type actually changes
   
   const sortedWorkouts = useMemo(() => {
-        
     if (childWorkouts.length === 0) {
       previousSortedWorkoutsRef.current = [];
       previousWorkoutIdsKeyRef.current = workoutIdsKey;
@@ -526,7 +533,7 @@ export default function WorkoutLauncherScreen() {
   const scrollViewContentStyle = useMemo(() => [styles.workoutButtonsContainer, { paddingLeft: -Spacing.lg }], []);
 
   const handleSelectWorkout = useCallback(async (workoutId: string) => {
-        log.debug('[WorkoutScreen] handleSelectWorkout called with:', workoutId, 'current selected:', selectedWorkout);
+    log.debug('[WorkoutScreen] handleSelectWorkout called with:', workoutId, 'current selected:', selectedWorkout);
 
     // Close resume dialog if open (user is starting a new workout)
     if (showResumeDialog) {
@@ -575,6 +582,10 @@ export default function WorkoutLauncherScreen() {
     }
 
     if (newSelectedWorkout && newSelectedWorkout !== selectedWorkout) {
+      // Set flag to prevent auto-select from interfering
+      console.log('[WorkoutScreen] Manual selection - setting isSelectingRef = true');
+      isSelectingRef.current = true;
+      
       try {
         log.debug('Selecting workout:', newSelectedWorkout);
         setLoadingExercises(true);
@@ -584,12 +595,16 @@ export default function WorkoutLauncherScreen() {
       } catch (error) {
         console.error('Failed to select workout:', error);
         Alert.alert('Error', 'Failed to load workout. Please try again.');
+        console.log('[WorkoutScreen] ⚠️ Manual selection error: Clearing selectedWorkout');
         setSelectedWorkout(null);
         setIsWorkoutActiveInline(false);
       } finally {
         setLoadingExercises(false);
+        console.log('[WorkoutScreen] Manual selection complete - clearing isSelectingRef = false');
+        isSelectingRef.current = false;
       }
     } else if (!newSelectedWorkout) {
+      console.log('[WorkoutScreen] ⚠️ Deselecting workout: Clearing selectedWorkout');
       setIsWorkoutActiveInline(false);
       setSelectedWorkout(null);
       await resetWorkoutSession();
@@ -603,7 +618,6 @@ export default function WorkoutLauncherScreen() {
 
   // Memoize workout pills array to prevent recreation on every render
   const workoutPills = useMemo(() => {
-    // Debug logging removed - too verbose
     const isUpperLowerSplit = activeTPath?.template_name?.toLowerCase().includes('upper/lower');
     return sortedWorkouts.map((workout) => {
       const lowerTitle = workout.template_name.toLowerCase();
@@ -626,7 +640,7 @@ export default function WorkoutLauncherScreen() {
 
             return (
         <WorkoutPill
-          key={workout.template_name}
+          key={workout.id}
           id={workout.id}
           title={displayName}
           category={category}
@@ -673,16 +687,44 @@ export default function WorkoutLauncherScreen() {
   // Only reset if there was previously an active workout/session, not on initial load or T-path change
   const hadActiveWorkoutRef = useRef<boolean>(false);
   useEffect(() => {
+    console.log('[WorkoutScreen] activeWorkout/session tracking effect - activeWorkout:', activeWorkout?.id, 'currentSessionId:', currentSessionId, 'hadActiveWorkout:', hadActiveWorkoutRef.current);
     if (activeWorkout || currentSessionId) {
       hadActiveWorkoutRef.current = true;
+      console.log('[WorkoutScreen] Set hadActiveWorkoutRef = true');
     }
   }, [activeWorkout, currentSessionId]);
 
   useEffect(() => {
     // Only reset if we previously had an active workout/session and now we don't
     // This prevents interference with auto-select after T-path changes
-    if (!activeWorkout && !currentSessionId && hadActiveWorkoutRef.current) {
+    // CRITICAL: Don't run if we're currently selecting a workout (isSelectingRef)
+    // During re-selection, selectWorkout() temporarily clears activeWorkout which would trigger this
+    // CRITICAL: Don't run during gym changes - they cause activeWorkout to change but we're re-selecting
+    console.log('[WorkoutScreen] Cleanup effect triggered - checking conditions:', {
+      activeWorkout: !!activeWorkout,
+      currentSessionId: !!currentSessionId,
+      hadActiveWorkout: hadActiveWorkoutRef.current,
+      isSelecting: isSelectingRef.current,
+      isGymChangeInProgress: isGymChangeInProgressRef.current
+    });
+    
+    // Log why we're skipping if conditions aren't met
+    if (activeWorkout) {
+      console.log('[WorkoutScreen] ✗ Cleanup blocked: activeWorkout is true');
+    } else if (currentSessionId) {
+      console.log('[WorkoutScreen] ✗ Cleanup blocked: currentSessionId exists');
+    } else if (!hadActiveWorkoutRef.current) {
+      console.log('[WorkoutScreen] ✗ Cleanup blocked: hadActiveWorkoutRef is false');
+    } else if (isSelectingRef.current) {
+      console.log('[WorkoutScreen] ✗ Cleanup blocked: isSelectingRef is true');
+    } else if (isGymChangeInProgressRef.current) {
+      console.log('[WorkoutScreen] ✗ Cleanup blocked: isGymChangeInProgressRef is true');
+    }
+    
+    if (!activeWorkout && !currentSessionId && hadActiveWorkoutRef.current && !isSelectingRef.current && !isGymChangeInProgressRef.current) {
+      console.log('[WorkoutScreen] ✓ ALL CONDITIONS MET - Running cleanup (clearing selectedWorkout)');
       log.debug('[WorkoutScreen] Resetting workout UI state after active workout/session ended');
+      console.log('[WorkoutScreen] ⚠️ Cleanup effect: Clearing selectedWorkout');
             setIsWorkoutActiveInline(false);
       setSelectedWorkout(null);
       setHasJustReset(true);
@@ -712,34 +754,48 @@ export default function WorkoutLauncherScreen() {
           }, 500);
         }
       }
-    }, [refresh, profile, shouldRefreshDashboard, setShouldRefreshDashboard])
+      
+      // The unified selection effect will handle selection automatically
+      // No need to call it directly here - it will run when dependencies change
+    }, [refresh, profile, shouldRefreshDashboard, setShouldRefreshDashboard, ensureWorkoutSelected])
   );
   
   // Also watch for shouldRefreshDashboard changes even when not focused
   // This ensures immediate refresh when T-path changes from profile page
   useEffect(() => {
+    console.log('[Workout] shouldRefreshDashboard effect running - shouldRefreshDashboard:', shouldRefreshDashboard);
     if (shouldRefreshDashboard) {
-      log.debug('[Workout] shouldRefreshDashboard flag detected, immediately refreshing workout data and clearing workout state');
-      // Clear selected workout and reset workout flow to prevent showing old exercises
-      // BUT: Don't clear userHasSelectedWorkout if we have a preserved workout name (gym change scenario)
-      const hasPreservedWorkout = !!manuallySelectedWorkoutNameRef.current;
+      console.log('[Workout] ⚠️ shouldRefreshDashboard flag detected - This should NOT be set during gym switch!');
+      console.log('[Workout] Current state before refresh - selectedWorkout:', selectedWorkout, 'preserved:', manuallySelectedWorkoutNameRef.current);
+      
+      // Clear selected workout ID but keep preserved name for re-selection after refresh
+      console.log('[Workout] ⚠️ shouldRefreshDashboard: Clearing selectedWorkout');
       setSelectedWorkout(null);
       setIsWorkoutActiveInline(false);
       resetWorkoutSession();
+      setHasJustReset(false);
       
-      // Only clear flags if there's no preserved workout (T-path change scenario)
-      // If there's a preserved workout, keep userHasSelectedWorkout true for re-selection
-      if (!hasPreservedWorkout) {
-        setUserHasSelectedWorkout(false);
-        setHasJustReset(false);
-      }
-      refresh();
+      // DO NOT clear userHasSelectedWorkout or manuallySelectedWorkoutNameRef here
+      // They should be preserved for re-selection after refresh completes
+      
+      // CRITICAL: Clear the preserved workout name to force auto-select of default workout
+      manuallySelectedWorkoutNameRef.current = null;
+      setUserHasSelectedWorkout(false);
+      
+      refresh().then(() => {
+        console.log('[Workout] Refresh completed, triggering auto-select');
+        // After refresh completes, trigger auto-select by calling ensureWorkoutSelected
+        ensureWorkoutSelected();
+      });
+      
+      console.log('[Workout] Refresh triggered, selection will happen after refresh completes');
+      
       // Reset the flag after a delay
       setTimeout(() => {
         setShouldRefreshDashboard(false);
       }, 500);
     }
-  }, [shouldRefreshDashboard, refresh, setShouldRefreshDashboard, resetWorkoutSession]);
+  }, [shouldRefreshDashboard, refresh, setShouldRefreshDashboard, resetWorkoutSession, ensureWorkoutSelected]);
 
   // Handle keyboard show to scroll focused input into view
   useEffect(() => {
@@ -768,13 +824,22 @@ export default function WorkoutLauncherScreen() {
     };
   }, []);
 
-  // Load gyms for toggle
+  // Load gyms for toggle - reload when forceRefresh changes to ensure fresh gym list
   useEffect(() => {
+    // #region agent log
+    console.log('[DEBUG-GYM] Gym loading effect TRIGGERED - profileId:', profile?.id, 'forceRefresh:', forceRefresh, 'hasProfile:', !!profile);
+    // #endregion
     const loadGyms = async () => {
-      log.debug('[Workout] Loading gyms with profile:', { profileId: profile?.id, activeGymId: profile?.active_gym_id });
+      log.debug('[Workout] Loading gyms with profile:', { profileId: profile?.id, activeGymId: profile?.active_gym_id, forceRefresh });
+      // #region agent log
+      console.log('[DEBUG-GYM] loadGyms function CALLED - profileId:', profile?.id, 'forceRefresh:', forceRefresh);
+      // #endregion
       if (profile?.id) {
         try {
           const allGyms = await getGyms(profile.id);
+          // #region agent log
+          console.log('[DEBUG-GYM] getGyms RETURNED - gymCount:', allGyms.length, 'gyms:', allGyms.map(g => g.name), 'forceRefresh:', forceRefresh);
+          // #endregion
           log.debug('[Workout] Loaded gyms from DB:', allGyms.length, allGyms.map(g => ({ id: g.id, name: g.name, is_active: g.is_active })));
           
           // Deduplicate gyms by name - keep only one gym per unique name
@@ -804,6 +869,9 @@ export default function WorkoutLauncherScreen() {
           
           // Use the is_active flag from the database - it's already correct
           // The database sets is_active based on the profiles.active_gym_id
+          // #region agent log
+          console.log('[DEBUG-GYM] SETTING userGyms - count:', uniqueGyms.length, 'willShowSwitcher:', uniqueGyms.length > 1, 'gyms:', uniqueGyms.map(g => g.name));
+          // #endregion
           setUserGyms(uniqueGyms);
         } catch (error) {
           console.error('[Workout] Error loading gyms:', error);
@@ -813,7 +881,19 @@ export default function WorkoutLauncherScreen() {
       }
     };
     loadGyms();
-  }, [profile?.id, getGyms]);
+  }, [profile?.id, getGyms, forceRefresh]);
+
+  // Watch forceRefresh counter to refresh workout data when global refresh is triggered
+  // This ensures workout page updates after gym copy, T-path regeneration, etc.
+  useEffect(() => {
+    // #region agent log
+    console.log('[DEBUG-GYM] forceRefresh effect TRIGGERED - forceRefresh:', forceRefresh, 'willRefresh:', forceRefresh > 0);
+    // #endregion
+    if (forceRefresh > 0) {
+      log.debug('[Workout] forceRefresh counter changed:', forceRefresh, '- triggering workout data refresh');
+      refresh();
+    }
+  }, [forceRefresh, refresh]);
 
   const handleToggleWorkout = (workoutId: string) => {
     setExpandedWorkouts(prev => {
@@ -967,6 +1047,7 @@ export default function WorkoutLauncherScreen() {
           totalVolume,
           prCount: exercises.flatMap(ex => ex.sets).filter(set => set.isPR).length,
           date: new Date(previousSession.session_date),
+          workoutName: workoutName, // Include workout name for display
         };
         
         log.debug('[Workout] Historical workout result:', result);
@@ -987,194 +1068,204 @@ export default function WorkoutLauncherScreen() {
 
     try {
       log.debug('[Workout] Fetching weekly volume data for userId:', userId);
-      log.debug('[Workout] getWeeklyVolumeData function called');
       
-      // Check if Supabase client is available
-      if (!supabase) {
-        console.error('[Workout] Supabase client not available');
-        return {};
-      }
+      // Get the start of the current week (Monday)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
       
-      // Check if user is authenticated
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError) {
-        console.error('[Workout] Auth error:', authError);
-        return {};
-      }
-      if (!session) {
-        console.error('[Workout] No active session found');
-        return {};
-      }
+      log.debug('[Workout] Calculating weekly volume from:', startOfWeek.toISOString());
       
-      const { data: sessions, error } = await supabase
-        .from('workout_sessions')
-        .select(`
-          session_date,
-          set_logs (
-            exercise_id,
-            weight_kg,
-            reps
-          )
-        `)
-        .eq('user_id', userId)
-        .gte('session_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('session_date', { ascending: true });
-
-      if (error) {
-        console.error('[Workout] Error fetching weekly volume data:', error);
-        console.error('[Workout] Query details - userId:', userId);
-        console.error('[Workout] Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        return {};
-      }
-
-      log.debug('[Workout] Weekly sessions fetched:', sessions?.length || 0);
-
-      if (!sessions) {
-        log.debug('[Workout] No sessions found for weekly volume query');
+      // Fetch all workout sessions for the current week from LOCAL database
+      const allSessions = await database.getWorkoutSessions(userId);
+      const weekSessions = allSessions.filter(session => {
+        const sessionDate = new Date(session.session_date);
+        return sessionDate >= startOfWeek && sessionDate <= now;
+      });
+      
+      log.debug('[Workout] Found', weekSessions.length, 'sessions in current week');
+      
+      if (weekSessions.length === 0) {
+        log.debug('[Workout] No sessions found for current week');
         return {};
       }
       
-      // Additional validation
-      if (!Array.isArray(sessions)) {
-        console.error('[Workout] Invalid sessions data type:', typeof sessions);
+      // Get all set logs for these sessions by fetching each session's logs
+      const weekSetLogs: any[] = [];
+      for (const session of weekSessions) {
+        const sessionLogs = await database.getSetLogs(session.id);
+        weekSetLogs.push(...sessionLogs);
+      }
+      
+      log.debug('[Workout] Found', weekSetLogs.length, 'sets in current week');
+      
+      if (weekSetLogs.length === 0) {
+        log.debug('[Workout] No set logs found for current week');
         return {};
       }
-
-      // Get exercise definitions to map muscle groups
-      const { data: exercises, error: exError } = await supabase
-        .from('exercise_definitions')
-        .select('id, category')
-        .or(`user_id.eq.${userId},user_id.is.null`);
-
-      if (exError) {
-        console.error('[Workout] Error fetching exercise definitions:', exError);
-        console.error('[Workout] Query details - userId:', userId);
-        return {};
-      }
-
-      log.debug('[Workout] Exercise definitions fetched:', exercises?.length || 0);
-
-      if (!exercises) {
+      
+      // Get exercise definitions to map to muscle groups (use main_muscle, not category)
+      const exerciseIds = Array.from(new Set(weekSetLogs.map(set => set.exercise_id)));
+      const exerciseDefinitions = await fetchExerciseDefinitions(exerciseIds);
+      
+      if (!exerciseDefinitions || exerciseDefinitions.length === 0) {
         log.debug('[Workout] No exercise definitions found');
         return {};
       }
-
-      const exerciseLookup = new Map();
-      exercises?.forEach((ex: any) => {
-        exerciseLookup.set(ex.id, ex.category);
+      
+      // Create lookup map: exercise_id -> main_muscle
+      const exerciseMuscleMap = new Map<string, string>();
+      exerciseDefinitions.forEach((ex: any) => {
+        if (ex.id && ex.main_muscle) {
+          exerciseMuscleMap.set(ex.id, ex.main_muscle);
+        }
       });
-
-      // Calculate daily volume by muscle group
-      const dailyVolumes: { [date: string]: { [muscle: string]: number } } = {};
-      const muscleGroups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
-
-      sessions?.forEach((session: any) => {
-        const date = new Date(session.session_date).toDateString();
-        if (!dailyVolumes[date]) {
-          dailyVolumes[date] = {};
-          muscleGroups.forEach(group => {
-            dailyVolumes[date][group] = 0;
+      
+      log.debug('[Workout] Built exercise-to-muscle map with', exerciseMuscleMap.size, 'entries');
+      
+      // Calculate total volume by primary muscle for the week
+      // Initialize with all canonical muscle groups (to ensure they all appear in chart)
+      const canonicalMuscles = [
+        'Pectorals', 'Deltoids', 'Lats', 'Traps', 'Biceps',
+        'Triceps', 'Quadriceps', 'Hamstrings', 'Glutes', 'Calves',
+        'Abdominals', 'Core', 'Full Body'
+      ];
+      const muscleVolumeMap: { [muscle: string]: number } = {};
+      canonicalMuscles.forEach(muscle => {
+        muscleVolumeMap[muscle] = 0;
+      });
+      
+      weekSetLogs.forEach(set => {
+        const muscleString = exerciseMuscleMap.get(set.exercise_id);
+        if (!muscleString) {
+          log.debug('[Workout] No muscle found for exercise:', set.exercise_id);
+          return;
+        }
+        
+        const weight = parseFloat(String(set.weight_kg || 0));
+        const reps = parseInt(String(set.reps || 0), 10);
+        const volume = weight * reps;
+        
+        if (volume > 0) {
+          // Handle comma-separated muscle groups (multi-muscle exercises)
+          const muscles = muscleString.split(',').map(m => m.trim());
+          const volumePerMuscle = volume / muscles.length; // Distribute volume evenly
+          
+          muscles.forEach(muscle => {
+            if (muscle && muscleVolumeMap.hasOwnProperty(muscle)) {
+              muscleVolumeMap[muscle] = (muscleVolumeMap[muscle] || 0) + volumePerMuscle;
+            }
           });
         }
-
-        session.set_logs?.forEach((set: any) => {
-          const muscleGroup = exerciseLookup.get(set.exercise_id) || 'Other';
-          const volume = (parseFloat(set.weight_kg) || 0) * (parseInt(set.reps) || 0);
-          dailyVolumes[date][muscleGroup] = (dailyVolumes[date][muscleGroup] || 0) + volume;
-        });
       });
-
-      // Convert to 7-day array format
-      const result: any = {};
-      muscleGroups.forEach(group => {
-        result[group] = [];
-      });
-
-      // Fill in last 7 days
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toDateString();
-        muscleGroups.forEach(group => {
-          result[group].push(dailyVolumes[date]?.[group] || 0);
-        });
-      }
-
-      log.debug('[Workout] Weekly volume data result:', result);
-      return result;
+      
+      log.debug('[Workout] Weekly volume by muscle:', muscleVolumeMap);
+      log.debug('[Workout] Muscle groups with data:', Object.keys(muscleVolumeMap).filter(m => muscleVolumeMap[m] > 0));
+      
+      return muscleVolumeMap;
     } catch (error) {
-      console.error('Error getting weekly volume data:', error);
+      console.error('[Workout] Error getting weekly volume data:', error);
       return {};
     }
   };
 
   // Helper function to get next workout suggestion
   const getNextWorkoutSuggestion = async (currentWorkoutName: string): Promise<any | null> => {
-    if (!userId || !activeTPath) return null;
+    if (!userId || !activeTPath || !profile) return null;
 
     try {
       log.debug('[Workout] Fetching next workout suggestion for:', currentWorkoutName, 'T-path:', activeTPath.id);
-      log.debug('[Workout] getNextWorkoutSuggestion function called');
       
-      // Get T-path child workouts
-      const { data: childWorkouts, error } = await supabase
-        .from('t_paths')
-        .select('id, template_name')
-        .eq('parent_t_path_id', activeTPath.id)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching T-path workouts:', error);
-        console.error('Query details - parent_t_path_id:', activeTPath.id);
-        console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
+      // Fetch recent workouts (same as useNextWorkout hook)
+      const recentWorkouts = await database.getRecentWorkoutSummaries(userId, 50);
+      
+      // Fetch T-Path workouts (children of active T-Path)
+      const rawTPathWorkouts = await database.getTPathsByParent(activeTPath.id);
+      
+      // Deduplicate by template_name
+      const uniqueTPathWorkoutsMap = new Map<string, typeof rawTPathWorkouts[0]>();
+      rawTPathWorkouts.forEach(workout => {
+        const normalizedName = workout.template_name?.trim().toLowerCase();
+        if (normalizedName && !uniqueTPathWorkoutsMap.has(normalizedName)) {
+          uniqueTPathWorkoutsMap.set(normalizedName, workout);
+        }
+      });
+      const tPathWorkouts = Array.from(uniqueTPathWorkoutsMap.values());
+      
+      // Calculate week boundaries (same as useNextWorkout hook)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const startOfWeek = new Date(now);
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startOfWeek.setDate(now.getDate() - daysToSubtract);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      // Filter to current week and sort by date descending
+      const currentWeekWorkouts = recentWorkouts
+        .filter(({ session }) => {
+          const workoutDate = new Date(session.completed_at || session.session_date);
+          return workoutDate >= startOfWeek && workoutDate <= endOfWeek;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.session.completed_at || a.session.session_date);
+          const dateB = new Date(b.session.completed_at || b.session.session_date);
+          return dateB.getTime() - dateA.getTime();
         });
-        return null;
-      }
-
-      log.debug('[Workout] T-path child workouts fetched:', childWorkouts?.length || 0);
-
-      if (!childWorkouts) {
-        log.debug('[Workout] No T-path child workouts found');
-        return null;
-      }
       
-      // Additional validation
-      if (!Array.isArray(childWorkouts)) {
-        console.error('[Workout] Invalid childWorkouts data type:', typeof childWorkouts);
-        return null;
-      }
+      // Deduplicate by workout type
+      const workoutTypeMap = new Map<string, typeof recentWorkouts[0]>();
+      currentWeekWorkouts.forEach((workout) => {
+        const workoutType = workout.session.template_name?.toLowerCase() || 'ad-hoc';
+        if (!workoutTypeMap.has(workoutType)) {
+          workoutTypeMap.set(workoutType, workout);
+        }
+      });
+      
+      const uniqueWorkouts = Array.from(workoutTypeMap.values());
+      const completedWorkoutsThisWeek = uniqueWorkouts.map(({ session }) => ({
+        id: session.id,
+        name: session.template_name ?? 'Ad Hoc',
+        sessionId: session.id,
+      }));
 
-      if (childWorkouts && childWorkouts.length > 0) {
-        // Find current workout index
-        const currentIndex = childWorkouts.findIndex(w => w.template_name === currentWorkoutName);
-        const nextIndex = (currentIndex + 1) % childWorkouts.length;
-        
-        // Calculate ideal next workout date (2 days from now)
-        const idealDate = new Date();
-        idealDate.setDate(idealDate.getDate() + 2);
+      // Use WeeklyWorkoutAnalyzer (same as dashboard)
+      const programmeType = profile.programme_type || 'ppl';
+      const nextWorkout = WeeklyWorkoutAnalyzer.determineNextWorkoutWeeklyAware(
+        programmeType,
+        recentWorkouts.map(w => ({
+          session: w.session,
+          exercise_count: w.exercise_count,
+          first_set_at: null,
+          last_set_at: null,
+        })),
+        tPathWorkouts,
+        completedWorkoutsThisWeek
+      );
 
-        const result = {
-          name: childWorkouts[nextIndex].template_name,
-          idealDate,
-        };
-        
-        log.debug('[Workout] Next workout suggestion result:', result);
-        return result;
-      } else {
-        log.debug('[Workout] No T-path child workouts found');
-      }
+      if (!nextWorkout) return null;
+
+      // Calculate ideal next workout date (2 days from now)
+      const idealDate = new Date();
+      idealDate.setDate(idealDate.getDate() + 2);
+
+      const result = {
+        name: nextWorkout.template_name,
+        idealDate,
+      };
+      
+      log.debug('[Workout] Next workout suggestion result:', result);
+      return result;
     } catch (error) {
       console.error('Error getting next workout suggestion:', error);
+      return null;
     }
-
-    return null;
   };
 
   const getModalExercises = () => {
@@ -1251,6 +1342,9 @@ export default function WorkoutLauncherScreen() {
   const handleSaveWorkout = async (rating?: number) => {
         log.debug('[Workout] handleSaveWorkout called with rating:', rating);
     
+    // CRITICAL: Capture sessionId BEFORE clearing summaryModalData
+    const sessionIdToUse = summaryModalData?.sessionId;
+    
     // CRITICAL FIX: Close modal immediately before any other operations
     // This prevents the modal from reappearing on dashboard
     summaryModalWasClosedRef.current = true;
@@ -1262,11 +1356,13 @@ export default function WorkoutLauncherScreen() {
     });
     
     // If a rating was provided, save it before navigating away
-    if (rating && rating > 0 && summaryModalData?.sessionId) {
-      log.debug('[Workout] Saving rating via handleSaveWorkout:', rating, 'sessionId:', summaryModalData.sessionId);
-      await handleRateWorkout(rating, summaryModalData.sessionId);
+    // Note: Rating should already be saved by handleSaveRating in the modal,
+    // but we check here as a fallback in case it wasn't
+    if (rating && rating > 0 && sessionIdToUse) {
+      log.debug('[Workout] Saving rating via handleSaveWorkout (fallback):', rating, 'sessionId:', sessionIdToUse);
+      await handleRateWorkout(rating, sessionIdToUse);
     } else {
-      log.debug('[Workout] Skipping rating save - missing data:', { rating, sessionId: summaryModalData?.sessionId });
+      log.debug('[Workout] Skipping rating save - missing data or already saved:', { rating, sessionId: sessionIdToUse });
     }
     
     // CRITICAL FIX: Clear auto-select flags before navigation so auto-select works on return
@@ -1474,24 +1570,38 @@ export default function WorkoutLauncherScreen() {
                     gyms={userGyms}
                     activeGym={userGyms.find(g => g.is_active) || null}
                     onGymChange={async (gymId, newActiveGym) => {
-                                            
-                      log.debug('[Workout] onGymChange called with:', gymId, newActiveGym?.name);
+                      console.log('[Workout] ===== GYM CHANGE HANDLER CALLED =====');
+                      console.log('[Workout] Gym ID:', gymId, 'Gym Name:', newActiveGym?.name);
+                      console.log('[Workout] Current selected workout:', selectedWorkout);
+                      console.log('[Workout] Preserved workout name:', manuallySelectedWorkoutNameRef.current);
+                      console.log('[Workout] User has selected workout:', userHasSelectedWorkout);
                       
-                      // CRITICAL FIX: Save manually selected workout name before refresh
-                      // This allows us to re-select it after the gym change completes
+                      // Set flag to prevent cleanup effect from running during gym change
+                      console.log('[Workout] Setting isGymChangeInProgressRef = true');
+                      isGymChangeInProgressRef.current = true;
+                      console.log('[Workout] isGymChangeInProgressRef.current is now:', isGymChangeInProgressRef.current);
+                      
+                      // Save current workout selection to preserve across gym toggle
+                      // This works for BOTH auto-selected and manually selected workouts
                       const workoutNameToPreserve = manuallySelectedWorkoutNameRef.current;
-                      const hasManualSelection = userHasSelectedWorkout && workoutNameToPreserve;
+                      const shouldPreserveSelection = userHasSelectedWorkout && workoutNameToPreserve;
+                      
+                      console.log('[Workout] Should preserve selection:', shouldPreserveSelection);
                       
                       // Clear selected workout ID (but preserve the workout name in ref for re-selection)
-                      // Don't clear userHasSelectedWorkout flag yet - we'll preserve it if we have a workout name to preserve
+                      console.log('[Workout] Gym change handler: Clearing selectedWorkout (expected)');
                       setSelectedWorkout(null);
                       setIsWorkoutActiveInline(false);
                       resetWorkoutSession();
                       
-                      // If no manual selection, clear flags to allow auto-select
-                      if (!hasManualSelection) {
+                      // Keep the preserved workout name and flag if we have a selection to preserve
+                      // Otherwise clear them to allow fresh auto-select
+                      if (!shouldPreserveSelection) {
+                        console.log('[Workout] No selection to preserve, clearing refs');
                         setUserHasSelectedWorkout(false);
-                        hasAttemptedInitialAutoSelectRef.current = false;
+                        manuallySelectedWorkoutNameRef.current = null;
+                      } else {
+                        console.log('[Workout] Preserving workout selection:', workoutNameToPreserve);
                       }
                       
                       try {
@@ -1565,14 +1675,26 @@ export default function WorkoutLauncherScreen() {
                           });
                           
                           // Invalidate caches in background (don't block UI)
-                                                    invalidateAllCaches();
-                          setShouldRefreshDashboard(true);
+                          invalidateAllCaches();
+                          // DON'T call setShouldRefreshDashboard(true) here!
+                          // The gym change handler already handles data refresh via refresh() in background
+                          // Calling this triggers a duplicate refresh that clears selectedWorkout AFTER we just set it
                           
                           // Refresh workout data in background (don't block UI)
                           log.debug('[Workout] Refreshing workout data for new gym...');
                                                     refresh().then(() => {
+                            console.log('[Workout] ✓ refresh() completed - selectedWorkout:', selectedWorkout, 'activeTPath:', activeTPath?.id, 'profile.active_t_path_id:', profile?.active_t_path_id, 'childWorkouts:', childWorkouts.length, 'lastTPathIdRef:', lastTPathIdRef.current);
+                            // Clear gym change flag after refresh completes
+                            console.log('[Workout] Clearing isGymChangeInProgressRef = false (after refresh completes)');
+                            isGymChangeInProgressRef.current = false;
+                            console.log('[Workout] isGymChangeInProgressRef.current is now:', isGymChangeInProgressRef.current);
+                            console.log('[Workout] After refresh complete - checking if selectedWorkout is still set:', selectedWorkout);
                                                       }).catch(error => {
                             console.error('[Workout] Error refreshing workout data:', error);
+                            // Clear flag even on error
+                            console.log('[Workout] Clearing isGymChangeInProgressRef = false (on refresh error)');
+                            isGymChangeInProgressRef.current = false;
+                            console.log('[Workout] isGymChangeInProgressRef.current is now:', isGymChangeInProgressRef.current);
                                                       });
                           
                           log.debug('[Workout] onGymChange complete');
@@ -1581,6 +1703,10 @@ export default function WorkoutLauncherScreen() {
                         }
                       } catch (error: any) {
                         console.error('[Workout] Error changing active gym:', error);
+                        // Clear flag on error
+                        console.log('[Workout] Clearing isGymChangeInProgressRef = false (on gym change error)');
+                        isGymChangeInProgressRef.current = false;
+                        console.log('[Workout] isGymChangeInProgressRef.current is now:', isGymChangeInProgressRef.current);
                                                 Alert.alert('Error', error.message || 'Failed to switch active gym');
                       }
                     }}
@@ -1618,9 +1744,9 @@ export default function WorkoutLauncherScreen() {
               </View>
 
               {/* Workout Controls */}
-              {(isWorkoutActiveInline && selectedWorkout) || loadingExercises ? (
+              {(isWorkoutActiveInline && selectedWorkout) || loadingExercises || (childWorkouts.length > 0 && !selectedWorkout && !activeWorkout) ? (
                 <View style={styles.contentArea}>
-                  {loadingExercises ? (
+                  {loadingExercises || (!selectedWorkout && childWorkouts.length > 0) ? (
                     <View style={styles.loadingExercisesContainer}>
                       <Text style={styles.loadingExercisesText}>Loading workout...</Text>
                     </View>
@@ -1726,7 +1852,9 @@ export default function WorkoutLauncherScreen() {
                                 {
                                   text: 'Cancel Workout',
                                   style: 'destructive',
-                                  onPress: () => {
+                                  onPress: async () => {
+                                    // Clean up incomplete workout session from database
+                                    await resetWorkoutSession();
                                     setIsWorkoutActiveInline(false);
                                     setSelectedWorkout(null);
                                   }
@@ -1747,6 +1875,10 @@ export default function WorkoutLauncherScreen() {
                           onPress={async () => {
                             const sessionId = await finishWorkout();
                             if (sessionId && userId) {
+                              // CRITICAL FIX: Reset the modal closed flag at the start of each workout completion
+                              // This ensures the summary modal always shows for every completed workout
+                              summaryModalWasClosedRef.current = false;
+                              
                               // Fetch the completed session data to get duration and rating
                               const sessions = await database.getWorkoutSessions(userId);
                               const completedSession = sessions.find(s => s.id === sessionId);
@@ -1790,6 +1922,9 @@ export default function WorkoutLauncherScreen() {
                               const weeklyVolumeData = await getWeeklyVolumeData();
                               log.debug('[Workout] getWeeklyVolumeData result:', Object.keys(weeklyVolumeData || {}));
                               
+                              // Extract all muscle groups that have volume data
+                              const allAvailableMuscleGroups = Object.keys(weeklyVolumeData || {});
+                              
                               log.debug('[Workout] Calling getNextWorkoutSuggestion...');
                               const nextWorkoutSuggestion = await getNextWorkoutSuggestion(workoutName);
                               log.debug('[Workout] getNextWorkoutSuggestion result:', !!nextWorkoutSuggestion);
@@ -1797,33 +1932,14 @@ export default function WorkoutLauncherScreen() {
                               log.debug('[Workout] Data fetch completed, results:', {
                                 historicalWorkout: !!historicalWorkout,
                                 weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
+                                allAvailableMuscleGroups: allAvailableMuscleGroups,
                                 nextWorkoutSuggestion: !!nextWorkoutSuggestion
                               });
-                              
-                              // ENFORCEMENT: Only set modal data if modal wasn't explicitly closed
-                              if (!summaryModalWasClosedRef.current) {
-                                // Set the modal data
-                                setSummaryModalData({
-                                  exercises: modalExercises,
-                                  workoutName,
-                                  startTime,
-                                  duration: completedSession?.duration_string || undefined,
-                                  historicalWorkout,
-                                  weeklyVolumeData,
-                                  nextWorkoutSuggestion,
-                                  isOnTPath: !!activeTPath,
-                                  historicalRating: currentSessionRating,
-                                  sessionId: sessionId, // Store session ID for rating saves
-                                });
-                                
-                                log.debug('[Workout] Modal data set, showing modal...');
-                              } else {
-                                log.debug('[Workout] ENFORCEMENT: Blocked setting modal data - modal was previously closed');
-                              }
 
                               log.debug('[Workout] Historical workout:', historicalWorkout ? 'Found' : 'Not found');
                               log.debug('[Workout] Weekly volume data keys:', Object.keys(weeklyVolumeData || {}));
                               log.debug('[Workout] Weekly volume data:', weeklyVolumeData);
+                              log.debug('[Workout] All available muscle groups:', allAvailableMuscleGroups);
                               log.debug('[Workout] Next workout suggestion:', nextWorkoutSuggestion?.name || 'Not found');
                               log.debug('[Workout] Next workout suggestion data:', nextWorkoutSuggestion);
                               log.debug('[Workout] isOnTPath:', !!activeTPath);
@@ -1841,49 +1957,39 @@ export default function WorkoutLauncherScreen() {
                                 workoutName,
                                 historicalWorkout: !!historicalWorkout,
                                 weeklyVolumeData: Object.keys(weeklyVolumeData || {}),
+                                allAvailableMuscleGroups: allAvailableMuscleGroups,
                                 nextWorkoutSuggestion: !!nextWorkoutSuggestion,
                                 isOnTPath: !!activeTPath,
                               });
 
-                              // ENFORCEMENT: Only show modal if it wasn't explicitly closed
-                              if (!summaryModalWasClosedRef.current) {
-                                // Reset the "was closed" flag since we're showing the modal for a new workout
-                                summaryModalWasClosedRef.current = false;
-                                
-                                // Set modal data first
-                                setSummaryModalData({
-                                  exercises: modalExercises,
-                                  workoutName,
-                                  startTime,
-                                  duration: completedSession?.duration_string || undefined,
-                                  historicalWorkout,
-                                  weeklyVolumeData,
-                                  nextWorkoutSuggestion,
-                                  isOnTPath: !!activeTPath,
-                                  historicalRating: currentSessionRating,
-                                  sessionId: sessionId, // Store session ID for rating saves
-                                });
-                                
-                                // Reset workout session AFTER setting modal data to prevent race conditions
-                                await resetWorkoutSession();
-                                setIsWorkoutActiveInline(false);
-                                
-                                // CRITICAL FIX: Clear auto-select flags immediately so auto-select works after modal closes
-                                setHasJustReset(false);
-                                setUserHasSelectedWorkout(false);
-                                
-                                // Set modal visible immediately - don't use setTimeout to avoid race conditions
-                                setSummaryModalVisible(true);
-                                                                log.debug('[WorkoutScreen] ENFORCEMENT: Showing summary modal for new workout');
-                              } else {
-                                log.debug('[WorkoutScreen] ENFORCEMENT: Blocked summary modal from showing - was previously closed');
-                                // Still reset workout session even if modal is blocked
-                                await resetWorkoutSession();
-                                setIsWorkoutActiveInline(false);
-                                // Clear flags so auto-select works
-                                setHasJustReset(false);
-                                setUserHasSelectedWorkout(false);
-                              }
+                              // Set modal data and show modal - always show for completed workouts
+                              setSummaryModalData({
+                                exercises: modalExercises,
+                                workoutName,
+                                startTime,
+                                duration: completedSession?.duration_string || undefined,
+                                historicalWorkout,
+                                weeklyVolumeData,
+                                allAvailableMuscleGroups,
+                                nextWorkoutSuggestion,
+                                isOnTPath: !!activeTPath,
+                                historicalRating: currentSessionRating,
+                                sessionId: sessionId, // Store session ID for rating saves
+                              });
+                              
+                              log.debug('[Workout] Modal data set, showing modal...');
+                              
+                              // Reset workout session AFTER setting modal data to prevent race conditions
+                              await resetWorkoutSession();
+                              setIsWorkoutActiveInline(false);
+                              
+                              // CRITICAL FIX: Clear auto-select flags immediately so auto-select works after modal closes
+                              setHasJustReset(false);
+                              setUserHasSelectedWorkout(false);
+                              
+                              // Set modal visible immediately - don't use setTimeout to avoid race conditions
+                              setSummaryModalVisible(true);
+                              log.debug('[WorkoutScreen] Showing summary modal for completed workout');
                             }
                           }}
                         >
@@ -1980,6 +2086,7 @@ export default function WorkoutLauncherScreen() {
         {...(summaryModalData?.duration && { duration: summaryModalData.duration })}
         {...(summaryModalData?.historicalWorkout && { historicalWorkout: summaryModalData.historicalWorkout })}
         {...(summaryModalData?.weeklyVolumeData && { weeklyVolumeData: summaryModalData.weeklyVolumeData })}
+        {...(summaryModalData?.allAvailableMuscleGroups && { allAvailableMuscleGroups: summaryModalData.allAvailableMuscleGroups })}
         {...(summaryModalData?.nextWorkoutSuggestion && { nextWorkoutSuggestion: summaryModalData.nextWorkoutSuggestion })}
         {...(summaryModalData?.isOnTPath !== undefined && { isOnTPath: summaryModalData.isOnTPath })}
         {...(summaryModalData?.historicalRating !== undefined && { historicalRating: summaryModalData.historicalRating })}
