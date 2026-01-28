@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Modal, TouchableWithoutFeedback } from 'react-native';
 import { X } from 'lucide-react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { Colors, Spacing } from '../../constants/Theme';
@@ -16,8 +16,6 @@ export const ExerciseInfoModal: React.FC<ExerciseInfoModalProps> = ({
   visible,
   onClose,
 }) => {
-  if (!visible) return null;
-
   // Extract YouTube video ID from URL
   const getYouTubeVideoId = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -28,16 +26,30 @@ export const ExerciseInfoModal: React.FC<ExerciseInfoModalProps> = ({
   const videoId = exercise?.video_url ? getYouTubeVideoId(exercise.video_url) : null;
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{exercise?.name || 'Exercise Info'}</Text>
-          <Pressable onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={Colors.foreground} />
-          </Pressable>
-        </View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
 
-        <ScrollView style={styles.content}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{exercise?.name || 'Exercise Info'}</Text>
+            <Pressable onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={Colors.foreground} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={true}
+          >
           {videoId && (
             <View style={styles.videoContainer}>
               <YoutubePlayer
@@ -75,29 +87,32 @@ export const ExerciseInfoModal: React.FC<ExerciseInfoModalProps> = ({
               </Text>
             </View>
           )}
-        </ScrollView>
+          </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backdrop: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
   },
   container: {
     backgroundColor: Colors.card,
     borderRadius: 12,
     width: '90%',
-    maxHeight: '80%',
+    height: '70%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -121,7 +136,12 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   content: {
+    flex: 1,
+  },
+  contentContainer: {
     padding: Spacing.lg,
+    paddingBottom: Spacing.xl * 2,
+    flexGrow: 1,
   },
   videoContainer: {
     marginBottom: Spacing.lg,

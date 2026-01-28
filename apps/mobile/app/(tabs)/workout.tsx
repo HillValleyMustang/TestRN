@@ -1858,7 +1858,7 @@ export default function WorkoutLauncherScreen() {
                                 setUserHasSelectedWorkout(true);
                               }}
                             >
-                              <Text style={styles.emptyButtonText}>Start Empty</Text>
+                              <Text style={styles.emptyButtonText}>Start Adding Exercises</Text>
                             </Pressable>
                             {enableAdHocAIGeneration && (
                               <Pressable 
@@ -1876,6 +1876,7 @@ export default function WorkoutLauncherScreen() {
                       {selectedWorkout === 'ad-hoc' && isWorkoutActiveInline && (
                         <ExerciseAdditionSection
                           onAddExercise={addExerciseToSession}
+                          onRemoveExercise={removeExerciseFromSession}
                           activeGym={userGyms.find(g => g.is_active) || null}
                           existingExerciseIds={new Set(exercisesForSession.map(ex => ex.id!))}
                         />

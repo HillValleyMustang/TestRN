@@ -10,7 +10,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   Pressable,
   Platform,
@@ -21,6 +21,7 @@ import { TextStyles } from '../../constants/Typography';
 import Dropdown from '../../app/_components/ui/Dropdown';
 import { useExerciseData } from '../../hooks/useExerciseData';
 import { AnalyseGymPhotoDialog } from '../profile/AnalyseGymPhotoDialog';
+import { ExerciseInfoModal } from '../workout/ExerciseInfoModal';
 import { supabase } from '../../app/_lib/supabase';
 import Toast from 'react-native-toast-message';
 import type { FetchedExerciseDefinition } from '../../app/_lib/supabase';
@@ -28,12 +29,14 @@ import type { Gym } from '@data/storage/models';
 
 interface ExerciseAdditionSectionProps {
   onAddExercise: (exercise: any) => Promise<void>;
+  onRemoveExercise?: (exerciseId: string) => Promise<void>;
   activeGym: Gym | null;
   existingExerciseIds: Set<string>;
 }
 
 export function ExerciseAdditionSection({
   onAddExercise,
+  onRemoveExercise,
   activeGym,
   existingExerciseIds,
 }: ExerciseAdditionSectionProps) {
@@ -53,6 +56,7 @@ export function ExerciseAdditionSection({
   const [libraryTab, setLibraryTab] = useState<'my' | 'global'>('my');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showAnalyseDialog, setShowAnalyseDialog] = useState(false);
+  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
 
   const filteredExercises = useMemo(() => {
     return allExercises.filter(ex => {
@@ -85,40 +89,28 @@ export function ExerciseAdditionSection({
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [allExercises, libraryTab, selectedMuscleFilter, showFavoritesOnly, searchTerm]);
 
-  const handleAddPress = async (exercise: FetchedExerciseDefinition) => {
-    if (existingExerciseIds.has(exercise.id!)) return;
-    await onAddExercise(exercise);
-    
-    Toast.show({
-      type: 'success',
-      text1: 'Exercise Added',
-      text2: `${exercise.name} added to your workout.`,
-    });
-  };
+  const handleToggleExercise = async (exercise: FetchedExerciseDefinition) => {
+    const isAdded = existingExerciseIds.has(exercise.id!);
 
-  const renderExerciseItem = ({ item }: { item: FetchedExerciseDefinition }) => {
-    const isAdded = existingExerciseIds.has(item.id!);
-    return (
-      <TouchableOpacity
-        style={[styles.exerciseItem, isAdded && styles.exerciseItemDisabled]}
-        onPress={() => handleAddPress(item)}
-        disabled={isAdded}
-      >
-        <View style={styles.exerciseInfo}>
-          <Text style={[styles.exerciseName, isAdded && styles.exerciseTextDisabled]}>
-            {item.name}
-          </Text>
-          <Text style={styles.exerciseMuscle}>
-            {item.main_muscle}
-          </Text>
-        </View>
-        {isAdded ? (
-          <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
-        ) : (
-          <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
-        )}
-      </TouchableOpacity>
-    );
+    if (isAdded) {
+      // Remove exercise
+      if (onRemoveExercise) {
+        await onRemoveExercise(exercise.id!);
+        Toast.show({
+          type: 'info',
+          text1: 'Exercise Removed',
+          text2: `${exercise.name} removed from your workout.`,
+        });
+      }
+    } else {
+      // Add exercise
+      await onAddExercise(exercise);
+      Toast.show({
+        type: 'success',
+        text1: 'Exercise Added',
+        text2: `${exercise.name} added to your workout.`,
+      });
+    }
   };
 
   const muscleOptions = useMemo(() => [
@@ -204,18 +196,48 @@ export function ExerciseAdditionSection({
         {loading ? (
           <ActivityIndicator size="large" color={Colors.primary} style={styles.loader} />
         ) : (
-          <FlatList
-            data={filteredExercises}
-            renderItem={renderExerciseItem}
-            keyExtractor={item => item.id!}
+          <ScrollView
             style={styles.list}
             contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No exercises found matching criteria.</Text>
-            }
             nestedScrollEnabled={true}
-            scrollEnabled={false} // Let the parent ScrollView handle it, or use a fixed height
-          />
+            showsVerticalScrollIndicator={true}
+          >
+            {filteredExercises.length === 0 ? (
+              <Text style={styles.emptyText}>No exercises found matching criteria.</Text>
+            ) : (
+              filteredExercises.map((item) => {
+                const isAdded = existingExerciseIds.has(item.id!);
+                return (
+                  <View key={item.id} style={[styles.exerciseItem, isAdded && styles.exerciseItemAdded]}>
+                    <TouchableOpacity
+                      style={styles.exerciseItemTouchable}
+                      onPress={() => handleToggleExercise(item)}
+                    >
+                      <View style={styles.exerciseInfo}>
+                        <Text style={[styles.exerciseName, isAdded && styles.exerciseTextDisabled]}>
+                          {item.name}
+                        </Text>
+                        <Text style={styles.exerciseMuscle}>
+                          {item.main_muscle}
+                        </Text>
+                      </View>
+                      {isAdded ? (
+                        <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+                      ) : (
+                        <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.infoButton}
+                      onPress={() => setSelectedExerciseForInfo(item)}
+                    >
+                      <Ionicons name="information-circle-outline" size={20} color={Colors.mutedForeground} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
         )}
 
         {/* Analyze Gym Button */}
@@ -240,6 +262,12 @@ export function ExerciseAdditionSection({
           setShowAnalyseDialog(false);
         }}
       />
+
+      <ExerciseInfoModal
+        exercise={selectedExerciseForInfo}
+        visible={!!selectedExerciseForInfo}
+        onClose={() => setSelectedExerciseForInfo(null)}
+      />
     </View>
   );
 }
@@ -260,6 +288,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.foreground,
     marginBottom: Spacing.md,
+    fontFamily: 'Poppins_700Bold',
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -286,6 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: Colors.mutedForeground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   tabTextActive: {
     color: Colors.foreground,
@@ -332,6 +362,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.foreground,
     paddingVertical: 0,
+    fontFamily: 'Poppins_400Regular',
   },
   list: {
     maxHeight: 300,
@@ -341,22 +372,32 @@ const styles = StyleSheet.create({
   },
   exerciseItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  exerciseItemDisabled: {
-    opacity: 0.6,
+  exerciseItemAdded: {
+    backgroundColor: Colors.muted,
+  },
+  exerciseItemTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
   },
   exerciseInfo: {
     flex: 1,
+  },
+  infoButton: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   exerciseName: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
   },
   exerciseTextDisabled: {
     color: Colors.mutedForeground,
@@ -364,12 +405,14 @@ const styles = StyleSheet.create({
   exerciseMuscle: {
     fontSize: 12,
     color: Colors.mutedForeground,
+    fontFamily: 'Poppins_400Regular',
   },
   emptyText: {
     textAlign: 'center',
     color: Colors.mutedForeground,
     paddingVertical: Spacing.lg,
     fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
   },
   loader: {
     paddingVertical: Spacing.xl,
@@ -390,5 +433,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.primary,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

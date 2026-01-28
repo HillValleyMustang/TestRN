@@ -135,10 +135,23 @@ const DropdownComponent = ({
   useEffect(() => {
     if (isOpen && triggerRef.current) {
       triggerRef.current.measure((fx, fy, width, height, px, py) => {
-        setDropdownPosition({ top: py + height + 8, left: px, width });
+        // Calculate available space below and above
+        const spaceBelow = screenHeight - (py + height);
+        const dropdownHeight = Math.min(
+          screenHeight * 0.4,
+          filteredItems.length * 48 + (searchable ? 48 : 0)
+        );
+
+        // Position above if not enough space below
+        const shouldPositionAbove = spaceBelow < dropdownHeight + 8;
+        const top = shouldPositionAbove
+          ? py - dropdownHeight - 8
+          : py + height + 8;
+
+        setDropdownPosition({ top, left: px, width });
       });
     }
-  }, [isOpen]);
+  }, [isOpen, filteredItems.length, searchable]);
 
   // Animation for opening/closing
   useEffect(() => {
@@ -429,15 +442,15 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   dropdownTriggerText: {
-    fontSize: 16,
+    fontSize: 12,
     lineHeight: 18,
-    fontWeight: '700',
     color: colors.light.trigger.text,
     flex: 1,
+    fontFamily: 'Poppins_600SemiBold',
   },
   dropdownTriggerPlaceholder: {
     color: colors.light.trigger.textPlaceholder,
-    fontWeight: '400',
+    fontFamily: 'Poppins_400Regular',
   },
   dropdownTriggerTextDisabled: {
     color: colors.light.trigger.textPlaceholder,
@@ -450,6 +463,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: colors.light.trigger.borderError,
     marginTop: 8,
+    fontFamily: 'Poppins_400Regular',
   },
   modalOverlay: {
     flex: 1,
@@ -479,6 +493,7 @@ const styles = StyleSheet.create({
     borderColor: colors.light.trigger.border,
     fontSize: 16,
     color: colors.light.trigger.text,
+    fontFamily: 'Poppins_400Regular',
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -508,12 +523,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#000000',
     fontWeight: '400',
+    fontFamily: 'Poppins_400Regular',
   },
   dropdownItemSubtitle: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.light.trigger.textPlaceholder,
     marginTop: 2,
+    fontFamily: 'Poppins_400Regular',
   },
   dropdownItemSelected: {
     backgroundColor: colors.light.menu.option.hover,
@@ -527,6 +544,7 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: '#000000',
     fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   dropdownItemTextDisabled: {
     color: colors.light.menu.option.textDisabled,
@@ -541,5 +559,6 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     color: colors.light.trigger.textPlaceholder,
+    fontFamily: 'Poppins_400Regular',
   },
 });

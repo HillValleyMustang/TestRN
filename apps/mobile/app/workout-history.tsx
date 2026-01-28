@@ -227,7 +227,7 @@ export default function WorkoutHistoryPage() {
       </Text>
       <TouchableOpacity
         style={styles.startWorkoutButton}
-        onPress={() => router.push('/workout-launcher')}
+        onPress={() => router.push('/(tabs)/workout')}
       >
         <Text style={styles.startWorkoutText}>Start Your First Workout</Text>
       </TouchableOpacity>
