@@ -25,6 +25,7 @@ import { UnsavedChangesModal } from './_components/workout/UnsavedChangesModal';
 import Toast from 'react-native-toast-message';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MenuProvider } from 'react-native-popup-menu';
+import { AppHeader } from '../components/AppHeader';
 
 export default function RootLayout() {
   // Load Poppins fonts - matches FONT_FAMILY constant in Typography.ts
@@ -100,7 +101,10 @@ export default function RootLayout() {
                     />
                     <Stack.Screen
                       name="workout-history"
-                      options={{ headerShown: false }}
+                      options={{
+                        headerShown: true,
+                        header: () => <AppHeader />,
+                      }}
                     />
                     <Stack.Screen
                       name="exercise-picker"

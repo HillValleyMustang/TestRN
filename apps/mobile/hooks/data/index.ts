@@ -11,3 +11,5 @@ export { useGyms } from './useGyms';
 export { useTPaths } from './useTPaths';
 export { useVolumeHistory } from './useVolumeHistory';
 export { useNextWorkout } from './useNextWorkout';
+export { useFilteredWorkoutHistory } from './useFilteredWorkoutHistory';
+export type { WorkoutHistoryFilters } from './useFilteredWorkoutHistory';

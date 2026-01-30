@@ -16,25 +16,44 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import useWorkoutHistory from './_hooks/useWorkoutHistory';
 import { useAuth } from './_contexts/auth-context';
 import { useData } from './_contexts/data-context';
 import { database } from './_lib/database';
 import { WorkoutHistoryCard } from '../components/ui/WorkoutHistoryCard';
 import { ConsistencyCalendarModal } from '../components/dashboard/ConsistencyCalendarModal';
 import { WorkoutSummaryModal } from '../components/workout/WorkoutSummaryModal';
-import { AppHeader } from '../components/AppHeader';
 import { Colors, Spacing, BorderRadius } from '../constants/Theme';
 import { getExerciseById } from '@data/exercises';
+import { useFilteredWorkoutHistory, WorkoutHistoryFilters } from '../hooks/data/useFilteredWorkoutHistory';
+import { WorkoutTypeChips } from '../components/workout-history/WorkoutTypeChips';
+import { DateRangeFilter } from '../components/workout-history/DateRangeFilter';
+import { SortDropdown } from '../components/workout-history/SortDropdown';
+import { ActiveFiltersChip } from '../components/workout-history/ActiveFiltersChip';
 
 export default function WorkoutHistoryPage() {
   const router = useRouter();
   const { userId } = useAuth();
   const { supabase } = useAuth();
   const { deleteWorkoutSession, getSetLogs } = useData();
-  const { sessions, isLoading, error, refresh, removeSession } = useWorkoutHistory();
   const [refreshing, setRefreshing] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Filter state
+  const [filters, setFilters] = useState<WorkoutHistoryFilters>({
+    workoutTypes: [],
+    dateFrom: null,
+    dateTo: null,
+    sortBy: 'date-desc',
+  });
+
+  // Use filtered workout history hook
+  const {
+    data: sessions,
+    loading: isLoading,
+    error,
+    refetch: refresh,
+    availableWorkoutTypes
+  } = useFilteredWorkoutHistory(userId, filters);
 
   // Workout summary modal state
   const [workoutSummaryModalVisible, setWorkoutSummaryModalVisible] = useState(false);
@@ -50,6 +69,23 @@ export default function WorkoutHistoryPage() {
     setRefreshing(true);
     await refresh();
     setRefreshing(false);
+  };
+
+  // Calculate active filter count
+  const activeFilterCount =
+    filters.workoutTypes.length +
+    (filters.dateFrom ? 1 : 0) +
+    (filters.dateTo ? 1 : 0) +
+    (filters.sortBy !== 'date-desc' ? 1 : 0);
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilters({
+      workoutTypes: [],
+      dateFrom: null,
+      dateTo: null,
+      sortBy: 'date-desc',
+    });
   };
 
   const handleViewSummary = async (sessionId: string) => {
@@ -181,10 +217,10 @@ export default function WorkoutHistoryPage() {
         [{ text: 'OK' }]
       );
 
-      // Immediately remove from hook state to update UI
-      removeSession(sessionId);
+      // Refresh the data to update UI
+      await refresh();
 
-      console.log('Removed from UI state');
+      console.log('Refreshed workout list');
 
       // Also delete from local database to ensure consistency
       try {
@@ -221,16 +257,34 @@ export default function WorkoutHistoryPage() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>No Workouts Yet</Text>
-      <Text style={styles.emptySubtitle}>
-        Start logging your workouts to see your history here!
-      </Text>
-      <TouchableOpacity
-        style={styles.startWorkoutButton}
-        onPress={() => router.push('/(tabs)/workout')}
-      >
-        <Text style={styles.startWorkoutText}>Start Your First Workout</Text>
-      </TouchableOpacity>
+      {activeFilterCount > 0 ? (
+        <>
+          <Ionicons name="filter-outline" size={48} color={Colors.mutedForeground} />
+          <Text style={styles.emptyTitle}>No Matching Workouts</Text>
+          <Text style={styles.emptySubtitle}>
+            Try adjusting your filters to see more results
+          </Text>
+          <TouchableOpacity
+            style={styles.clearFiltersButton}
+            onPress={handleClearFilters}
+          >
+            <Text style={styles.clearFiltersText}>Clear Filters</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Text style={styles.emptyTitle}>No Workouts Yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Start logging your workouts to see your history here!
+          </Text>
+          <TouchableOpacity
+            style={styles.startWorkoutButton}
+            onPress={() => router.push('/(tabs)/workout')}
+          >
+            <Text style={styles.startWorkoutText}>Start Your First Workout</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 
@@ -238,7 +292,7 @@ export default function WorkoutHistoryPage() {
     <View style={styles.errorContainer}>
       <Ionicons name="alert-circle" size={48} color={Colors.destructive} />
       <Text style={styles.errorTitle}>Failed to Load History</Text>
-      <Text style={styles.errorSubtitle}>{error}</Text>
+      <Text style={styles.errorSubtitle}>{error?.message || 'Unknown error'}</Text>
       <TouchableOpacity style={styles.retryButton} onPress={refresh}>
         <Text style={styles.retryText}>Try Again</Text>
       </TouchableOpacity>
@@ -247,16 +301,16 @@ export default function WorkoutHistoryPage() {
 
   if (isLoading && !refreshing) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading workout history...</Text>
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading workout history...</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <AppHeader />
-
       {/* Page Title */}
       <View style={styles.pageTitle}>
         <Text style={styles.pageTitleText}>Workout History</Text>
@@ -274,6 +328,42 @@ export default function WorkoutHistoryPage() {
           <Ionicons name="calendar-outline" size={16} color={Colors.actionPrimary} />
           <Text style={styles.calendarButtonText}>Calendar</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Filter Bar */}
+      <View style={styles.filterBar}>
+        <WorkoutTypeChips
+          availableTypes={availableWorkoutTypes}
+          selectedTypes={filters.workoutTypes}
+          onSelectionChange={(types) =>
+            setFilters(prev => ({ ...prev, workoutTypes: types }))
+          }
+        />
+
+        <DateRangeFilter
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
+          onDateFromChange={(date) =>
+            setFilters(prev => ({ ...prev, dateFrom: date }))
+          }
+          onDateToChange={(date) =>
+            setFilters(prev => ({ ...prev, dateTo: date }))
+          }
+        />
+
+        <View style={styles.sortRow}>
+          <SortDropdown
+            value={filters.sortBy}
+            onChange={(sort) =>
+              setFilters(prev => ({ ...prev, sortBy: sort }))
+            }
+          />
+
+          <ActiveFiltersChip
+            filterCount={activeFilterCount}
+            onClearAll={handleClearFilters}
+          />
+        </View>
       </View>
 
       {/* Content */}
@@ -479,6 +569,32 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  filterBar: {
+    backgroundColor: Colors.card,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  },
+  clearFiltersButton: {
+    backgroundColor: Colors.actionPrimary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+  },
+  clearFiltersText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
     fontFamily: 'Poppins_600SemiBold',
   },
 });
