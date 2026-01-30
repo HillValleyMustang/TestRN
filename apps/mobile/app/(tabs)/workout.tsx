@@ -21,7 +21,7 @@ import type { Gym } from '@data/storage/models';
 import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { ExerciseCard } from '../../components/workout/ExerciseCard';
-import { ExerciseInfoModal } from '../../components/workout/ExerciseInfoModal';
+import ExerciseInfoModal from '../../components/manage-exercises/ExerciseInfoModal';
 import { ExerciseSwapModal } from '../../components/workout/ExerciseSwapModal';
 import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 import { WorkoutPill } from '../../components/workout-launcher';

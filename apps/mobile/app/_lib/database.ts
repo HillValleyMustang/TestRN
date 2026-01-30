@@ -1764,8 +1764,18 @@ class Database {
       
       const placeholders = availableColumns.map(() => '?').join(', ');
       const query = `INSERT OR REPLACE INTO t_paths (${availableColumns.join(', ')}) VALUES (${placeholders})`;
-      
-      await db.runAsync(query, availableValues);
+
+      // Ensure all values are primitive types (not objects that could be released)
+      const sanitizedValues = availableValues.map(val => {
+        if (val === null || val === undefined) return null;
+        if (typeof val === 'number' || typeof val === 'string') return val;
+        // Convert booleans to integers for SQLite
+        if (typeof val === 'boolean') return val ? 1 : 0;
+        // Convert objects/arrays to JSON strings
+        return JSON.stringify(val);
+      });
+
+      await db.runAsync(query, sanitizedValues);
       // Success log removed to reduce clutter in monorepo logs
       
     } catch (error: any) {

@@ -839,7 +839,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    setExercisesForSession(prev => [{ ...exercise, is_bonus_exercise: false }, ...prev]);
+    setExercisesForSession(prev => [...prev, { ...exercise, is_bonus_exercise: false }]);
     const newSets: SetLogState[] = Array.from({ length: DEFAULT_INITIAL_SETS }, () => ({
       id: generateUUID(),
       created_at: null,

@@ -6,14 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Dimensions,
   ActivityIndicator,
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
-import { TextStyles } from '../../constants/Typography';
 import { useFonts } from 'expo-font';
 import {
   Poppins_300Light,

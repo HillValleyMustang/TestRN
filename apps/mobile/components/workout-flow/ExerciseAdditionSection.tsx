@@ -21,11 +21,35 @@ import { TextStyles } from '../../constants/Typography';
 import Dropdown from '../../app/_components/ui/Dropdown';
 import { useExerciseData } from '../../hooks/useExerciseData';
 import { AnalyseGymPhotoDialog } from '../profile/AnalyseGymPhotoDialog';
-import { ExerciseInfoModal } from '../workout/ExerciseInfoModal';
+import ExerciseInfoModal from '../manage-exercises/ExerciseInfoModal';
 import { supabase } from '../../app/_lib/supabase';
 import Toast from 'react-native-toast-message';
 import type { FetchedExerciseDefinition } from '../../app/_lib/supabase';
 import type { Gym } from '@data/storage/models';
+import { useAuth } from '../../app/_contexts/auth-context';
+
+// React Native-compatible UUID generator
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+interface DetectedExercise {
+  name: string;
+  main_muscle: string;
+  type: string;
+  category?: string;
+  description?: string;
+  pro_tip?: string;
+  video_url?: string;
+  movement_type?: string;
+  movement_pattern?: string;
+  duplicate_status: 'none' | 'global' | 'my-exercises';
+  existing_id?: string | null;
+}
 
 interface ExerciseAdditionSectionProps {
   onAddExercise: (exercise: any) => Promise<void>;
@@ -40,6 +64,7 @@ export function ExerciseAdditionSection({
   activeGym,
   existingExerciseIds,
 }: ExerciseAdditionSectionProps) {
+  const { userId } = useAuth();
   const {
     allExercises,
     userGyms,
@@ -51,6 +76,7 @@ export function ExerciseAdditionSection({
     selectedGymFilter,
     setSelectedGymFilter,
     availableMuscleGroups,
+    refreshExercises,
   } = useExerciseData({ supabase });
 
   const [libraryTab, setLibraryTab] = useState<'my' | 'global'>('my');
@@ -110,6 +136,129 @@ export function ExerciseAdditionSection({
         text1: 'Exercise Added',
         text2: `${exercise.name} added to your workout.`,
       });
+    }
+  };
+
+  const handleAIExercisesGenerated = async (detectedExercises: DetectedExercise[]) => {
+    if (!userId || !activeGym) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No active gym selected. Please select a gym first.',
+      });
+      setShowAnalyseDialog(false);
+      return;
+    }
+
+    try {
+      const exerciseIdsToAdd: string[] = [];
+
+      // Step 1: Insert new exercises and collect IDs
+      for (const exercise of detectedExercises) {
+        if (exercise.duplicate_status === 'none') {
+          // New exercise - insert into database
+          const exerciseId = generateUUID();
+
+          const { error: insertError } = await supabase
+            .from('exercise_definitions')
+            .insert({
+              id: exerciseId,
+              name: exercise.name,
+              main_muscle: exercise.main_muscle,
+              type: exercise.type,
+              category: exercise.category,
+              movement_type: exercise.movement_type,
+              movement_pattern: exercise.movement_pattern,
+              description: exercise.description,
+              pro_tip: exercise.pro_tip,
+              video_url: exercise.video_url || null,
+              user_id: userId,
+              library_id: null,
+              created_at: new Date().toISOString(),
+            });
+
+          if (insertError) {
+            console.error('[ExerciseAdditionSection] Error inserting exercise:', insertError);
+            continue;
+          }
+
+          // Link exercise to gym
+          const { error: linkError } = await supabase
+            .from('gym_exercises')
+            .insert({
+              gym_id: activeGym.id,
+              exercise_id: exerciseId,
+              created_at: new Date().toISOString(),
+            });
+
+          if (linkError) {
+            console.error('[ExerciseAdditionSection] Error linking exercise to gym:', linkError);
+          }
+
+          exerciseIdsToAdd.push(exerciseId);
+        } else if (exercise.existing_id) {
+          // Existing exercise - just link to gym and use it
+          const { error: linkError } = await supabase
+            .from('gym_exercises')
+            .insert({
+              gym_id: activeGym.id,
+              exercise_id: exercise.existing_id,
+              created_at: new Date().toISOString(),
+            });
+
+          if (linkError && !linkError.message?.includes('duplicate') && linkError.code !== '23505') {
+            console.error('[ExerciseAdditionSection] Error linking existing exercise:', linkError);
+          }
+
+          exerciseIdsToAdd.push(exercise.existing_id);
+        }
+      }
+
+      // Step 2: Refresh exercise list to get new exercises
+      refreshExercises();
+
+      // Step 3: Wait a moment for refresh, then add exercises to workout
+      setTimeout(async () => {
+        // Fetch the full exercise definitions for the IDs we want to add
+        const { data: exercisesToAdd, error: fetchError } = await supabase
+          .from('exercise_definitions')
+          .select('*')
+          .in('id', exerciseIdsToAdd);
+
+        if (fetchError || !exercisesToAdd) {
+          console.error('[ExerciseAdditionSection] Error fetching exercises:', fetchError);
+          Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: 'Failed to add exercises to workout.',
+          });
+          setShowAnalyseDialog(false);
+          return;
+        }
+
+        // Step 4: Add each exercise to the workout session
+        for (const exercise of exercisesToAdd) {
+          await onAddExercise(exercise);
+        }
+
+        // Step 5: Show success toast
+        Toast.show({
+          type: 'success',
+          text1: 'Exercises Added!',
+          text2: `${exercisesToAdd.length} exercise${exercisesToAdd.length > 1 ? 's' : ''} added to your workout.`,
+        });
+
+        setShowAnalyseDialog(false);
+      }, 500); // Small delay to allow refresh to complete
+
+    } catch (error) {
+      console.error('[ExerciseAdditionSection] Error handling AI exercises:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to process AI-detected exercises.',
+      });
+      setShowAnalyseDialog(false);
     }
   };
 
@@ -222,9 +371,9 @@ export function ExerciseAdditionSection({
                         </Text>
                       </View>
                       {isAdded ? (
-                        <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+                        <Ionicons name="checkmark-circle" size={28} color={Colors.success} />
                       ) : (
-                        <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
+                        <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
                       )}
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -246,7 +395,7 @@ export function ExerciseAdditionSection({
           onPress={() => setShowAnalyseDialog(true)}
         >
           <Ionicons name="camera" size={20} color={Colors.primary} />
-          <Text style={styles.analyzeButtonText}>Analyze Gym Photo</Text>
+          <Text style={styles.analyzeButtonText}>Analyse Gym Equipment</Text>
         </TouchableOpacity>
       </View>
 
@@ -256,11 +405,8 @@ export function ExerciseAdditionSection({
         gymName={activeGym?.name || ''}
         onBack={() => setShowAnalyseDialog(false)}
         onFinish={() => setShowAnalyseDialog(false)}
-        onExercisesGenerated={(exercises) => {
-          // Handle AI identified exercises
-          // This would typically show a prompt to add them
-          setShowAnalyseDialog(false);
-        }}
+        onExercisesGenerated={handleAIExercisesGenerated}
+        maxPhotos={2}
       />
 
       <ExerciseInfoModal

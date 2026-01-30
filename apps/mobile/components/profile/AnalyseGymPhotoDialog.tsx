@@ -20,16 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { FontFamily } from '../../constants/Typography';
-import { imageUriToBase64, uploadImageToSupabase, validateImageSize } from '../../lib/imageUtils';
+import { imageUriToBase64, uploadImageToSupabase, validateImageSize, compressImage } from '../../lib/imageUtils';
 
 interface DetectedEquipment {
   category: string;
   items: string[];
-}
-
-interface GymAnalysisResult {
-  equipment: DetectedEquipment[];
-  rawResponse: string;
 }
 
 interface DetectedExercise {
@@ -53,6 +48,7 @@ interface AnalyseGymPhotoDialogProps {
   onBack: () => void;
   onFinish: () => void;
   onExercisesGenerated?: (exercises: DetectedExercise[], base64Images: string[]) => void;
+  maxPhotos?: number; // Maximum number of photos allowed (default: 12)
 }
 
 type FeedbackType = 'none' | 'no-equipment' | 'partial' | 'error' | 'unable-to-analyze';
@@ -71,6 +67,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
   onBack,
   onFinish,
   onExercisesGenerated,
+  maxPhotos = 12,
 }) => {
   const { userId, supabase, session } = useAuth();
   const [imageUris, setImageUris] = useState<string[]>([]);
@@ -145,13 +142,15 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
     }
   };
 
-  // Analyze gym equipment using edge function (Gemini Flash 2.0)
-  const analyzeGymEquipmentViaEdgeFunction = async (
+  // Combined gym analysis: equipment detection + exercise generation in a single Gemini call
+  const analyzeGymComplete = async (
     base64Images: string[],
-    accessToken: string
-  ): Promise<GymAnalysisResult> => {
+    accessToken: string,
+    generateExercises: boolean,
+    programmeType: 'ulul' | 'ppl' | null
+  ): Promise<{ equipment: DetectedEquipment[]; identifiedExercises: DetectedExercise[]; rawResponse: string }> => {
     const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti';
-    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/analyze-gym-equipment`;
+    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/analyze-gym-complete`;
 
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: 'POST',
@@ -159,7 +158,12 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ base64Images, gymId }),
+      body: JSON.stringify({
+        base64Images,
+        gymId,
+        generateExercises,
+        programmeType: programmeType || 'ppl',
+      }),
     });
 
     if (!response.ok) {
@@ -167,38 +171,40 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data: GymAnalysisResult = await response.json();
-    return data;
+    return response.json();
   };
 
-  // Generate exercises from detected equipment using identify-equipment edge function
-  const generateExercisesFromEquipment = async (
-    base64Images: string[],
-    accessToken: string,
-    programmeType: 'ulul' | 'ppl' | null
-  ): Promise<DetectedExercise[]> => {
-    const SUPABASE_PROJECT_ID = 'mgbfevrzrbjjiajkqpti';
-    const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/identify-equipment`;
-
-    const response = await fetch(EDGE_FUNCTION_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ 
-        base64Images,
-        programmeType: programmeType || 'ppl', // Default to PPL if not specified
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Failed to generate exercises' }));
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+  const handleTakePhoto = async () => {
+    // Request camera permissions
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Permission to access camera is required');
+      return;
     }
 
-    const data = await response.json();
-    return data.identifiedExercises || [];
+    // Check if we're at the limit
+    const currentCount = imageUris.length;
+    if (currentCount >= maxPhotos) {
+      alert(`You have reached the maximum of ${maxPhotos} images. Please remove some images before adding more.`);
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: 'images',
+      quality: 0.8,
+      allowsEditing: false,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const newUri = result.assets[0].uri;
+      const combinedUris = [...imageUris, newUri].slice(0, maxPhotos);
+      setImageUris(combinedUris);
+      if (isMountedRef.current) {
+        setFeedbackType('none');
+        setFeedbackMessage('');
+        setRetryAttempt(0);
+      }
+    }
   };
 
   const handlePickImage = async () => {
@@ -208,27 +214,27 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
       return;
     }
 
-    // Calculate how many more images can be selected (max 12 total)
+    // Calculate how many more images can be selected
     const currentCount = imageUris.length;
-    const remainingSlots = Math.max(0, 12 - currentCount);
-    
+    const remainingSlots = Math.max(0, maxPhotos - currentCount);
+
     // If already at limit, show message
-    if (currentCount >= 12) {
-      alert('You have reached the maximum of 12 images. Please remove some images before adding more.');
+    if (currentCount >= maxPhotos) {
+      alert(`You have reached the maximum of ${maxPhotos} images. Please remove some images before adding more.`);
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
-      allowsMultipleSelection: true,
+      allowsMultipleSelection: maxPhotos > 1,
       quality: 0.8,
-      selectionLimit: remainingSlots > 0 ? remainingSlots : 12, // Allow selecting remaining slots
+      ...(maxPhotos > 1 && remainingSlots > 0 ? { selectionLimit: remainingSlots } : {}),
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      // Combine new selections with existing ones (up to 12 total)
+      // Combine new selections with existing ones (up to max)
       const newUris = result.assets.map(asset => asset.uri);
-      const combinedUris = [...imageUris, ...newUris].slice(0, 12); // Cap at 12
+      const combinedUris = [...imageUris, ...newUris].slice(0, maxPhotos); // Cap at maxPhotos
       setImageUris(combinedUris);
       // Clear previous feedback when new images are selected
       if (isMountedRef.current) {
@@ -299,57 +305,93 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
       // Check session before starting
       checkSession();
 
-      // Step 1: Validate and upload all images
-      const imageUrls: string[] = [];
+      // Step 1: Compress, convert and upload all images in parallel
       const base64Images: string[] = [];
+      const imageUrls: string[] = [];
 
-      for (let i = 0; i < imageUris.length; i++) {
-        if (!isMountedRef.current) break;
+      if (isMountedRef.current) {
+        setAnalysisProgress('Compressing images... (25%)');
+      }
 
-        if (isMountedRef.current) {
-          setAnalysisProgress(`Uploading images... (${i + 1}/${imageUris.length})`);
-        }
-
-        try {
-          // Validate image size (10MB max)
-          await validateImageSize(imageUris[i], 10);
-
-          // Upload with timeout (30 seconds)
-          const imagePath = `${userId}/${Date.now()}_${i}.jpg`;
-          const imageUrl = await withTimeout(
-            uploadImageToSupabase(supabase, 'user-uploads', imagePath, imageUris[i]),
-            30000,
-            'Upload timed out'
-          );
-          imageUrls.push(imageUrl);
-
-          // Convert image to base64 for AI analysis with timeout
-          const base64Image = await withTimeout(
-            imageUriToBase64(imageUris[i]),
-            30000,
-            'Image conversion timed out'
-          );
-          base64Images.push(base64Image);
-        } catch (error) {
-          console.error(`[AnalyseGymPhotoDialog] Error uploading image ${i}:`, error);
-          const errorType = determineErrorType(error);
+      // Compress all images in parallel
+      let compressedUris: string[];
+      try {
+        compressedUris = await Promise.all(
+          imageUris.map(async (uri, i) => {
+            await validateImageSize(uri, 10);
+            return withTimeout(
+              compressImage(uri, 1280, 1280, 0.75),
+              15000,
+              'Image compression timed out'
+            );
+          })
+        );
+      } catch (error) {
+        console.error('[AnalyseGymPhotoDialog] Compression error:', error);
+        const errorType = determineErrorType(error);
+        for (let i = 0; i < imageUris.length; i++) {
           results.push({
             imageIndex: i,
             hadEquipment: false,
             equipmentCount: 0,
-            error: errorType === 'unknown' && (error as Error).message.includes('size') 
-              ? 'image-too-large' 
+            error: errorType === 'unknown' && (error as Error).message?.includes('size')
+              ? 'image-too-large'
               : errorType,
           });
+        }
+        hasErrors = true;
+        compressedUris = [];
+      }
+
+      if (!isMountedRef.current) return;
+
+      if (compressedUris.length > 0) {
+        // Convert to base64 in parallel (single conversion, reused for upload + analysis)
+        if (isMountedRef.current) {
+          setAnalysisProgress('Preparing upload... (40%)');
+        }
+
+        try {
+          const b64Results = await Promise.all(
+            compressedUris.map(uri =>
+              withTimeout(imageUriToBase64(uri), 30000, 'Image conversion timed out')
+            )
+          );
+          base64Images.push(...b64Results);
+        } catch (error) {
+          console.error('[AnalyseGymPhotoDialog] Base64 conversion error:', error);
           hasErrors = true;
+        }
+
+        // Upload in parallel
+        if (base64Images.length > 0) {
+          if (isMountedRef.current) {
+            setAnalysisProgress('Uploading to cloud... (50%)');
+          }
+
+          try {
+            const uploadResults = await Promise.all(
+              compressedUris.map((uri, i) => {
+                const imagePath = `${userId}/${Date.now()}_${i}.jpg`;
+                return withTimeout(
+                  uploadImageToSupabase(supabase, 'user-uploads', imagePath, uri),
+                  30000,
+                  'Upload timed out'
+                );
+              })
+            );
+            imageUrls.push(...uploadResults);
+          } catch (error) {
+            console.error('[AnalyseGymPhotoDialog] Upload error:', error);
+            // Upload failure is non-critical - we still have base64 for analysis
+          }
         }
       }
 
-      // Check if any images uploaded successfully
+      // Check if any images converted successfully
       if (base64Images.length === 0) {
-        // All uploads failed
         if (!isMountedRef.current) return;
-        
+
         if (retryAttempt >= 1) {
           if (isMountedRef.current) {
             setFeedbackType('unable-to-analyze');
@@ -371,38 +413,58 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
         return;
       }
 
-      // Step 2: Analyze all gym photos with Gemini Edge Function (single batch request)
+      // Step 2: Single combined AI analysis (equipment + exercises in one Gemini call)
       if (isMountedRef.current) {
-        setAnalysisProgress(`Analysing images... (${base64Images.length} image${base64Images.length > 1 ? 's' : ''})`);
+        setAnalysisProgress('AI is analysing your gym... (75%)');
       }
 
       const allEquipment = new Set<string>();
       const equipmentWithCategories: Array<{ name: string; category: string }> = [];
-      let analysisResult: GymAnalysisResult | null = null;
-      
+      let generatedExercises: DetectedExercise[] = [];
+
       try {
-        // Check session before analysis
         checkSession();
 
         if (!session?.access_token) {
           throw new Error('Session access token not available');
         }
 
-        // Analyze all images in a single batch request via edge function (60 second timeout)
-        analysisResult = await withTimeout(
-          analyzeGymEquipmentViaEdgeFunction(base64Images, session.access_token),
-          60000,
-          'Analysis timed out'
+        // Fetch user's programme type from profile
+        let programmeType: 'ulul' | 'ppl' | null = null;
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('programme_type')
+            .eq('id', userId)
+            .single();
+
+          if (!profileError && profile) {
+            programmeType = profile.programme_type as 'ulul' | 'ppl' | null;
+            console.log('[AnalyseGymPhotoDialog] Programme type:', programmeType);
+          }
+        } catch (error) {
+          console.warn('[AnalyseGymPhotoDialog] Could not fetch programme type:', error);
+        }
+
+        const shouldGenerateExercises = !!onExercisesGenerated;
+        console.log('[AnalyseGymPhotoDialog] Starting combined analysis with', base64Images.length, 'images, generateExercises:', shouldGenerateExercises);
+        const startTime = Date.now();
+
+        // Single combined API call (70s timeout)
+        const analysisResult = await withTimeout(
+          analyzeGymComplete(base64Images, session.access_token, shouldGenerateExercises, programmeType),
+          70000,
+          'Analysis timed out. Please try again.'
         );
-        
-        // Process results - edge function analyzes all images together
+
+        const elapsed = Date.now() - startTime;
+        console.log('[AnalyseGymPhotoDialog] Combined analysis completed in', elapsed, 'ms');
+
+        // Process equipment results
         let totalEquipmentCount = 0;
-        
         analysisResult.equipment.forEach((category) => {
           category.items.forEach((item) => {
-            // Track for display/counting (deduplicated by name)
             allEquipment.add(item);
-            // Track with category for database storage
             equipmentWithCategories.push({
               name: item,
               category: category.category,
@@ -411,20 +473,22 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           });
         });
 
-        // For tracking purposes, we'll assume all images contributed to the result
-        // since the edge function processes them as a batch
+        // Track per-image results
         for (let i = 0; i < base64Images.length; i++) {
           results.push({
             imageIndex: i,
             hadEquipment: totalEquipmentCount > 0,
-            equipmentCount: Math.ceil(totalEquipmentCount / base64Images.length), // Approximate per image
+            equipmentCount: Math.ceil(totalEquipmentCount / base64Images.length),
           });
         }
+
+        // Store generated exercises
+        generatedExercises = analysisResult.identifiedExercises || [];
+        console.log('[AnalyseGymPhotoDialog] Equipment detected:', totalEquipmentCount, '| Exercises generated:', generatedExercises.length);
       } catch (error) {
         console.error('[AnalyseGymPhotoDialog] Error analyzing images:', error);
         const errorType = determineErrorType(error);
-        
-        // Mark all images as failed
+
         for (let i = 0; i < base64Images.length; i++) {
           results.push({
             imageIndex: i,
@@ -440,17 +504,17 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
 
       if (isMountedRef.current) {
         setAnalysisResults(results);
+        setAnalysisProgress('Finishing up... (90%)');
       }
-      
+
       const totalEquipment = allEquipment.size;
       if (isMountedRef.current) {
         setTotalEquipmentDetected(totalEquipment);
       }
 
-      // Step 3: Insert detected equipment into database (with deduplication via unique constraint)
+      // Step 3: Insert detected equipment into database
       if (equipmentWithCategories.length > 0) {
         try {
-          // Prepare equipment inserts with category information
           const equipmentInserts = equipmentWithCategories.map((eq) => ({
             gym_id: gymId,
             equipment_name: eq.name,
@@ -458,151 +522,35 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
             detected_at: new Date().toISOString(),
           }));
 
-          // Insert equipment (duplicates are prevented by unique constraint)
-          // If equipment already exists, the insert will fail but we handle it gracefully
           const { error: insertError } = await supabase
             .from('gym_equipment')
             .insert(equipmentInserts);
 
           if (insertError) {
-            // Handle unique constraint violations gracefully (equipment already exists)
-            // PGRST error codes: 23505 (Postgres unique violation) or PGRST204 (row not found)
-            // We ignore unique violations since duplicates are expected if user re-runs analysis
             if (insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique')) {
               console.log('[AnalyseGymPhotoDialog] Some equipment already exists, skipping duplicates (this is expected)');
             } else {
               console.error('[AnalyseGymPhotoDialog] Equipment insert error:', insertError);
             }
-            // Don't fail the whole flow if equipment insert fails - this is non-critical data
           }
         } catch (error) {
           console.error('[AnalyseGymPhotoDialog] Equipment insert failed:', error);
-          // Don't fail the whole flow if equipment insert fails
         }
       }
 
       if (!isMountedRef.current) return;
 
-      // Step 4: Generate exercises from detected equipment
-      let generatedExercises: DetectedExercise[] = [];
-      let progressInterval: NodeJS.Timeout | null = null;
-      if (totalEquipment > 0 && onExercisesGenerated) {
-        try {
-          if (isMountedRef.current) {
-            setAnalysisProgress('AI is analysing your equipment and generating exercises...');
-          }
-
-          // Update progress every 5 seconds to give feedback
-          progressInterval = setInterval(() => {
-            if (isMountedRef.current) {
-              setAnalysisProgress(prev => {
-                const messages = [
-                  'AI is analysing your equipment...',
-                  'Identifying exercises from detected equipment...',
-                  'Matching equipment to exercise library...',
-                  'Almost done, finalising exercise list...',
-                ];
-                const currentIndex = messages.indexOf(prev);
-                return messages[(currentIndex + 1) % messages.length];
-              });
-            }
-          }, 5000);
-
-          // Check session before exercise generation
-          checkSession();
-
-          if (!session?.access_token) {
-            if (progressInterval) {
-              clearInterval(progressInterval);
-              progressInterval = null;
-            }
-            throw new Error('Session access token not available');
-          }
-
-          // Fetch user's programme type from profile
-          let programmeType: 'ulul' | 'ppl' | null = null;
-          try {
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('programme_type')
-              .eq('id', userId)
-              .single();
-            
-            if (profileError) {
-              console.error('[AnalyseGymPhotoDialog] Error fetching profile:', profileError);
-            } else {
-              programmeType = profile?.programme_type as 'ulul' | 'ppl' | null;
-              console.log('[AnalyseGymPhotoDialog] User programme type from DB:', programmeType);
-              console.log('[AnalyseGymPhotoDialog] Full profile data:', profile);
-            }
-          } catch (error) {
-            console.warn('[AnalyseGymPhotoDialog] Could not fetch programme type:', error);
-          }
-          
-          console.log('[AnalyseGymPhotoDialog] Sending programmeType to edge function:', programmeType || 'ppl (default)');
-
-          // Generate exercises from equipment using identify-equipment edge function
-          console.log('[AnalyseGymPhotoDialog] Starting exercise generation with', base64Images.length, 'images');
-          const startTime = Date.now();
-          
-          try {
-            generatedExercises = await withTimeout(
-              generateExercisesFromEquipment(base64Images, session.access_token, programmeType),
-              90000, // Increased to 90 seconds for more complex analysis
-              'Exercise generation timed out. This can happen with many images. Please try again.'
-            );
-          } finally {
-            if (progressInterval) {
-              clearInterval(progressInterval);
-              progressInterval = null;
-            }
-          }
-          
-          const elapsed = Date.now() - startTime;
-          console.log('[AnalyseGymPhotoDialog] Exercise generation completed in', elapsed, 'ms');
-
-          console.log('[AnalyseGymPhotoDialog] Generated exercises:', generatedExercises.length);
-
-          if (!isMountedRef.current) return;
-
-          // Pass exercises and images to parent component for exercise selection
-          if (generatedExercises.length > 0) {
-            onExercisesGenerated(generatedExercises, base64Images);
-            // Don't call onFinish() - parent will handle the next step
-            return;
-          } else {
-            // No exercises generated - show feedback but don't proceed to exercise selection
-            console.warn('[AnalyseGymPhotoDialog] No exercises generated from equipment');
-          }
-        } catch (error) {
-          console.error('[AnalyseGymPhotoDialog] Exercise generation error:', error);
-          
-          // Clear progress interval if still running
-          if (progressInterval) {
-            clearInterval(progressInterval);
-            progressInterval = null;
-          }
-          
-          // Clear progress message
-          if (isMountedRef.current) {
-            setAnalysisProgress('');
-          }
-          
-          // Continue with normal feedback flow if exercise generation fails
-          // Equipment was detected, so user can still proceed and add exercises manually
-          console.log('[AnalyseGymPhotoDialog] Exercise generation failed, but equipment was detected. User can proceed to add exercises manually.');
-          
-          // Note: The flow will continue to Step 5 below, which will show success feedback
-          // and call onFinish() since equipment was detected
-        }
+      // Step 4: Pass exercises to parent if available
+      if (generatedExercises.length > 0 && onExercisesGenerated) {
+        onExercisesGenerated(generatedExercises, base64Images);
+        return;
       }
 
       // Step 5: Determine feedback type and show appropriate message
       const successfulAnalyses = results.filter(r => !r.error);
       const imagesWithEquipment = results.filter(r => r.hadEquipment);
-      
+
       if (hasErrors && successfulAnalyses.length === 0) {
-        // All images failed - error scenario
         if (retryAttempt >= 1) {
           if (isMountedRef.current) {
             setFeedbackType('unable-to-analyze');
@@ -624,7 +572,6 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           }
         }
       } else if (totalEquipment === 0) {
-        // No equipment detected scenario
         if (retryAttempt >= 1) {
           if (isMountedRef.current) {
             setFeedbackType('unable-to-analyze');
@@ -637,19 +584,16 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
           }
         }
       } else if (imagesWithEquipment.length < imageUris.length) {
-        // Partial success - some images had equipment, some didn't
         if (isMountedRef.current) {
           setFeedbackType('partial');
           setFeedbackMessage("AI was not able to identify exercises from one or more images. We have added those exercises that were identified to your new gym. You can easily manage your gym and use the AI feature again in the T-path Management page.");
         }
-        // Auto-finish after showing feedback in partial success
         timeoutRef.current = setTimeout(() => {
           if (isMountedRef.current) {
             onFinish();
           }
         }, 100);
       } else {
-        // Complete success - all images analyzed and equipment found
         if (isMountedRef.current) {
           onFinish();
         }
@@ -657,10 +601,9 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
 
     } catch (error) {
       console.error('[AnalyseGymPhotoDialog] Error:', error);
-      
+
       if (!isMountedRef.current) return;
 
-      // Check if it's a session error
       const errorMessage = (error as Error).message || '';
       if (errorMessage.includes('Session expired') || errorMessage.includes('401') || errorMessage.includes('403')) {
         if (isMountedRef.current) {
@@ -669,8 +612,7 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
         }
         return;
       }
-      
-      // Handle general errors
+
       if (retryAttempt >= 1) {
         if (isMountedRef.current) {
           setFeedbackType('unable-to-analyze');
@@ -708,11 +650,12 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
       onRequestClose={onBack}
     >
       <View style={styles.overlay}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.dialog}>
+        <View style={styles.modalContainer}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.dialog}>
             {/* Close Button */}
             <TouchableOpacity 
               style={styles.closeButton} 
@@ -733,16 +676,16 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
               {/* Selection Counter - Always visible */}
               <View style={styles.selectionCounterContainer}>
                 <Text style={styles.selectionCounterText}>
-                  {imageUris.length}/12 photos selected
+                  {imageUris.length}/{maxPhotos} photos selected
                 </Text>
-                {imageUris.length >= 12 && (
+                {imageUris.length >= maxPhotos && (
                   <Text style={styles.selectionCounterSubtext}>
                     Maximum reached
                   </Text>
                 )}
-                {imageUris.length > 0 && imageUris.length < 12 && (
+                {imageUris.length > 0 && imageUris.length < maxPhotos && (
                   <Text style={styles.selectionCounterSubtext}>
-                    You can add {12 - imageUris.length} more
+                    You can add {maxPhotos - imageUris.length} more
                   </Text>
                 )}
               </View>
@@ -775,30 +718,51 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
                   <>
                     <Ionicons name="cloud-upload-outline" size={40} color={Colors.mutedForeground} />
                     <Text style={styles.uploadText}>
-                      Upload photos of your gym equipment. Our AI will identify exercises you can do. You can upload up to 12 photos.
+                      Upload photos of your gym equipment. Our AI will identify exercises you can do. You can upload up to {maxPhotos} photos.
                     </Text>
                   </>
                 )}
               </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.uploadButton,
-                  imageUris.length >= 12 && styles.uploadButtonDisabled
-                ]}
-                onPress={handlePickImage}
-                disabled={isAnalyzing || imageUris.length >= 12}
-              >
-                <Ionicons name="camera" size={20} color="#fff" />
-                <Text style={styles.uploadButtonText}>
-                  {imageUris.length >= 12 
-                    ? 'Maximum Reached (12/12)'
-                    : imageUris.length > 0 
-                    ? `Add More Photos (${imageUris.length}/12)`
-                    : 'Add Photos (0/12)'
-                  }
-                </Text>
-              </TouchableOpacity>
+              {/* Button row - show both buttons for ad-hoc, single button for gym setup */}
+              <View style={onExercisesGenerated ? styles.buttonRow : styles.singleButtonContainer}>
+                {onExercisesGenerated && (
+                  <TouchableOpacity
+                    style={[
+                      styles.uploadButton,
+                      styles.halfButton,
+                      imageUris.length >= maxPhotos && styles.uploadButtonDisabled
+                    ]}
+                    onPress={handleTakePhoto}
+                    disabled={isAnalyzing || imageUris.length >= maxPhotos}
+                  >
+                    <Ionicons name="camera" size={20} color="#fff" />
+                    <Text style={styles.uploadButtonText}>Take Photo</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.uploadButton,
+                    onExercisesGenerated && styles.halfButton,
+                    imageUris.length >= maxPhotos && styles.uploadButtonDisabled
+                  ]}
+                  onPress={handlePickImage}
+                  disabled={isAnalyzing || imageUris.length >= maxPhotos}
+                >
+                  <Ionicons name="images" size={20} color="#fff" />
+                  <Text style={styles.uploadButtonText}>
+                    {onExercisesGenerated
+                      ? 'From Library'
+                      : imageUris.length >= maxPhotos
+                      ? `Maximum Reached (${maxPhotos}/${maxPhotos})`
+                      : imageUris.length > 0
+                      ? `Add More Photos (${imageUris.length}/${maxPhotos})`
+                      : `Add Photos (0/${maxPhotos})`
+                    }
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Progress Indicator */}
@@ -922,7 +886,8 @@ export const AnalyseGymPhotoDialog: React.FC<AnalyseGymPhotoDialogProps> = ({
               )}
             </View>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -935,17 +900,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 450,
+    maxHeight: '90%',
+    paddingHorizontal: Spacing.lg,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: Spacing.lg,
   },
   dialog: {
     backgroundColor: '#fff',
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     width: '100%',
-    maxWidth: 400,
     position: 'relative',
   },
   closeButton: {
@@ -1044,6 +1013,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  singleButtonContainer: {
+    width: '100%',
+  },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1052,6 +1024,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray900,
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
+  },
+  halfButton: {
+    flex: 1,
   },
   uploadButtonText: {
     fontSize: 16,
