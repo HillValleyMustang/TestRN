@@ -3162,6 +3162,151 @@ class Database {
       await db.runAsync('DELETE FROM sync_queue');
     },
   };
+
+  /**
+   * Get exercise progression data for charting
+   * Returns last N sessions containing a specific exercise with volume/weight data
+   * @param userId - User ID
+   * @param exerciseId - Exercise ID to track
+   * @param limit - Number of sessions to return (default 10)
+   */
+  async getExerciseProgression(
+    userId: string,
+    exerciseId: string,
+    limit: number = 10
+  ): Promise<Array<{
+    session_id: string;
+    session_date: string;
+    total_volume_kg: number;
+    max_weight_kg: number;
+    total_reps: number;
+    set_count: number;
+  }>> {
+    const db = this.getDB();
+    debugLog('getExerciseProgression called for exercise:', exerciseId);
+
+    const result = await db.getAllAsync<{
+      session_id: string;
+      session_date: string;
+      total_volume_kg: number;
+      max_weight_kg: number;
+      total_reps: number;
+      set_count: number;
+    }>(
+      `SELECT
+        ws.id as session_id,
+        ws.session_date,
+        SUM(sl.weight_kg * sl.reps) as total_volume_kg,
+        MAX(sl.weight_kg) as max_weight_kg,
+        SUM(sl.reps) as total_reps,
+        COUNT(sl.id) as set_count
+      FROM workout_sessions ws
+      INNER JOIN set_logs sl ON ws.id = sl.session_id
+      WHERE ws.user_id = ?
+        AND sl.exercise_id = ?
+        AND ws.completed_at IS NOT NULL
+      GROUP BY ws.id, ws.session_date
+      ORDER BY ws.session_date DESC
+      LIMIT ?`,
+      [userId, exerciseId, limit]
+    );
+
+    debugLog('getExerciseProgression returned', result.length, 'sessions');
+    return result;
+  }
+
+  /**
+   * Get the most recent workout of a specific type before a given date
+   * Used for like-for-like comparison (Push vs Push, not Push vs Pull)
+   * @param userId - User ID
+   * @param workoutType - Normalized workout type (e.g., "Push", "Upper A")
+   * @param beforeDate - ISO date string to search before
+   */
+  async getPreviousWorkoutOfType(
+    userId: string,
+    workoutType: string,
+    beforeDate: string
+  ): Promise<WorkoutSession | null> {
+    const db = this.getDB();
+    debugLog('getPreviousWorkoutOfType called for type:', workoutType);
+
+    // Normalize the workout type to lowercase for matching
+    const normalizedType = workoutType.toLowerCase();
+
+    // Build the LIKE pattern based on workout type
+    // For compound types like upper_a, we need to match the pattern differently
+    let likePattern: string;
+
+    if (normalizedType === 'upper_a' || normalizedType === 'upper a') {
+      // Match "Upper A", "Upper Body A", "UpperA", etc.
+      likePattern = '%upper%a%';
+    } else if (normalizedType === 'upper_b' || normalizedType === 'upper b') {
+      likePattern = '%upper%b%';
+    } else if (normalizedType === 'lower_a' || normalizedType === 'lower a') {
+      likePattern = '%lower%a%';
+    } else if (normalizedType === 'lower_b' || normalizedType === 'lower b') {
+      likePattern = '%lower%b%';
+    } else {
+      // For simple types (push, pull, legs), use the standard pattern
+      likePattern = `%${normalizedType}%`;
+    }
+
+    const result = await db.getFirstAsync<WorkoutSession>(
+      `SELECT * FROM workout_sessions
+      WHERE user_id = ?
+        AND session_date < ?
+        AND completed_at IS NOT NULL
+        AND LOWER(template_name) LIKE ?
+      ORDER BY session_date DESC
+      LIMIT 1`,
+      [userId, beforeDate, likePattern]
+    );
+
+    debugLog('getPreviousWorkoutOfType returned:', !!result);
+    return result || null;
+  }
+
+  /**
+   * Get workout comparison data for two sessions
+   * Returns volume and exercise count for both sessions
+   * @param userId - User ID
+   * @param currentSessionId - Current session ID
+   * @param previousSessionId - Previous session ID to compare against
+   */
+  async getWorkoutComparison(
+    userId: string,
+    currentSessionId: string,
+    previousSessionId: string
+  ): Promise<{
+    current: { total_volume_kg: number; exercise_count: number };
+    previous: { total_volume_kg: number; exercise_count: number };
+  }> {
+    const db = this.getDB();
+    debugLog('getWorkoutComparison called for sessions:', currentSessionId, previousSessionId);
+
+    const getSessionStats = async (sessionId: string) => {
+      const result = await db.getFirstAsync<{
+        total_volume_kg: number;
+        exercise_count: number;
+      }>(
+        `SELECT
+          SUM(sl.weight_kg * sl.reps) as total_volume_kg,
+          COUNT(DISTINCT sl.exercise_id) as exercise_count
+        FROM set_logs sl
+        WHERE sl.session_id = ?`,
+        [sessionId]
+      );
+      return result || { total_volume_kg: 0, exercise_count: 0 };
+    };
+
+    const [current, previous] = await Promise.all([
+      getSessionStats(currentSessionId),
+      getSessionStats(previousSessionId),
+    ]);
+
+    debugLog('getWorkoutComparison returned:', { current, previous });
+    return { current, previous };
+  }
 }
 
 export const database = new Database();

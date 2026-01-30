@@ -158,7 +158,11 @@ export const queryKeys = {
   // Exercise queries
   exerciseDefinitions: () => ['exercise-definitions'] as const,
   exercisePR: (userId: string, exerciseId: string) => ['exercise-pr', userId, exerciseId] as const,
-  
+  exerciseProgression: (userId: string, exerciseId: string, limit: number) => ['exercise-progression', userId, exerciseId, limit] as const,
+
+  // Workout comparison queries
+  workoutComparison: (userId: string, currentSessionId: string, previousSessionId: string) => ['workout-comparison', userId, currentSessionId, previousSessionId] as const,
+
   // Analytics queries
   workoutFrequency: (userId: string, days?: number) => ['workout-frequency', userId, days] as const,
   volumeHistory: (userId: string, days?: number) => ['volume-history', userId, days] as const,

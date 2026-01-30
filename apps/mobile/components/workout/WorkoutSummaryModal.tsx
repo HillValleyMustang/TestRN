@@ -22,6 +22,9 @@ import { Button } from '../ui/Button';
 import { getWorkoutColor } from '../../lib/workout-colors';
 import { useData } from '../../app/_contexts/data-context';
 import { TextStyles as TypographyTextStyles, FontWeight as TypographyFontWeight } from '../../constants/Typography';
+import { ExerciseProgressionChart } from '../charts/ExerciseProgressionChart';
+import { useAuth } from '../../app/_contexts/auth-context';
+import { useExerciseProgression } from '../../hooks/data';
 
 const { width } = Dimensions.get('window');
 
@@ -125,24 +128,58 @@ const formatDurationDisplay = (durationStr: string): string => {
 
 const getPreselectedProgressTab = (workoutName: string): 'all' | 'upper' | 'lower' => {
   const workoutNameLower = workoutName.toLowerCase();
-  
+
   // Upper body workouts
-  if (workoutNameLower.includes('push') || 
+  if (workoutNameLower.includes('push') ||
       workoutNameLower.includes('pull') ||
       workoutNameLower.includes('upper body a') ||
       workoutNameLower.includes('upper body b')) {
     return 'upper';
   }
-  
+
   // Lower body workouts
   if (workoutNameLower.includes('legs') ||
       workoutNameLower.includes('lower body a') ||
       workoutNameLower.includes('lower body b')) {
     return 'lower';
   }
-  
+
   // Default to all for other workout types
   return 'all';
+};
+
+// ===== EXERCISE PROGRESSION CHART WRAPPER =====
+interface ExerciseProgressionChartWrapperProps {
+  exerciseId: string;
+  exerciseName: string;
+}
+
+const ExerciseProgressionChartWrapper: React.FC<ExerciseProgressionChartWrapperProps> = ({
+  exerciseId,
+  exerciseName,
+}) => {
+  const { userId } = useAuth();
+  const { data, loading } = useExerciseProgression(userId, exerciseId, { limit: 10 });
+
+  if (loading) {
+    return (
+      <View style={{ padding: Spacing.md }}>
+        <Text style={{ color: Colors.mutedForeground }}>Loading progression data...</Text>
+      </View>
+    );
+  }
+
+  if (!data || data.length < 3) {
+    return null; // Don't show chart if not enough data
+  }
+
+  return (
+    <ExerciseProgressionChart
+      data={data}
+      exerciseName={exerciseName}
+      metric="volume"
+    />
+  );
 };
 
 const parseDurationToSeconds = (durationStr: string | number): number => {
@@ -1174,9 +1211,21 @@ export function WorkoutSummaryModal({
           </View>
         </View>
       </Card>
+
+      {/* Exercise Progression Charts */}
+      <View style={styles.exerciseProgressionSection}>
+        <Text style={styles.sectionTitle}>Exercise Progression</Text>
+        {exercises.map((exercise) => (
+          <ExerciseProgressionChartWrapper
+            key={exercise.exerciseId}
+            exerciseId={exercise.exerciseId}
+            exerciseName={exercise.exerciseName}
+          />
+        ))}
+      </View>
     </ScrollView>
   ), [
-    selectedProgressTab, weeklyVolumeTotals, startTime, weeklyVolumeData
+    selectedProgressTab, weeklyVolumeTotals, startTime, weeklyVolumeData, exercises
   ]);
 
   const InsightsTab = useCallback(() => (
@@ -1820,6 +1869,17 @@ const styles = StyleSheet.create({
   },
   progressScrollViewContent: {
     justifyContent: 'space-between',
+  },
+  exerciseProgressionSection: {
+    paddingTop: Spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.foreground,
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
   },
   cardSubtitle: {
     ...TextStyles.small,

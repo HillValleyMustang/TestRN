@@ -4,7 +4,7 @@
  * Matches web version design with grid layout for stats
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
@@ -13,6 +13,9 @@ import { getWorkoutColor } from '../../lib/workout-colors';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { DeleteWorkoutDialog } from './DeleteWorkoutDialog';
+import { VolumeChangeIndicator } from './VolumeChangeIndicator';
+import { database } from '../../app/_lib/database';
+import { useAuth } from '../../app/_contexts/auth-context';
 
 interface WorkoutSession {
   id: string;
@@ -32,8 +35,54 @@ interface WorkoutHistoryCardProps {
 }
 
 export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: WorkoutHistoryCardProps) {
+  const { userId } = useAuth();
   const workoutColors = getWorkoutColor(session.template_name || 'Ad Hoc Workout');
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [previousVolume, setPreviousVolume] = useState<number | null>(null);
+
+  // Normalize workout type for comparison
+  const normalizeWorkoutType = (templateName: string | null): string => {
+    if (!templateName) return 'adhoc';
+    const name = templateName.toLowerCase().trim();
+    if (name.includes('push')) return 'push';
+    if (name.includes('pull')) return 'pull';
+    if (name.includes('leg')) return 'legs';
+    if (name.includes('upper') && name.includes('a')) return 'upper_a';
+    if (name.includes('upper') && name.includes('b')) return 'upper_b';
+    if (name.includes('lower') && name.includes('a')) return 'lower_a';
+    if (name.includes('lower') && name.includes('b')) return 'lower_b';
+    return 'adhoc';
+  };
+
+  // Fetch previous same-type workout for comparison
+  useEffect(() => {
+    const fetchPreviousWorkout = async () => {
+      if (!userId) return;
+
+      try {
+        const normalizedType = normalizeWorkoutType(session.template_name);
+        const previousWorkout = await database.getPreviousWorkoutOfType(
+          userId,
+          normalizedType,
+          session.session_date
+        );
+
+        if (previousWorkout) {
+          // Get the set logs for the previous workout to calculate volume
+          const setLogs = await database.getSetLogs(previousWorkout.id);
+          const volume = setLogs.reduce(
+            (sum, set) => sum + (set.weight_kg || 0) * (set.reps || 0),
+            0
+          );
+          setPreviousVolume(volume);
+        }
+      } catch (error) {
+        console.error('[WorkoutHistoryCard] Error fetching previous workout:', error);
+      }
+    };
+
+    fetchPreviousWorkout();
+  }, [userId, session.id, session.template_name, session.session_date]);
 
   const handleDelete = () => {
     setDeleteDialogVisible(true);
@@ -117,6 +166,18 @@ export function WorkoutHistoryCard({ session, onViewSummary, onDelete }: Workout
           <Text style={styles.statText}>{session.total_volume_kg.toLocaleString()} kg</Text>
         </View>
       </View>
+
+      {/* Volume change indicator */}
+      {previousVolume !== null && previousVolume > 0 && (
+        <View style={styles.volumeChangeContainer}>
+          <VolumeChangeIndicator
+            currentVolume={session.total_volume_kg}
+            previousVolume={previousVolume}
+            comparisonType="workout"
+          />
+          <Text style={styles.volumeChangeLabel}>vs last {session.template_name || 'workout'}</Text>
+        </View>
+      )}
 
       <Pressable style={styles.viewSummaryButton} onPress={() => onViewSummary(session.id)}>
         <Text style={[styles.viewSummaryText, { color: workoutColors.main }]}>View Summary</Text>
@@ -210,6 +271,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.mutedForeground,
+  },
+  volumeChangeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  volumeChangeLabel: {
+    fontSize: 12,
+    color: Colors.mutedForeground,
+    fontFamily: 'Poppins_400Regular',
   },
   viewSummaryButton: {
     flexDirection: 'row',

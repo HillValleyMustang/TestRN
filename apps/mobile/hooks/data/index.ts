@@ -13,3 +13,5 @@ export { useVolumeHistory } from './useVolumeHistory';
 export { useNextWorkout } from './useNextWorkout';
 export { useFilteredWorkoutHistory } from './useFilteredWorkoutHistory';
 export type { WorkoutHistoryFilters } from './useFilteredWorkoutHistory';
+export { useExerciseProgression } from './useExerciseProgression';
+export { useWorkoutComparison } from './useWorkoutComparison';
