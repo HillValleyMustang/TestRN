@@ -108,3 +108,14 @@ export interface Gym {
   created_at: string;
   updated_at: string;
 }
+
+export interface MediaPost {
+  id: string;
+  title: string;
+  description: string | null;
+  video_url: string;
+  creator_name: string | null;
+  tags: string[];
+  category: string | null;
+  created_at: string;
+}

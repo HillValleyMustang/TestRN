@@ -15,3 +15,4 @@ export { useFilteredWorkoutHistory } from './useFilteredWorkoutHistory';
 export type { WorkoutHistoryFilters } from './useFilteredWorkoutHistory';
 export { useExerciseProgression } from './useExerciseProgression';
 export { useWorkoutComparison } from './useWorkoutComparison';
+export { useMediaPosts } from './useMediaPosts';

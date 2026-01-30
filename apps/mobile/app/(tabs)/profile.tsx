@@ -48,6 +48,7 @@ import { AICoachUsageCard } from '../../components/profile/AICoachUsageCard';
 import { TrainingProfileCard } from '../../components/profile/TrainingProfileCard';
 import { DataExportCard } from '../../components/profile/DataExportCard';
 import { ManageGymWorkoutsDialog } from '../../components/profile/ManageGymWorkoutsDialog';
+import { MediaFeedScreen } from '../../components/media/MediaFeedScreen';
 import { PhotoJourneyTab } from '../../components/profile/PhotoJourneyTab';
 import { PhotoCaptureFlow } from '../../components/profile/PhotoCaptureFlow';
 import { UploadPhotoDialog } from '../../components/profile/UploadPhotoDialog';
@@ -1730,14 +1731,7 @@ export default function ProfileScreen() {
 
   const renderMediaTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.tabTitle}>Media</Text>
-      <Text style={styles.sectionSubtext}>Your workout videos and photos</Text>
-
-      <View style={styles.emptyState}>
-        <Ionicons name="images" size={64} color={Colors.mutedForeground} />
-        <Text style={styles.emptyStateText}>No media yet</Text>
-        <Text style={styles.emptyStateSubtext}>Share your workout moments</Text>
-      </View>
+      <MediaFeedScreen />
     </View>
   );
 
