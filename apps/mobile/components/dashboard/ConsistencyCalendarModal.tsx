@@ -69,14 +69,16 @@ export function ConsistencyCalendarModal({ open, onOpenChange }: ConsistencyCale
               month: '2-digit',
               day: '2-digit'
             });
-            const workoutName = ws.template_name || 'Ad Hoc Workout';
+            const rawName = ws.template_name || 'Ad-Hoc';
+            // Normalize "Workout" and "Ad Hoc Workout" to "Ad-Hoc"
+            const workoutName = (rawName === 'Workout' || rawName === 'Ad Hoc Workout') ? 'Ad-Hoc' : rawName;
 
             if (!newActivityMap.has(dateKey)) {
               newActivityMap.set(dateKey, []);
             }
             newActivityMap.get(dateKey)?.push({
               date,
-              type: workoutName === 'Ad Hoc Workout' ? 'ad-hoc' : 'workout',
+              type: workoutName === 'Ad-Hoc' ? 'ad-hoc' : 'workout',
               name: workoutName,
               logged_at: new Date(ws.created_at || ws.session_date)
             });
@@ -103,7 +105,34 @@ export function ConsistencyCalendarModal({ open, onOpenChange }: ConsistencyCale
   }, [open, userId, supabase, getWorkoutSessions]);
 
   const sortedUniqueActivityTypes = useMemo(() => {
-    return Array.from(uniqueActivityTypes).sort();
+    const types = Array.from(uniqueActivityTypes);
+
+    // Define custom order for workout types
+    const workoutOrder: Record<string, number> = {
+      // ULUL pattern
+      'Upper Body A': 1,
+      'Lower Body A': 2,
+      'Upper Body B': 3,
+      'Lower Body B': 4,
+      // PPL pattern
+      'Push': 5,
+      'Pull': 6,
+      'Legs': 7,
+      // Ad-hoc always last
+      'Ad-Hoc': 999,
+    };
+
+    return types.sort((a, b) => {
+      const orderA = workoutOrder[a] ?? 100; // Unknown workouts go in the middle
+      const orderB = workoutOrder[b] ?? 100;
+
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      // If same order priority (or both unknown), sort alphabetically
+      return a.localeCompare(b);
+    });
   }, [uniqueActivityTypes]);
 
   // Generate calendar data for current month
@@ -194,13 +223,13 @@ export function ConsistencyCalendarModal({ open, onOpenChange }: ConsistencyCale
                   let textColor = day.isCurrentMonth ? Colors.foreground : Colors.mutedForeground;
 
                   if (primaryEvent) {
-                    const colors = getWorkoutColor(primaryEvent.name || 'Ad Hoc Workout');
+                    const colors = getWorkoutColor(primaryEvent.name || 'Ad-Hoc');
                     backgroundColor = colors.main;
                     textColor = 'white';
                   }
 
                   if (secondaryEvent) {
-                    const colors = getWorkoutColor(secondaryEvent.name || 'Ad Hoc Workout');
+                    const colors = getWorkoutColor(secondaryEvent.name || 'Ad-Hoc');
                     borderColor = colors.main;
                   }
 
@@ -262,10 +291,10 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    maxHeight: '80%',
-    width: '100%',
-    maxWidth: 400,
+    padding: Spacing.md,
+    maxHeight: '94%',
+    width: '98%',
+    maxWidth: 520,
   },
   header: {
     flexDirection: 'row',
@@ -305,9 +334,11 @@ const styles = StyleSheet.create({
   weekHeader: {
     flexDirection: 'row',
     marginBottom: Spacing.sm,
+    gap: 4,
+    paddingHorizontal: 4,
   },
   weekDayHeader: {
-    flex: 1,
+    width: '12.5%',
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '500',
@@ -317,13 +348,14 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
+    paddingHorizontal: 4,
   },
   dayCell: {
-    width: `${100 / 7}%`,
+    width: '12.5%',
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 1,
     borderRadius: BorderRadius.sm,
   },
   dayText: {

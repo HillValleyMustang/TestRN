@@ -34,6 +34,7 @@ import {
 import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModal';
 import { ActivityLoggingModal_new as ActivityLoggingModal } from '../../components/dashboard/ActivityLoggingModal_new';
 import { DeleteWorkoutDialog } from '../../components/ui/DeleteWorkoutDialog';
+import { ConsistencyCalendarModal } from '../../components/dashboard/ConsistencyCalendarModal';
 import { createTaggedLogger } from '../../lib/logger';
 
 const log = createTaggedLogger('Dashboard');
@@ -68,6 +69,7 @@ export default function DashboardScreen() {
   } | null>(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [workoutPerformanceModalVisible, setWorkoutPerformanceModalVisible] = useState(false);
+  const [consistencyCalendarVisible, setConsistencyCalendarVisible] = useState(false);
 
   const syncBoxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const syncBoxShownAtRef = useRef<number | null>(null);
@@ -254,6 +256,7 @@ export default function DashboardScreen() {
           <ActionHubWidget
             onLogActivity={() => setActivityModalVisible(true)}
             onWorkoutLog={() => setWorkoutPerformanceModalVisible(true)}
+            onConsistencyCalendar={() => setConsistencyCalendarVisible(true)}
           />
 
           <NextWorkoutCard />
@@ -302,6 +305,11 @@ export default function DashboardScreen() {
         workoutName={workoutToDelete?.templateName || 'Workout'}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteDialogVisible(false)}
+      />
+
+      <ConsistencyCalendarModal
+        open={consistencyCalendarVisible}
+        onOpenChange={setConsistencyCalendarVisible}
       />
     </>
   );
