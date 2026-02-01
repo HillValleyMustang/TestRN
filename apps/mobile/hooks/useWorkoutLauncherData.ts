@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { database } from '../app/_lib/database';
 import { useAuth } from '../app/_contexts/auth-context';
+import { useData } from '../app/_contexts/data-context';
 import { supabase } from '../app/_lib/supabase';
 import { createTaggedLogger } from '../lib/logger';
 
@@ -43,10 +44,12 @@ interface UseWorkoutLauncherDataReturn {
   refreshing: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  refreshExercisesOnly: () => Promise<void>;
 }
 
 export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
   const { userId } = useAuth();
+  const { exerciseRefreshCounter } = useData();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tPaths, setTPaths] = useState<TPath[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,20 +121,6 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
 
       const tPathsData = supabaseTPathsData;
 
-      log.debug('[useWorkoutLauncherData] Profile from Supabase:', {
-        id: profileData?.id,
-        active_t_path_id: profileData?.active_t_path_id,
-        active_gym_id: profileData?.active_gym_id,
-        programme_type: profileData?.programme_type,
-      });
-      log.debug('[useWorkoutLauncherData] T-Paths from Supabase:', tPathsData.length, tPathsData.map(tp => ({
-        id: tp.id,
-        template_name: tp.template_name,
-        parent_t_path_id: tp.parent_t_path_id,
-        gym_id: tp.gym_id,
-        is_main_program: tp.is_main_program,
-      })));
-
       setProfile(profileData);
       setTPaths(tPathsData);
 
@@ -144,17 +133,6 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
           )
         : [];
       
-      log.debug('[useWorkoutLauncherData] All workouts (non-main):', allWorkouts.length, allWorkouts.map(w => ({
-        name: w.template_name,
-        gym_id: w.gym_id,
-        parent: w.parent_t_path_id
-      })));
-      log.debug('[useWorkoutLauncherData] Child workouts for active gym:', childWorkouts.length, childWorkouts.map(w => ({
-        name: w.template_name,
-        gym_id: w.gym_id
-      })));
-
-      // Only fetch exercises for child workouts (from active program)
       if (childWorkouts.length > 0) {
         const cache = await fetchWorkoutExercises(childWorkouts);
         setWorkoutExercisesCache(cache);
@@ -164,7 +142,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       
       hasInitiallyLoadedRef.current = true;
     } catch (err) {
-      console.error('Error in refresh:', err);
+      log.error('Error in refresh:', err);
       setError('Failed to load workout data');
     } finally {
       setLoading(false);
@@ -199,15 +177,6 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       const gymChanged = profile.active_gym_id !== lastGymIdRef.current;
       
       if (tPathChanged || programmeTypeChanged || gymChanged) {
-        log.debug('[useWorkoutLauncherData] T-path, programme type, or gym changed, clearing exercise cache and refreshing:', {
-          oldTPath: lastTPathIdRef.current,
-          newTPath: profile.active_t_path_id,
-          oldType: lastProgrammeTypeRef.current,
-          newType: profile.programme_type,
-          oldGym: lastGymIdRef.current,
-          newGym: profile.active_gym_id,
-          source: 'useEffect_change_detection'
-        });
         // CRITICAL: Clear exercise cache when T-path changes to prevent showing old exercises
         setWorkoutExercisesCache({});
         lastTPathIdRef.current = profile.active_t_path_id;
@@ -297,7 +266,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       
       return exerciseDetails;
     } catch (error) {
-      console.warn('Failed to get exercise details from local DB:', error);
+      log.warn('Failed to get exercise details from local DB:', error);
       // Final fallback
       return exerciseIds.map(id => ({
         id,
@@ -376,7 +345,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
             cache[workout.id] = mappedExercises;
           } else {
             // Fallback when exercise_definitions table is empty
-            console.warn(`[useWorkoutLauncherData] No exercise definitions found in Supabase for workout ${workout.id}`);
+            log.warn(`No exercise definitions found in Supabase for workout ${workout.id}`);
             
             // Try to get exercise details from local database as fallback
             const fallbackExercises = await getExerciseDetailsFromLocal(exerciseIds);
@@ -401,7 +370,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
           cache[workout.id] = [];
         }
       } catch (error) {
-        console.error(`Failed to fetch exercises for workout ${workout.id}:`, error);
+        log.error(`Failed to fetch exercises for workout ${workout.id}:`, error);
         cache[workout.id] = [];
       }
     }
@@ -422,6 +391,25 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
       setWorkoutExercisesCache({});
     }
   }, [derivedData.childWorkouts]);
+
+  // Lightweight exercise-only refresh (no profile/tpath refetch)
+  const refreshExercisesOnly = useCallback(async () => {
+    if (!userId) return;
+    const currentChildWorkouts = derivedData.childWorkouts;
+    if (currentChildWorkouts.length > 0) {
+      const cache = await fetchWorkoutExercises(currentChildWorkouts);
+      setWorkoutExercisesCache(cache);
+    }
+  }, [userId, derivedData.childWorkouts]);
+
+  // Re-fetch exercises when exercise refresh is triggered
+  // (e.g. after reorder/add/remove in Manage T-Path page)
+  // Skip counter === 0 (initial state, no mutation has happened yet).
+  // Counter > 0 means a mutation occurred — always refresh, even on re-mount.
+  useEffect(() => {
+    if (exerciseRefreshCounter === 0) return;
+    refreshExercisesOnly();
+  }, [exerciseRefreshCounter, refreshExercisesOnly]);
 
   // Fetch last completed dates for workouts
   useEffect(() => {
@@ -477,7 +465,7 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
           .order('completed_at', { ascending: false });
 
         if (error) {
-          console.error('[useWorkoutLauncherData] Error fetching last completed dates:', error);
+          log.error('Error fetching last completed dates:', error);
           // Don't clear dates on error - preserve existing dates
           return;
         }
@@ -532,9 +520,8 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
         });
 
         setLastCompletedDates(datesMap);
-        log.debug('[useWorkoutLauncherData] Last completed dates:', datesMap);
       } catch (error) {
-        console.error('[useWorkoutLauncherData] Error fetching last completed dates:', error);
+        log.error('Error fetching last completed dates:', error);
         setLastCompletedDates({});
       }
     };
@@ -571,5 +558,6 @@ export const useWorkoutLauncherData = (): UseWorkoutLauncherDataReturn => {
     refreshing,
     error,
     refresh,
+    refreshExercisesOnly,
   };
 };

@@ -35,13 +35,14 @@ import { WorkoutSummaryModal } from '../../components/workout/WorkoutSummaryModa
 import { ActivityLoggingModal_new as ActivityLoggingModal } from '../../components/dashboard/ActivityLoggingModal_new';
 import { DeleteWorkoutDialog } from '../../components/ui/DeleteWorkoutDialog';
 import { ConsistencyCalendarModal } from '../../components/dashboard/ConsistencyCalendarModal';
+import { AICoachModal } from '../../components/dashboard/AICoachModal';
 import { createTaggedLogger } from '../../lib/logger';
 
 const log = createTaggedLogger('Dashboard');
 
 export default function DashboardScreen() {
   const { session, userId, loading: authLoading } = useAuth();
-  const { deleteWorkoutSession, isSyncing, queueLength, isOnline, lastWorkoutCompletionTime, invalidateAllCaches } = useData();
+  const { deleteWorkoutSession, isSyncing, queueLength, isOnline, lastWorkoutCompletionTime, invalidateAllCaches, invalidateWorkoutCaches } = useData();
   
   const router = useRouter();
 
@@ -70,6 +71,7 @@ export default function DashboardScreen() {
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [workoutPerformanceModalVisible, setWorkoutPerformanceModalVisible] = useState(false);
   const [consistencyCalendarVisible, setConsistencyCalendarVisible] = useState(false);
+  const [aiCoachModalVisible, setAiCoachModalVisible] = useState(false);
 
   const syncBoxTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const syncBoxShownAtRef = useRef<number | null>(null);
@@ -186,7 +188,6 @@ export default function DashboardScreen() {
     
     try {
       await deleteWorkoutSession(workoutToDelete.sessionId);
-      invalidateAllCaches();
     } catch (error) {
       log.error('Failed to delete workout:', error);
       Alert.alert('Error', 'Failed to delete workout');
@@ -194,16 +195,16 @@ export default function DashboardScreen() {
       setDeletionInProgress(null);
       setWorkoutToDelete(null);
     }
-  }, [workoutToDelete, deleteWorkoutSession, invalidateAllCaches]);
+  }, [workoutToDelete, deleteWorkoutSession]);
 
   const handleSessionRatingUpdate = useCallback(async (sessionId: string, rating: number) => {
     try {
       await database.updateWorkoutSession(sessionId, { rating });
-      invalidateAllCaches();
+      invalidateWorkoutCaches();
     } catch (error) {
       log.error('Failed to update rating:', error);
     }
-  }, [invalidateAllCaches]);
+  }, [invalidateWorkoutCaches]);
 
   const userName = userProfile?.full_name || userProfile?.first_name || 'Athlete';
   const accountCreatedAt = userProfile?.created_at || new Date().toISOString();
@@ -255,6 +256,7 @@ export default function DashboardScreen() {
 
           <ActionHubWidget
             onLogActivity={() => setActivityModalVisible(true)}
+            onAICoach={() => setAiCoachModalVisible(true)}
             onWorkoutLog={() => setWorkoutPerformanceModalVisible(true)}
             onConsistencyCalendar={() => setConsistencyCalendarVisible(true)}
           />
@@ -310,6 +312,11 @@ export default function DashboardScreen() {
       <ConsistencyCalendarModal
         open={consistencyCalendarVisible}
         onOpenChange={setConsistencyCalendarVisible}
+      />
+
+      <AICoachModal
+        visible={aiCoachModalVisible}
+        onClose={() => setAiCoachModalVisible(false)}
       />
     </>
   );

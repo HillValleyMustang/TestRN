@@ -13,26 +13,8 @@ const getWorkoutStateKey = (userId: string): string => `@workout_state_${userId}
 // Expiration time: 4 hours (workouts should only last max 2 hours)
 const WORKOUT_STATE_EXPIRATION_MS = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
 
-// Types for workout state persistence
-export interface SetLogState {
-  id: string | null;
-  created_at: string | null;
-  session_id: string | null;
-  exercise_id: string;
-  weight_kg: number | null;
-  reps: number | null;
-  reps_l: number | null;
-  reps_r: number | null;
-  time_seconds: number | null;
-  is_pb: boolean;
-  isSaved: boolean;
-  isPR: boolean;
-  lastWeight: number | null;
-  lastReps: number | null;
-  lastRepsL: number | null;
-  lastRepsR: number | null;
-  lastTimeSeconds: number | null;
-}
+// Re-export SetLogState from shared types (single source of truth)
+export type { SetLogState } from '../types/workout';
 
 export interface WorkoutExercise {
   id: string;

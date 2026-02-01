@@ -15,6 +15,7 @@ export { SimpleVolumeChart } from "./SimpleVolumeChart";
 export { PreviousWorkoutsWidget } from "./PreviousWorkoutsWidget";
 export { SyncStatusBanner } from "./SyncStatusBanner";
 export { WorkoutSelectorModal } from "./WorkoutSelectorModal";
+export { AICoachModal } from "./AICoachModal";
 
 // Workout Performance Modal components
 export { WorkoutPerformanceModal } from "./WorkoutPerformanceModal";

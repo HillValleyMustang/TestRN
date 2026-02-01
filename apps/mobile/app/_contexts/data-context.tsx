@@ -152,6 +152,8 @@ interface DataContextType {
   cleanupUserData: (userId: string) => Promise<{ success: boolean; cleanedTables: string[]; errors: string[] }>;
   emergencyReset: () => Promise<{ success: boolean; error?: string }>;
   invalidateAllCaches: () => void;
+  invalidateWorkoutCaches: () => void;
+  invalidateProfileCaches: () => void;
   handleWorkoutCompletion: (session?: WorkoutSession | undefined) => Promise<void>;
   shouldRefreshDashboard: boolean;
   setShouldRefreshDashboard: (value: boolean) => void;
@@ -161,6 +163,8 @@ interface DataContextType {
   setTempStatusMessage: (message: TempStatusMessage | null) => void;
   isGeneratingPlan: boolean;
   setIsGeneratingPlan: (value: boolean) => void;
+  exerciseRefreshCounter: number;
+  triggerExerciseRefresh: () => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -175,6 +179,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [appMounted, setAppMounted] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [shouldRefreshDashboard, setShouldRefreshDashboard] = useState(false);
+  const [exerciseRefreshCounter, setExerciseRefreshCounter] = useState(0);
+  const triggerExerciseRefresh = useCallback(() => {
+    setExerciseRefreshCounter(prev => prev + 1);
+  }, []);
   const [lastWorkoutCompletionTime, setLastWorkoutCompletionTime] = useState<number>(0);
   const [tempStatusMessage, setTempStatusMessageState] = useState<TempStatusMessage | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
@@ -240,40 +248,64 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     enabled: isInitialized && !!userId,
   });
 
-  const invalidateAllCaches = useCallback(() => {
-    log.info('[DataContext] Starting atomic cache invalidation');
-    
+  // One-time cleanup: remove all bad t_path_exercises sync queue items (had invalid IDs and columns)
+  useEffect(() => {
+    if (!isInitialized) return;
+    (async () => {
+      try {
+        const items = await database.syncQueue.getAll();
+        for (const item of items) {
+          if ((item.table as string) === 't_path_exercises' && typeof item.id === 'number') {
+            await database.syncQueue.remove(item.id);
+            log.debug('[DataContext] Removed stale t_path_exercises sync item:', item.id);
+          }
+        }
+      } catch (err) {
+        log.error('[DataContext] Failed to cleanup sync queue:', err);
+      }
+    })();
+  }, [isInitialized]);
+
+  // Targeted invalidation: workout-related caches only
+  const invalidateWorkoutCaches = useCallback(() => {
     if (database.clearSessionCache) {
       database.clearSessionCache(userId || '');
     }
     if (database.clearWeeklyVolumeCache) {
       database.clearWeeklyVolumeCache(userId || '');
     }
-    if (database.clearExerciseDefinitionsCache) {
-      database.clearExerciseDefinitionsCache();
-    }
-    
-    setGymActivationCache({});
-    
     if (userId) {
       queryClient.invalidateQueries({ queryKey: queryKeys.workoutSessions(userId) });
       queryClient.invalidateQueries({ queryKey: ['recent-workouts', userId] });
       queryClient.invalidateQueries({ queryKey: ['weekly-summary', userId] });
       queryClient.invalidateQueries({ queryKey: ['volume-history', userId] });
       queryClient.invalidateQueries({ queryKey: ['next-workout', userId] });
+    }
+  }, [userId]);
+
+  // Targeted invalidation: profile/gym/tpath caches only
+  const invalidateProfileCaches = useCallback(() => {
+    setGymActivationCache({});
+    if (userId) {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.gyms(userId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tPaths(userId) });
-      log.debug('[DataContext] Invalidated React Query caches');
     }
-    
-    log.debug('[DataContext] Cache invalidation completed');
   }, [userId]);
+
+  // Nuclear option: invalidates everything (use sparingly)
+  const invalidateAllCaches = useCallback(() => {
+    if (database.clearExerciseDefinitionsCache) {
+      database.clearExerciseDefinitionsCache();
+    }
+    invalidateWorkoutCaches();
+    invalidateProfileCaches();
+  }, [invalidateWorkoutCaches, invalidateProfileCaches]);
 
   const addWorkoutSession = async (session: WorkoutSession): Promise<void> => {
     await database.addWorkoutSession(session);
     await addToSyncQueue('create', 'workout_sessions', session);
-    invalidateAllCaches();
+    invalidateWorkoutCaches();
   };
 
   const addSetLog = async (setLog: SetLog): Promise<void> => {
@@ -285,7 +317,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await database.deleteWorkoutSession(sessionId);
       await addToSyncQueue('delete', 'workout_sessions', { id: sessionId });
-      invalidateAllCaches();
+      invalidateWorkoutCaches();
       setShouldRefreshDashboard(true);
     } catch (error) {
       log.error('[DataContext] Failed to delete workout session:', error);
@@ -415,6 +447,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addTPathExercise = async (exercise: TPathExercise): Promise<void> => {
     await database.addTPathExercise(exercise);
+    // Sync payload must match Supabase schema: template_id (not t_path_id), no notes/target columns
+    const syncPayload = {
+      id: exercise.id,
+      template_id: exercise.t_path_id,
+      exercise_id: exercise.exercise_id,
+      order_index: exercise.order_index,
+      is_bonus_exercise: exercise.is_bonus_exercise,
+      created_at: exercise.created_at || new Date().toISOString(),
+    };
+    await addToSyncQueue('create', 't_path_exercises' as any, syncPayload);
+    triggerExerciseRefresh();
   };
 
   const getTPathExercises = async (tPathId: string): Promise<TPathExercise[]> => {
@@ -423,6 +466,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const deleteTPathExercise = async (exerciseId: string): Promise<void> => {
     await database.deleteTPathExercise(exerciseId);
+    // Only sync to Supabase if it's a valid UUID (skip old tpathex- format IDs)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(exerciseId)) {
+      await addToSyncQueue('delete', 't_path_exercises' as any, { id: exerciseId });
+    }
+    triggerExerciseRefresh();
   };
 
   const updateTPathProgress = async (progress: TPathProgress): Promise<void> => {
@@ -469,13 +518,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     await database.deleteGym(gymId);
   };
 
-  const forceRefreshProfile = useCallback(async () => {
-    if (isInitialized && userId && isOnline) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
+  const forceRefreshProfile = useCallback(() => {
     invalidateAllCaches();
     setForceRefresh(prev => prev + 1);
-  }, [isInitialized, userId, isOnline, invalidateAllCaches]);
+  }, [invalidateAllCaches]);
 
   const forceSyncPendingItems = useCallback(async () => {
     if (isInitialized && userId && isOnline) {
@@ -502,11 +548,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   }, [invalidateAllCaches]);
 
   const handleWorkoutCompletion = useCallback(async (session?: WorkoutSession | undefined): Promise<void> => {
-    invalidateAllCaches();
     setShouldRefreshDashboard(true);
     setLastWorkoutCompletionTime(Date.now());
     setTempStatusMessageState({ message: 'Workout Complete!', type: 'success' });
-    
+
     if (userId && supabase) {
       try {
         await supabase.functions.invoke('calculate-rolling-status', { body: { user_id: userId } });
@@ -515,8 +560,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         log.error('[DataContext] Error in background tasks:', error);
       }
     }
-    await forceRefreshProfile();
-  }, [invalidateAllCaches, forceRefreshProfile, userId, supabase]);
+    // forceRefreshProfile already calls invalidateAllCaches, so no separate call needed
+    forceRefreshProfile();
+  }, [forceRefreshProfile, userId, supabase]);
 
   const setTempStatusMessage = useCallback((message: TempStatusMessage | null) => {
     if (tempStatusTimeoutRef.current) {
@@ -590,6 +636,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       cleanupUserData,
       emergencyReset,
       invalidateAllCaches,
+      invalidateWorkoutCaches,
+      invalidateProfileCaches,
       handleWorkoutCompletion,
       shouldRefreshDashboard,
       setShouldRefreshDashboard,
@@ -600,8 +648,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       isGeneratingPlan,
       setIsGeneratingPlan,
       forceRefresh,
+      exerciseRefreshCounter,
+      triggerExerciseRefresh,
     }),
-    [isSyncing, queueLength, isOnline, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId, tempStatusMessage, isGeneratingPlan, setTempStatusMessage, forceRefresh, invalidateAllCaches, handleWorkoutCompletion, shouldRefreshDashboard, lastWorkoutCompletionTime]
+    [isSyncing, queueLength, isOnline, forceRefreshProfile, cleanupUserData, emergencyReset, supabase, userId, tempStatusMessage, isGeneratingPlan, setTempStatusMessage, forceRefresh, invalidateAllCaches, invalidateWorkoutCaches, invalidateProfileCaches, handleWorkoutCompletion, shouldRefreshDashboard, lastWorkoutCompletionTime, exerciseRefreshCounter, triggerExerciseRefresh]
   );
 
   if (!isInitialized) {

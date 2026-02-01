@@ -44,7 +44,7 @@ export const CopyGymSetupDialog: React.FC<CopyGymSetupDialogProps> = ({
   onFinish,
 }) => {
   const { supabase, userId } = useAuth();
-  const { forceRefreshProfile, invalidateAllCaches, loadDashboardSnapshot } = useData();
+  const { forceRefreshProfile, loadDashboardSnapshot } = useData();
   const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [isCopying, setIsCopying] = useState(false);
   const [availableGyms, setAvailableGyms] = useState<Gym[]>([]);
@@ -207,8 +207,6 @@ export const CopyGymSetupDialog: React.FC<CopyGymSetupDialogProps> = ({
       // CRITICAL: Sync local database with Supabase to ensure new gym data is available
       // loadDashboardSnapshot syncs gyms from Supabase to local SQLite, which workout page reads from
       console.log('[CopyGymSetupDialog] Syncing data from Supabase to local database...');
-      invalidateAllCaches();
-      
       // loadDashboardSnapshot pulls gyms from Supabase and writes them to local SQLite
       // This is what makes the gym switcher appear on the Workout page
       await loadDashboardSnapshot();

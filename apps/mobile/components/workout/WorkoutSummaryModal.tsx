@@ -626,7 +626,7 @@ export function WorkoutSummaryModal({
   // ===== HOOKS =====
   const metrics = useWorkoutMetrics(exercises, providedDuration);
   const { handleImageError } = useImageErrorHandling();
-  const { invalidateAllCaches, handleWorkoutCompletion, userId, getWorkoutSessions } = useData();
+  const { invalidateAllCaches, invalidateWorkoutCaches, handleWorkoutCompletion, userId, getWorkoutSessions } = useData();
 
   // ===== CONSTANTS =====
   const [routes] = useState([
@@ -827,7 +827,7 @@ export function WorkoutSummaryModal({
       await onSaveWorkout(rating);
       // Trigger dashboard refresh to ensure fresh data is loaded when user navigates back
       if (userId) {
-        invalidateAllCaches();
+        invalidateWorkoutCaches();
         // Also trigger the global refresh mechanism for immediate effect
         if (typeof (global as any).triggerDashboardRefresh === 'function') {
           (global as any).triggerDashboardRefresh();
@@ -838,7 +838,7 @@ export function WorkoutSummaryModal({
     } finally {
       setIsSaving(false);
     }
-  }, [onSaveWorkout, rating, userId, invalidateAllCaches]);
+  }, [onSaveWorkout, rating, userId, invalidateWorkoutCaches]);
 
   const handleRating = useCallback((newRating: number) => {
     setRating(newRating);
@@ -855,7 +855,7 @@ export function WorkoutSummaryModal({
         setRatingSaved(true);
         // Trigger dashboard refresh when rating is saved
         if (userId) {
-          invalidateAllCaches();
+          invalidateWorkoutCaches();
           if (typeof (global as any).triggerDashboardRefresh === 'function') {
             (global as any).triggerDashboardRefresh();
           }
@@ -869,7 +869,7 @@ export function WorkoutSummaryModal({
         setIsSaving(false);
       }
     }
-  }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateAllCaches]);
+  }, [hasRatingChanged, rating, onRateWorkout, userId, invalidateWorkoutCaches]);
 
   const handleSaveAndClose = useCallback(async () => {
     // Save rating first if changed
@@ -918,11 +918,8 @@ export function WorkoutSummaryModal({
         console.error('[WorkoutSummaryModal] Error during data context cache invalidation:', error);
       }
       
-      // CRITICAL FIX: Invalidate cache immediately
-      invalidateAllCaches();
-      console.log('[WorkoutSummaryModal] Cache invalidated');
-      
-      // Then trigger the global refresh mechanism for immediate effect
+      // Trigger the global refresh mechanism for immediate effect
+      // (handleWorkoutCompletion already calls forceRefreshProfile which invalidates all caches)
       if (typeof (global as any).triggerDashboardRefresh === 'function') {
         (global as any).triggerDashboardRefresh();
         console.log('[WorkoutSummaryModal] Global dashboard refresh triggered');
@@ -931,7 +928,7 @@ export function WorkoutSummaryModal({
     
     // Close the modal - the dashboard refresh will complete in the background
     onClose();
-  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, invalidateAllCaches, handleWorkoutCompletion, sessionId, getWorkoutSessions]);
+  }, [hasRatingChanged, handleSaveRating, handleSave, onClose, userId, handleWorkoutCompletion, sessionId, getWorkoutSessions]);
 
   // ===== TAB ROUTES =====
   const SummaryTab = useCallback(() => (

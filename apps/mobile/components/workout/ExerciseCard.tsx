@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, Alert, TextInput, Modal, Image, ScrollView, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { Info, Menu, Plus, ChevronDown, ChevronUp, History, RotateCcw, X, Save, Lightbulb, Trophy } from 'lucide-react-native';
 import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
 import { useRollingStatus } from '../../hooks/useRollingStatus';
@@ -11,61 +11,9 @@ import { database } from '../../app/_lib/database';
 import Toast from 'react-native-toast-message';
 import { WorkoutBadge } from '../ui/WorkoutBadge';
 
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
+import { generateUUID } from '../../lib/utils';
+import { type SetLogState, hasUserInput, hasIncompleteSetData } from '../../types/workout';
 
-interface SetLogState {
-  id: string | null;
-  created_at: string | null;
-  session_id: string | null;
-  exercise_id: string;
-  weight_kg: number | null;
-  reps: number | null;
-  reps_l: number | null;
-  reps_r: number | null;
-  time_seconds: number | null;
-  is_pb: boolean;
-  isSaved: boolean;
-  isPR: boolean;
-  lastWeight: number | null;
-  lastReps: number | null;
-  lastRepsL: number | null;
-  lastRepsR: number | null;
-  lastTimeSeconds: number | null;
-}
-
-const hasUserInput = (set: SetLogState): boolean => {
-  return (
-    (set.weight_kg !== null && set.weight_kg > 0) ||
-    (set.reps !== null && set.reps > 0) ||
-    (set.reps_l !== null && set.reps_l > 0) ||
-    (set.reps_r !== null && set.reps_r > 0) ||
-    (set.time_seconds !== null && set.time_seconds > 0)
-  );
-};
-
-const hasIncompleteSetData = (set: SetLogState): boolean => {
-  const hasWeight = set.weight_kg !== null && set.weight_kg > 0;
-  const hasReps = set.reps !== null && set.reps > 0;
-  const hasRepsL = set.reps_l !== null && set.reps_l > 0;
-  const hasRepsR = set.reps_r !== null && set.reps_r > 0;
-  const hasTime = set.time_seconds !== null && set.time_seconds > 0;
-
-  // If user has entered data, they must have both weight and reps for standard exercises
-  if (hasWeight && !hasReps) return true; // weight but no reps
-  if (hasReps && !hasWeight) return true; // reps but no weight
-
-  // For unilateral exercises (reps_l/reps_r), check if they have one side but not the other
-  if ((hasRepsL && !hasRepsR) || (hasRepsR && !hasRepsL)) return true;
-
-  return false;
-};
-  
 interface WorkoutExercise {
   id: string;
   name: string;
@@ -112,6 +60,11 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     const { userId } = useAuth();
     const { refetch } = useRollingStatus();
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // Glow animation for lightbulb icon to draw attention to AI feature
+    const glowAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    const [aiSuggestionsApplied, setAiSuggestionsApplied] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showCustomAlertModal, setShowCustomAlertModal] = useState(false);
     const [customAlertConfig, setCustomAlertConfig] = useState<{
@@ -490,40 +443,198 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         }
     }, [localSets, currentSessionId, activeWorkout, startWorkout]);
 
+    // Glow and pulse animation for lightbulb when card expands
+    useEffect(() => {
+        if (isExpanded && !aiSuggestionsApplied) {
+            // Create a noticeable combined glow + scale animation that loops
+            // Stop animating once AI suggestions have been applied
+            Animated.loop(
+                Animated.parallel([
+                    // Glow opacity animation (0 to 1)
+                    Animated.sequence([
+                        Animated.timing(glowAnim, {
+                            toValue: 1,
+                            duration: 800,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(glowAnim, {
+                            toValue: 0,
+                            duration: 800,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    // Scale animation (1 to 1.15)
+                    Animated.sequence([
+                        Animated.timing(scaleAnim, {
+                            toValue: 1.15,
+                            duration: 800,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(scaleAnim, {
+                            toValue: 1,
+                            duration: 800,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ])
+            ).start();
+        } else {
+            // Reset animations when card collapses or after AI suggestions applied
+            glowAnim.setValue(0);
+            scaleAnim.setValue(1);
+        }
+    }, [isExpanded, aiSuggestionsApplied, glowAnim, scaleAnim]);
+
     const applyAISuggestions = async (setsToSuggest: SetLogState[]) => {
         try {
-            // const { progressionEngine } = await import('../../../packages/data/src/ai/progression-engine');
-            // const suggestions = await progressionEngine.getProgressionSuggestions(exercise.id, userId, setsToSuggest);
-            const suggestions: any[] = [];
-
-            if (!suggestions || suggestions.length === 0) {
+            // Check if we have userId and exerciseId
+            if (!userId || !exercise.id) {
                 showCustomAlert(
                     'No Suggestions Available',
-                    'Unable to generate workout suggestions. Try completing more workouts to build your training history.',
+                    'Unable to generate workout suggestions. Please ensure you are logged in.',
                     [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
                 );
                 return;
             }
 
-            suggestions.forEach((suggestion, index) => {
-                if (index < 3) {
-                    handleWeightChange(index, suggestion.weight.toString());
-                    handleRepsChange(index, suggestion.reps.toString());
+            // Fetch exercise history to check if user has enough completed workouts
+            const history = await fetchExerciseHistory();
+
+            // Require at least 3 completed workout sessions to unlock AI suggestions
+            // This ensures we have 3 previous sessions to analyse for accurate recommendations
+            if (!history || history.length < 3) {
+                const completedCount = history?.length || 0;
+                const remaining = 3 - completedCount;
+
+                Toast.show({
+                    type: 'info',
+                    text1: 'AI Suggestions Locked 🔒',
+                    text2: `Complete ${remaining} more workout${remaining > 1 ? 's' : ''} with ${exercise.name} to unlock AI-powered suggestions!`,
+                    visibilityTime: 4000,
+                    position: 'top',
+                    topOffset: 60,
+                });
+
+                // Special encouragement message for the 2nd workout (2/3 - penultimate before unlock)
+                if (completedCount === 2) {
+                    showCustomAlert(
+                        'You\'re Almost There! 🎯',
+                        `You've completed ${completedCount}/3 workouts with this exercise.\n\n🎉 Complete this exercise one more time before AI can suggest weight and reps for you!\n\nOnce unlocked, our AI will:\n\n✓ Analyse your last 3 performances\n✓ Consider your experience & training frequency\n✓ Factor in your goals & recovery patterns\n✓ Detect plateaus & suggest deloads\n✓ Provide personalised weight & rep recommendations\n\nWeights are rounded to practical increments, but you can always override them manually!`,
+                        [{ text: 'Let\'s go!', onPress: () => setShowCustomAlertModal(false) }]
+                    );
+                } else {
+                    // Show detailed benefits in an alert for workouts 0-1
+                    showCustomAlert(
+                        'Keep Training to Unlock AI! 🚀',
+                        `You've completed ${completedCount}/3 workouts with this exercise.\n\nOnce unlocked, our AI will:\n\n✓ Analyse your last 3 performances\n✓ Consider your experience & training frequency\n✓ Factor in your goals & recovery patterns\n✓ Detect plateaus & suggest deloads\n✓ Provide personalised weight & rep recommendations\n\nWeights are rounded to practical increments, but you can always override them manually!`,
+                        [{ text: 'Got it!', onPress: () => setShowCustomAlertModal(false) }]
+                    );
                 }
+                return;
+            }
+
+            // Get the last 3 performances to analyse progression trends
+            const last3Sessions = history.slice(0, 3);
+
+            // Calculate average performance from the last 3 sessions
+            // This accounts for variation in set counts (user might do 3-5+ sets)
+            let totalWeight = 0;
+            let totalReps = 0;
+            let totalSets = 0;
+
+            last3Sessions.forEach(session => {
+                session.sets.forEach((set: any) => {
+                    if (set.weight_kg && set.reps) {
+                        totalWeight += set.weight_kg;
+                        totalReps += set.reps;
+                        totalSets++;
+                    }
+                });
             });
 
-            const reasoning = suggestions[0]?.reasoning || 'Based on your training history and goals';
+            // If no valid sets found in history, shouldn't happen but handle gracefully
+            if (totalSets === 0) {
+                showCustomAlert(
+                    'No Performance Data',
+                    'Unable to find valid set data in your workout history.',
+                    [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
+                );
+                return;
+            }
+
+            // Use the average as baseline for AI suggestions
+            const averageWeight = totalWeight / totalSets;
+            const averageReps = Math.round(totalReps / totalSets);
+
+            // Get the best set from the most recent session for reference
+            const mostRecentBestSet = last3Sessions[0].bestSet;
+            const lastPerformance = {
+                weight: mostRecentBestSet?.weight || averageWeight,
+                reps: mostRecentBestSet?.reps || averageReps
+            };
+
+            // Import and call the progression engine
+            const { progressionEngine } = await import('@data/ai/progression-engine');
+            const recommendation = await progressionEngine.generateProgressionRecommendation(
+                userId,
+                exercise.id,
+                lastPerformance
+            );
+
+            if (!recommendation) {
+                showCustomAlert(
+                    'No Suggestions Available',
+                    'Unable to generate workout suggestions at this time.',
+                    [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
+                );
+                return;
+            }
+
+            // Round weight to nearest whole number for practical plate loading
+            const roundedWeight = Math.round(recommendation.suggestedWeight);
+
+            // Apply the recommendation to ALL sets (whether 3, 4, 5, or more)
+            // This ensures suggestions work regardless of how many sets the user wants to do
+            const numberOfSets = setsToSuggest.length;
+            for (let i = 0; i < numberOfSets; i++) {
+                handleWeightChange(i, roundedWeight.toString());
+                handleRepsChange(i, recommendation.suggestedReps.toString());
+            }
+
+            // Mark AI suggestions as applied to stop animation and disable button
+            setAiSuggestionsApplied(true);
+
+            // Build informative toast message
+            const reasoningText = recommendation.reasoning.length > 0
+                ? recommendation.reasoning[0]
+                : 'Based on your last 3 workouts';
+
+            // Show success toast with feature highlights
             Toast.show({
                 type: 'success',
-                text1: 'AI Suggestions Applied!',
-                text2: reasoning,
-                visibilityTime: 3000,
+                text1: `AI Suggestions Applied! (${roundedWeight}kg × ${recommendation.suggestedReps} reps)`,
+                text2: reasoningText,
+                visibilityTime: 4000,
+                position: 'top',
             });
+
+            // Show additional context in console for debugging
+            console.log('[AI Suggestions]', {
+                exercise: exercise.name,
+                analysedSessions: last3Sessions.length,
+                totalSetsAnalysed: totalSets,
+                averagePerformance: { weight: averageWeight.toFixed(1), reps: averageReps },
+                suggested: { weight: roundedWeight, reps: recommendation.suggestedReps },
+                confidence: recommendation.confidence,
+                plateauDetected: recommendation.plateauDetected,
+                deloadRecommended: recommendation.deloadRecommended,
+            });
+
         } catch (error) {
-            console.error('Error getting enhanced AI suggestions:', error);
+            console.error('Error getting AI suggestions:', error);
             showCustomAlert(
                 'Suggestion Error',
-                'Unable to generate enhanced suggestions. Using basic progression.',
+                'Unable to generate AI suggestions. Please try again.',
                 [{ text: 'OK', onPress: () => setShowCustomAlertModal(false) }]
             );
         }
@@ -697,32 +808,73 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                 }}>
                                     <Plus size={16} color={Colors.primary} />
                                 </Pressable>
-                                <Pressable style={styles.iconActionButton} onPress={async () => {
-                                    try {
-                                        const hasExistingData = localSets.some(set => (set.weight_kg && set.weight_kg > 0) || (set.reps && set.reps > 0) || (set.reps_l && set.reps_l > 0) || (set.reps_r && set.reps_r > 0) || (set.time_seconds && set.time_seconds > 0));
-                                        if (hasExistingData) {
-                                            showCustomAlert(
-                                                'Clear Exercise Data First',
-                                                'AI suggestions can only be applied at the start of an exercise. Please clear all set data first, then try again.',
-                                                [
-                                                    { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
-                                                    { text: 'Clear & Suggest', onPress: () => {
-                                                        setShowCustomAlertModal(false);
-                                                        const clearedSets = localSets.map((set) => ({ ...set, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, id: null, created_at: null, session_id: null, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
-                                                        setLocalSets(clearedSets);
-                                                        applyAISuggestions(clearedSets);
-                                                    }}
-                                                ]
-                                            );
+                                <Pressable
+                                    style={[
+                                        styles.iconActionButton,
+                                        aiSuggestionsApplied && { opacity: 0.4 }
+                                    ]}
+                                    onPress={async () => {
+                                        // Prevent re-applying if already applied
+                                        if (aiSuggestionsApplied) {
+                                            Toast.show({
+                                                type: 'info',
+                                                text1: 'AI Suggestions Already Applied',
+                                                text2: 'You can manually adjust the values if needed.',
+                                                visibilityTime: 2000,
+                                                position: 'top',
+                                                topOffset: 60,
+                                            });
                                             return;
                                         }
-                                        await applyAISuggestions(localSets);
-                                    } catch (error) {
-                                        console.error('Error generating AI suggestion:', error);
-                                        Alert.alert('Suggestion Error', 'Unable to generate workout suggestions at this time.');
-                                    }
-                                }}>
-                                    <Lightbulb size={16} color="orange" />
+
+                                        try {
+                                            const hasExistingData = localSets.some(set => (set.weight_kg && set.weight_kg > 0) || (set.reps && set.reps > 0) || (set.reps_l && set.reps_l > 0) || (set.reps_r && set.reps_r > 0) || (set.time_seconds && set.time_seconds > 0));
+                                            if (hasExistingData) {
+                                                showCustomAlert(
+                                                    'Clear Exercise Data First',
+                                                    'AI suggestions can only be applied at the start of an exercise. Please clear all set data first, then try again.',
+                                                    [
+                                                        { text: 'Cancel', onPress: () => setShowCustomAlertModal(false) },
+                                                        { text: 'Clear & Suggest', onPress: () => {
+                                                            setShowCustomAlertModal(false);
+                                                            const clearedSets = localSets.map((set) => ({ ...set, weight_kg: null, reps: null, reps_l: null, reps_r: null, time_seconds: null, id: null, created_at: null, session_id: null, lastWeight: null, lastReps: null, lastRepsL: null, lastRepsR: null, lastTimeSeconds: null }));
+                                                            setLocalSets(clearedSets);
+                                                            applyAISuggestions(clearedSets);
+                                                        }}
+                                                    ]
+                                                );
+                                                return;
+                                            }
+                                            await applyAISuggestions(localSets);
+                                        } catch (error) {
+                                            console.error('Error generating AI suggestion:', error);
+                                            Alert.alert('Suggestion Error', 'Unable to generate workout suggestions at this time.');
+                                        }
+                                    }}>
+                                    <View style={{ position: 'relative' }}>
+                                        {/* Animated glowing background circle - only shows when not applied */}
+                                        {!aiSuggestionsApplied && (
+                                            <Animated.View
+                                                style={{
+                                                    position: 'absolute',
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: 14,
+                                                    backgroundColor: 'rgba(255, 165, 0, 0.3)',
+                                                    top: -6,
+                                                    left: -6,
+                                                    opacity: glowAnim,
+                                                }}
+                                            />
+                                        )}
+                                        {/* Animated scaling lightbulb */}
+                                        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                                            <Lightbulb
+                                                size={16}
+                                                color={aiSuggestionsApplied ? 'gray' : 'orange'}
+                                            />
+                                        </Animated.View>
+                                    </View>
                                 </Pressable>
                             </View>
                             {restTimer !== null && (<View style={styles.timerContainer}><Text style={styles.timerText}>{restTimer}s</Text></View>)}

@@ -5,26 +5,7 @@ import { Colors, Spacing } from '../../constants/Theme';
 import { TextStyles } from '../../constants/Typography';
 import { usePreferences } from '../../app/_contexts/preferences-context';
 import { useWorkoutFlow } from '../../app/_contexts/workout-flow-context';
-
-interface SetLogState {
-  id: string | null;
-  created_at: string | null;
-  session_id: string | null;
-  exercise_id: string;
-  weight_kg: number | null;
-  reps: number | null;
-  reps_l: number | null;
-  reps_r: number | null;
-  time_seconds: number | null;
-  is_pb: boolean;
-  isSaved: boolean;
-  isPR: boolean;
-  lastWeight: number | null;
-  lastReps: number | null;
-  lastRepsL: number | null;
-  lastRepsR: number | null;
-  lastTimeSeconds: number | null;
-}
+import type { SetLogState } from '../../types/workout';
 
 interface SetRowProps {
   setNumber: number;

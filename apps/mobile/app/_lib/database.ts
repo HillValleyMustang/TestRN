@@ -2086,6 +2086,37 @@ class Database {
     await db.runAsync(query, params);
   }
 
+  async updateTPathExerciseOrder(exerciseId: string, orderIndex: number): Promise<void> {
+    await this.waitForMigration();
+    const db = this.getDB();
+    await db.runAsync(
+      'UPDATE t_path_exercises SET order_index = ? WHERE id = ?',
+      [orderIndex, exerciseId]
+    );
+  }
+
+  async updateTPathExerciseBonusStatus(exerciseId: string, isBonus: boolean): Promise<void> {
+    await this.waitForMigration();
+    const db = this.getDB();
+    await db.runAsync(
+      'UPDATE t_path_exercises SET is_bonus_exercise = ? WHERE id = ?',
+      [isBonus ? 1 : 0, exerciseId]
+    );
+  }
+
+  async batchUpdateTPathExerciseOrder(updates: Array<{ id: string; order_index: number }>): Promise<void> {
+    await this.waitForMigration();
+    const db = this.getDB();
+    await db.withTransactionAsync(async () => {
+      for (const update of updates) {
+        await db.runAsync(
+          'UPDATE t_path_exercises SET order_index = ? WHERE id = ?',
+          [update.order_index, update.id]
+        );
+      }
+    });
+  }
+
   async getTPathExercises(tPathId: string): Promise<TPathExercise[]> {
     await this.waitForMigration(); // BLOCK until migration completes
     const db = this.getDB();

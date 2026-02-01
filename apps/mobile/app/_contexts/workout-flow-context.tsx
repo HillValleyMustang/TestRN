@@ -10,14 +10,8 @@ import React, {
 import { BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 // Simple UUID generator for React Native
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
 import { ToastAndroid } from 'react-native';
+import { generateUUID } from '../../lib/utils';
 import { createTaggedLogger } from '../../lib/logger';
 
 const log = createTaggedLogger('WorkoutFlowContext');
@@ -29,45 +23,15 @@ import { database, addToSyncQueue } from '../_lib/database';
 import { fetchExerciseDefinitions } from '../_lib/supabase';
 import { supabase } from '../_lib/supabase';
 import { useAuth } from './auth-context';
+import { useData } from './data-context';
 import { saveWorkoutState, loadWorkoutState, clearWorkoutState, type InFlightWorkoutState } from '../../lib/workoutStorage';
-
-// Define types for workout state
-interface SetLogState {
-  id: string | null;
-  created_at: string | null;
-  session_id: string | null;
-  exercise_id: string;
-  weight_kg: number | null;
-  reps: number | null;
-  reps_l: number | null;
-  reps_r: number | null;
-  time_seconds: number | null;
-  is_pb: boolean;
-  isSaved: boolean;
-  isPR: boolean;
-  lastWeight: number | null;
-  lastReps: number | null;
-  lastRepsL: number | null;
-  lastRepsR: number | null;
-  lastTimeSeconds: number | null;
-}
+import { type SetLogState, hasUserInput } from '../../types/workout';
 
 interface WorkoutExercise extends FetchedExerciseDefinition {
   is_bonus_exercise?: boolean;
 }
 
 const DEFAULT_INITIAL_SETS = 3;
-
-// Helper function to check if a set has any user input
-const hasUserInput = (set: SetLogState): boolean => {
-  return (
-    set.weight_kg !== null ||
-    set.reps !== null ||
-    set.reps_l !== null ||
-    set.reps_r !== null ||
-    set.time_seconds !== null
-  );
-};
 
 interface WorkoutFlowContextValue {
   // State
@@ -119,6 +83,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const router = useRouter();
   const { userId } = useAuth();
+  const { exerciseRefreshCounter } = useData();
 
   // Core workout state
   const [activeWorkout, setActiveWorkout] = useState<TPath | null>(null);
@@ -215,12 +180,9 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         const session = await database.getWorkoutSessionById(sessionIdToDelete);
         
         if (session && session.completed_at) {
-          log.debug('[WorkoutFlow] Session is completed, NOT deleting:', sessionIdToDelete);
           // Don't delete completed sessions - they should persist for dashboard
         } else {
-          log.debug('[WorkoutFlow] Deleting incomplete workout session:', sessionIdToDelete);
           await database.deleteWorkoutSession(sessionIdToDelete);
-          log.debug('[WorkoutFlow] Successfully deleted incomplete workout session');
         }
       } catch (error) {
         log.error('[WorkoutFlow] Error handling workout session deletion:', error);
@@ -241,15 +203,12 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Select workout
   const selectWorkout = useCallback(async (workoutId: string | null) => {
-    log.debug('[WorkoutFlow] selectWorkout called with:', workoutId);
     await resetWorkoutSession();
     if (!workoutId || !userId) {
-      log.debug('[WorkoutFlow] No workoutId or userId, returning');
       return;
     }
 
     if (workoutId === 'ad-hoc') {
-      log.debug('[WorkoutFlow] Setting up ad-hoc workout');
       setActiveWorkout({
         id: 'ad-hoc',
         user_id: userId,
@@ -272,17 +231,13 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     // Fetch workout from database
-    log.debug('[WorkoutFlow] Fetching workout from database:', workoutId);
     const workout = await database.getTPath(workoutId);
     if (workout) {
-      log.debug('[WorkoutFlow] Workout found:', workout.template_name);
       setActiveWorkout(workout);
 
       // Load exercises immediately for structured workouts
       try {
-        log.debug('[WorkoutFlow] Loading exercises for workout');
         const exercises = await database.getTPathExercises(workoutId);
-        log.debug('[WorkoutFlow] Found exercises:', exercises.length);
         const exerciseIds = exercises.map(ex => ex.exercise_id);
 
         if (exerciseIds.length > 0) {
@@ -290,9 +245,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           // Note: We don't filter by gym here because exercises are already assigned to workouts
           // by the generate-t-path function based on gym availability. The gym filtering
           // happens during workout generation, not during display.
-          log.debug('[WorkoutFlow] Fetching exercise definitions for:', exerciseIds.length, 'exercises');
           const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
-          log.debug('[WorkoutFlow] Fetched exercise definitions:', exerciseDefs.length);
           
           // Check if exercise definitions are available
           if (exerciseDefs && exerciseDefs.length > 0) {
@@ -318,7 +271,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
               })
               .filter(Boolean) as WorkoutExercise[];
 
-            log.debug('[WorkoutFlow] Setting exercises for session:', workoutExercises.length, '(deduplicated from', exercises.length, 'total entries)');
             setExercisesForSession(workoutExercises);
             setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
           } else {
@@ -347,12 +299,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
                 is_bonus_exercise: ex.is_bonus_exercise
               }));
 
-            log.debug('[WorkoutFlow] Setting fallback exercises for session:', fallbackExercises.length);
             setExercisesForSession(fallbackExercises);
             setExpandedExerciseCards(Object.fromEntries(fallbackExercises.map(ex => [ex.id, false])));
           }
         } else {
-          log.debug('[WorkoutFlow] No exercise IDs found');
           setExercisesForSession([]);
           setExercisesWithSets({});
           setCompletedExercises(new Set());
@@ -367,22 +317,19 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         setExpandedExerciseCards({});
       }
     } else {
-      log.debug('[WorkoutFlow] Workout not found in database');
+      log.warn('[WorkoutFlow] Workout not found in database:', workoutId);
       ToastAndroid.show('Selected workout not found.', ToastAndroid.SHORT);
     }
   }, [resetWorkoutSession, userId]);
 
   // Select workout (loads exercises but doesn't start session)
   const selectWorkoutOnly = useCallback(async (workoutId: string | null) => {
-    log.debug('[WorkoutFlow] selectWorkoutOnly called with:', workoutId);
     await resetWorkoutSession();
     if (!workoutId || !userId) {
-      log.debug('[WorkoutFlow] No workoutId or userId, returning');
       return;
     }
 
     if (workoutId === 'ad-hoc') {
-      log.debug('[WorkoutFlow] Setting up ad-hoc workout');
       setActiveWorkout({
         id: 'ad-hoc',
         user_id: userId,
@@ -405,17 +352,13 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     // Fetch workout from database
-    log.debug('[WorkoutFlow] Fetching workout from database:', workoutId);
     const workout = await database.getTPath(workoutId);
     if (workout) {
-      log.debug('[WorkoutFlow] Workout found:', workout.template_name);
       setActiveWorkout(workout);
 
       // Load exercises for preview (no session started)
       try {
-        log.debug('[WorkoutFlow] Loading exercises for workout preview');
         const exercises = await database.getTPathExercises(workoutId);
-        log.debug('[WorkoutFlow] Found exercises:', exercises.length);
         const exerciseIds = exercises.map(ex => ex.exercise_id);
 
         if (exerciseIds.length > 0) {
@@ -423,9 +366,7 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           // Note: We don't filter by gym here because exercises are already assigned to workouts
           // by the generate-t-path function based on gym availability. The gym filtering
           // happens during workout generation, not during display.
-          log.debug('[WorkoutFlow] Fetching exercise definitions for:', exerciseIds.length, 'exercises');
           const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
-          log.debug('[WorkoutFlow] Fetched exercise definitions:', exerciseDefs.length);
 
           // Check if exercise definitions are available
           if (exerciseDefs && exerciseDefs.length > 0) {
@@ -439,7 +380,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
               })
               .filter(Boolean) as WorkoutExercise[];
 
-            log.debug('[WorkoutFlow] Setting exercises for preview:', workoutExercises.length);
             setExercisesForSession(workoutExercises);
             setExpandedExerciseCards(Object.fromEntries(workoutExercises.map(ex => [ex.id, false])));
           } else {
@@ -468,12 +408,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
                 is_bonus_exercise: ex.is_bonus_exercise
               }));
 
-            log.debug('[WorkoutFlow] Setting fallback exercises for preview:', fallbackExercises.length);
             setExercisesForSession(fallbackExercises);
             setExpandedExerciseCards(Object.fromEntries(fallbackExercises.map(ex => [ex.id, false])));
           }
         } else {
-          log.debug('[WorkoutFlow] No exercise IDs found');
           setExercisesForSession([]);
           setExercisesWithSets({});
           setCompletedExercises(new Set());
@@ -488,35 +426,30 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         setExpandedExerciseCards({});
       }
     } else {
-      log.debug('[WorkoutFlow] Workout not found in database');
+      log.warn('[WorkoutFlow] Workout not found in database:', workoutId);
       ToastAndroid.show('Selected workout not found.', ToastAndroid.SHORT);
     }
   }, [resetWorkoutSession, userId]);
 
   // Combined select and start workout function (kept for backward compatibility)
   const selectAndStartWorkout = useCallback(async (workoutId: string | null) => {
-    log.debug('[WorkoutFlow] selectAndStartWorkout called with:', workoutId);
     // For now, just select the workout (don't auto-start session)
     await selectWorkoutOnly(workoutId);
   }, [selectWorkoutOnly]);
 
   // Start workout session
   const startWorkout = useCallback(async (firstSetTimestamp: string) => {
-    log.debug('[WorkoutFlow] startWorkout called with exercises:', exercisesForSession.length);
     if (!userId) {
-      log.debug('[WorkoutFlow] Cannot start workout - missing userId');
       ToastAndroid.show('Cannot start workout session.', ToastAndroid.SHORT);
       return;
     }
 
     if (!activeWorkout) {
-      log.debug('[WorkoutFlow] Cannot start workout - no activeWorkout');
       ToastAndroid.show('Cannot start workout session.', ToastAndroid.SHORT);
       return;
     }
 
     if (exercisesForSession.length === 0) {
-      log.debug('[WorkoutFlow] Cannot start workout - no exercises found');
       ToastAndroid.show('Cannot start workout - no exercises found.', ToastAndroid.SHORT);
       return;
     }
@@ -546,7 +479,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         created_at: new Date().toISOString(),
       };
 
-      log.debug('[WorkoutFlow] Creating session:', newSessionId, 'with gym_id:', activeGymId);
       await database.addWorkoutSession(sessionData);
       await addToSyncQueue('create', 'workout_sessions', sessionData);
 
@@ -554,7 +486,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       setSessionStartTime(new Date(firstSetTimestamp));
 
       // Initialize sets for exercises
-      log.debug('[WorkoutFlow] Initializing sets for', exercisesForSession.length, 'exercises');
       const initialSets = Object.fromEntries(
         exercisesForSession.map(ex => [
           ex.id,
@@ -581,8 +512,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       setExercisesWithSets(initialSets);
       setExpandedExerciseCards(Object.fromEntries(exercisesForSession.map(ex => [ex.id, false])));
-      log.debug('[WorkoutFlow] Workout session started successfully');
-
     } catch (error) {
       log.error('[WorkoutFlow] Error starting workout session:', error);
       ToastAndroid.show('Failed to start workout session.', ToastAndroid.SHORT);
@@ -593,14 +522,10 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Finish workout session
   const finishWorkout = useCallback(async (rating?: number): Promise<string | null> => {
-    log.debug('[WorkoutFlow] finishWorkout called with rating:', rating, 'at', new Date().toISOString());
     if (!currentSessionId || !sessionStartTime || !activeWorkout) {
       ToastAndroid.show('Workout session not properly started.', ToastAndroid.SHORT);
       return null;
     }
-
-    // Allow time-based workout tracking - no longer require logged sets
-    log.debug('[WorkoutFlow] Allowing workout completion for time-based tracking');
 
     // Save ALL sets that have user input (not just unsaved ones, since "Save Exercise" no longer saves to DB)
     const setsToSave: Array<{ exerciseId: string; set: SetLogState; setIndex: number }> = [];
@@ -650,31 +575,20 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`
       : `${Math.floor(durationSeconds / 3600)}h ${Math.floor((durationSeconds % 3600) / 60)}m`;
 
-    log.debug('[WorkoutFlow] Finishing workout session:', currentSessionId);
-    log.debug('[WorkoutFlow] Duration calculated:', durationString, 'from', durationMs, 'ms');
-
     try {
       const updatePayload: any = { duration_string: durationString, completed_at: endTime.toISOString() };
-      log.debug('[WorkoutFlow] Update payload before rating check:', updatePayload);
       if (rating !== undefined) {
         updatePayload.rating = rating;
-        log.debug('[WorkoutFlow] Added rating to update payload:', rating);
-      } else {
-        log.debug('[WorkoutFlow] Rating is undefined, not adding to payload');
       }
-      log.debug('[WorkoutFlow] Update payload after rating check:', updatePayload);
 
       // Update the session in database
       if (userId) {
         // Directly query the session by its ID instead of filtering from all sessions
         const existingSession = await database.getWorkoutSessionById(currentSessionId);
-        log.debug('[WorkoutFlow] Found existing session:', !!existingSession);
         if (existingSession) {
           const updatedSession = { ...existingSession, ...updatePayload };
-          log.debug('[WorkoutFlow] Updating session with:', updatedSession);
           await database.addWorkoutSession(updatedSession); // This will replace due to INSERT OR REPLACE
           await addToSyncQueue('update', 'workout_sessions', updatedSession);
-          log.debug('[WorkoutFlow] Session updated successfully');
 
           // Force a longer delay to ensure the update is committed
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -689,7 +603,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       if (userId) {
         try {
           await clearWorkoutState(userId);
-          log.debug('[WorkoutFlow] Cleared workout state after completion');
         } catch (error) {
           log.error('[WorkoutFlow] Error clearing workout state after completion:', error);
         }
@@ -715,7 +628,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
                                updates.time_seconds !== undefined;
 
     if (!currentSessionId && activeWorkout && hasWeightOrRepsData) {
-      log.debug('[WorkoutFlow] Auto-starting workout session on data entry');
       await startWorkout(new Date().toISOString());
     }
 
@@ -736,7 +648,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Start workout session if not already started
     if (!currentSessionId && activeWorkout) {
-      log.debug('[WorkoutFlow] Starting workout session on first set log');
       await startWorkout(new Date().toISOString());
     }
 
@@ -952,7 +863,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const confirmLeave = useCallback(async (onLeave?: () => void) => {
-    log.debug('[WorkoutFlow] confirmLeave called');
     setShowUnsavedChangesDialog(false);
     await resetWorkoutSession();
     const action = pendingActionRef.current;
@@ -994,14 +904,11 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {
-      log.debug('[WorkoutFlow] Resuming workout from saved state');
-
       // Verify session still exists in database, create new one if not
       let sessionId = state.currentSessionId;
       if (sessionId) {
         const existingSession = await database.getWorkoutSessionById(sessionId);
         if (!existingSession) {
-          log.debug('[WorkoutFlow] Saved session not found, creating new session');
           // Create new session
           const newSessionId = generateUUID();
           const sessionData: WorkoutSession = {
@@ -1029,8 +936,6 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
       setSessionStartTime(state.sessionStartTime ? new Date(state.sessionStartTime) : null);
       setCompletedExercises(new Set(state.completedExercises));
       setExpandedExerciseCards(state.expandedExerciseCards);
-
-      log.debug('[WorkoutFlow] Workout resumed successfully');
     } catch (error) {
       log.error('[WorkoutFlow] Error resuming workout:', error);
       ToastAndroid.show('Failed to resume workout.', ToastAndroid.SHORT);
@@ -1063,6 +968,47 @@ export const WorkoutFlowProvider: React.FC<{ children: React.ReactNode }> = ({
     setCompletedExercises(new Set());
     setExpandedExerciseCards({});
   }, [activeWorkout, userId]);
+
+  // Re-read exercises from SQLite when exercise order/list changes
+  // (triggered by reorder/add/delete in Manage T-Path page)
+  useEffect(() => {
+    if (exerciseRefreshCounter === 0) return;
+    if (!activeWorkout || activeWorkout.id === 'ad-hoc' || !userId) return;
+
+    const refreshExercises = async () => {
+      try {
+        const exercises = await database.getTPathExercises(activeWorkout.id);
+        const exerciseIds = exercises.map(ex => ex.exercise_id);
+        if (exerciseIds.length === 0) return;
+
+        const exerciseDefs = await fetchExerciseDefinitions(exerciseIds);
+        if (!exerciseDefs || exerciseDefs.length === 0) return;
+
+        const exerciseDefMap = new Map(exerciseDefs.map((def: any) => [def.id, def]));
+        const seenExerciseIds = new Set<string>();
+        const uniqueExercises = exercises
+          .sort((a, b) => a.order_index - b.order_index)
+          .filter(ex => {
+            if (seenExerciseIds.has(ex.exercise_id)) return false;
+            seenExerciseIds.add(ex.exercise_id);
+            return true;
+          });
+
+        const workoutExercises: WorkoutExercise[] = uniqueExercises
+          .map(ex => {
+            const def = exerciseDefMap.get(ex.exercise_id);
+            return def ? { ...def, is_bonus_exercise: ex.is_bonus_exercise } : null;
+          })
+          .filter(Boolean) as WorkoutExercise[];
+
+        setExercisesForSession(workoutExercises);
+      } catch (error) {
+        log.error('[WorkoutFlow] Error refreshing exercises:', error);
+      }
+    };
+
+    refreshExercises();
+  }, [exerciseRefreshCounter, activeWorkout, userId]);
 
   const value = useMemo(
     () => ({

@@ -16,8 +16,8 @@ interface SetLog {
 interface WorkoutSession { id: string; session_date: string; template_name: string | null; rating: number | null; }
 
 // @ts-ignore
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -40,6 +40,28 @@ serve(async (req: Request) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) throw new Error('Unauthorized');
 
+    // Check daily usage limit (2 per day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const { count: usageCount, error: usageError } = await supabaseServiceRoleClient
+      .from('ai_coach_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('used_at', today.toISOString())
+      .lt('used_at', tomorrow.toISOString());
+
+    if (usageError) throw new Error(`Failed to check usage: ${usageError.message}`);
+
+    if (usageCount !== null && usageCount >= 2) {
+      return new Response(
+        JSON.stringify({ error: 'Daily limit reached. You can use AI Coach 2 times per day.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { sessionId } = await req.json();
     let prompt: string;
     let workoutHistory;
@@ -55,6 +77,46 @@ serve(async (req: Request) => {
       workoutHistory = sessions.map((s: WorkoutSession) => ({ ...s, exercises: setLogs?.filter((l: SetLog) => l.session_id === s.id).map((l: SetLog) => ({ name: l.exercise_definitions?.name, muscle: l.exercise_definitions?.main_muscle, weight: l.weight_kg, reps: l.reps, time: l.time_seconds })) }));
       prompt = `Analyze the following single workout session... Provide a concise, encouraging, and actionable analysis specific to this workout... Your response must be a JSON object with a single key "analysis" containing the markdown formatted string. Example: {"analysis": "**Overall Impression**\\n..."}`;
     } else {
+      // Check eligibility: 6 workouts AND 30 days since first workout
+      const { count: totalWorkouts, error: countError } = await supabaseClient
+        .from('workout_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (countError) throw countError;
+
+      if (totalWorkouts === null || totalWorkouts < 6) {
+        return new Response(
+          JSON.stringify({ error: 'You need at least 6 completed workouts to use AI Coach.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: firstWorkout, error: firstWorkoutError } = await supabaseClient
+        .from('workout_sessions')
+        .select('session_date')
+        .eq('user_id', user.id)
+        .order('session_date', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (firstWorkoutError && firstWorkoutError.code !== 'PGRST116') {
+        throw firstWorkoutError;
+      }
+
+      if (firstWorkout) {
+        const firstDate = new Date(firstWorkout.session_date);
+        const now = new Date();
+        const daysSinceFirst = Math.floor((now.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysSinceFirst < 30) {
+          return new Response(
+            JSON.stringify({ error: 'You need at least 30 days of training history to use AI Coach.' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { data: sessions, error: sessionsError } = await supabaseClient.from('workout_sessions').select('id, session_date, template_name, rating').eq('user_id', user.id).gte('session_date', thirtyDaysAgo.toISOString()).returns<WorkoutSession[]>();
@@ -71,26 +133,43 @@ serve(async (req: Request) => {
 
     const fullPrompt = `${prompt}\n\nWorkout Data:\n${JSON.stringify(workoutHistory, null, 2)}`;
 
-    const openaiResponse = await fetch(OPENAI_API_URL, {
+    // Log usage BEFORE calling Gemini to prevent race conditions
+    const { error: logError } = await supabaseServiceRoleClient
+      .from('ai_coach_usage_logs')
+      .insert({ user_id: user.id, used_at: new Date().toISOString() });
+
+    if (logError) {
+      console.error("Error logging AI coach usage:", logError.message);
+      throw new Error('Failed to log usage');
+    }
+
+    const geminiResponse = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: fullPrompt }],
-        response_format: { type: "json_object" }
+        contents: [{
+          parts: [{
+            text: fullPrompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json"
+        }
       }),
     });
 
-    if (!openaiResponse.ok) {
-      const errorBody = await openaiResponse.text();
-      throw new Error(`OpenAI API error: ${openaiResponse.status} ${errorBody}`);
+    if (!geminiResponse.ok) {
+      const errorBody = await geminiResponse.text();
+      throw new Error(`Gemini API error: ${geminiResponse.status} ${errorBody}`);
     }
 
-    const openaiData = await openaiResponse.json();
-    const analysisJson = JSON.parse(openaiData.choices[0].message.content);
-
-    const { error: logError } = await supabaseServiceRoleClient.from('ai_coach_usage_logs').insert({ user_id: user.id, used_at: new Date().toISOString() });
-    if (logError) console.error("Error logging AI coach usage:", logError.message);
+    const geminiData = await geminiResponse.json();
+    const responseText = geminiData.candidates[0].content.parts[0].text;
+    const analysisJson = JSON.parse(responseText);
 
     return new Response(JSON.stringify({ analysis: analysisJson.analysis }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		04D733616F9F5B90BCE0E17E /* libPods-MyFitnessTrainerMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 563803F8ED10A8A308A37878 /* libPods-MyFitnessTrainerMobile.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		2C0722C43117D914A274FC7B /* libPods-MyFitnessTrainerMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2EFE834BE88813FF9F5BD78C /* libPods-MyFitnessTrainerMobile.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		458EE63ABBF498B445EDD49A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4D6FC0010E2AB8F6C8255F16 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		D4CEF3613E48556868CC6124 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC444586071091D2F5572230 /* ExpoModulesProvider.swift */; };
-		D914F8DF7775CE497C409591 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EA99A70C5D8127F732528793 /* PrivacyInfo.xcprivacy */; };
+		C5E79CD98344F4E4C2F7C4BF /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78CF2B835C556030ADA7EC5 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,13 +20,13 @@
 		13B07F961A680F5B00A75B9A /* MyFitnessTrainerMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyFitnessTrainerMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MyFitnessTrainerMobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MyFitnessTrainerMobile/Info.plist; sourceTree = "<group>"; };
-		563803F8ED10A8A308A37878 /* libPods-MyFitnessTrainerMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyFitnessTrainerMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5FBC212D4B11CD9802157552 /* Pods-MyFitnessTrainerMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyFitnessTrainerMobile.release.xcconfig"; path = "Target Support Files/Pods-MyFitnessTrainerMobile/Pods-MyFitnessTrainerMobile.release.xcconfig"; sourceTree = "<group>"; };
+		2EFE834BE88813FF9F5BD78C /* libPods-MyFitnessTrainerMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MyFitnessTrainerMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D6FC0010E2AB8F6C8255F16 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = MyFitnessTrainerMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		6C6ADAC87119CB30AA11C533 /* Pods-MyFitnessTrainerMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyFitnessTrainerMobile.release.xcconfig"; path = "Target Support Files/Pods-MyFitnessTrainerMobile/Pods-MyFitnessTrainerMobile.release.xcconfig"; sourceTree = "<group>"; };
+		7E430414ED9CE932A6507F94 /* Pods-MyFitnessTrainerMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyFitnessTrainerMobile.debug.xcconfig"; path = "Target Support Files/Pods-MyFitnessTrainerMobile/Pods-MyFitnessTrainerMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MyFitnessTrainerMobile/SplashScreen.storyboard; sourceTree = "<group>"; };
+		B78CF2B835C556030ADA7EC5 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyFitnessTrainerMobile/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		CC444586071091D2F5572230 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyFitnessTrainerMobile/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		E562A026A22AF0467819BC71 /* Pods-MyFitnessTrainerMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyFitnessTrainerMobile.debug.xcconfig"; path = "Target Support Files/Pods-MyFitnessTrainerMobile/Pods-MyFitnessTrainerMobile.debug.xcconfig"; sourceTree = "<group>"; };
-		EA99A70C5D8127F732528793 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = MyFitnessTrainerMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MyFitnessTrainerMobile/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MyFitnessTrainerMobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MyFitnessTrainerMobile-Bridging-Header.h"; path = "MyFitnessTrainerMobile/MyFitnessTrainerMobile-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				04D733616F9F5B90BCE0E17E /* libPods-MyFitnessTrainerMobile.a in Frameworks */,
+				2C0722C43117D914A274FC7B /* libPods-MyFitnessTrainerMobile.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,15 +53,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				EA99A70C5D8127F732528793 /* PrivacyInfo.xcprivacy */,
-			);
-			name = MyFitnessTrainerMobile;
-			sourceTree = "<group>";
-		};
-		2B5D4C1635A3D060230C588D /* MyFitnessTrainerMobile */ = {
-			isa = PBXGroup;
-			children = (
-				CC444586071091D2F5572230 /* ExpoModulesProvider.swift */,
+				4D6FC0010E2AB8F6C8255F16 /* PrivacyInfo.xcprivacy */,
 			);
 			name = MyFitnessTrainerMobile;
 			sourceTree = "<group>";
@@ -70,19 +62,25 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				563803F8ED10A8A308A37878 /* libPods-MyFitnessTrainerMobile.a */,
+				2EFE834BE88813FF9F5BD78C /* libPods-MyFitnessTrainerMobile.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		653B9C1ABE88F51CC9D2B664 /* Pods */ = {
+		5B163E08FD79C7CC48DF4A05 /* MyFitnessTrainerMobile */ = {
 			isa = PBXGroup;
 			children = (
-				E562A026A22AF0467819BC71 /* Pods-MyFitnessTrainerMobile.debug.xcconfig */,
-				5FBC212D4B11CD9802157552 /* Pods-MyFitnessTrainerMobile.release.xcconfig */,
+				B78CF2B835C556030ADA7EC5 /* ExpoModulesProvider.swift */,
 			);
-			name = Pods;
-			path = Pods;
+			name = MyFitnessTrainerMobile;
+			sourceTree = "<group>";
+		};
+		71E6806961B93A7C1849A79A /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				5B163E08FD79C7CC48DF4A05 /* MyFitnessTrainerMobile */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -99,8 +97,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				653B9C1ABE88F51CC9D2B664 /* Pods */,
-				DBE126B18686441D160E6DF5 /* ExpoModulesProviders */,
+				87A5809363A4268554AFEE72 /* Pods */,
+				71E6806961B93A7C1849A79A /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -115,6 +113,16 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		87A5809363A4268554AFEE72 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				7E430414ED9CE932A6507F94 /* Pods-MyFitnessTrainerMobile.debug.xcconfig */,
+				6C6ADAC87119CB30AA11C533 /* Pods-MyFitnessTrainerMobile.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -122,14 +130,6 @@
 			);
 			name = Supporting;
 			path = MyFitnessTrainerMobile/Supporting;
-			sourceTree = "<group>";
-		};
-		DBE126B18686441D160E6DF5 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				2B5D4C1635A3D060230C588D /* MyFitnessTrainerMobile */,
-			);
-			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "MyFitnessTrainerMobile" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				0261AC10AB8368C311C96909 /* [Expo] Configure project */,
+				6B994738DADB075C24C7DA8B /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				961D86F93001E7A66EEF8472 /* [CP] Embed Pods Frameworks */,
+				E0E0B2828A57DCDA98047973 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				D914F8DF7775CE497C409591 /* PrivacyInfo.xcprivacy in Resources */,
+				458EE63ABBF498B445EDD49A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -220,7 +220,29 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		0261AC10AB8368C311C96909 /* [Expo] Configure project */ = {
+		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-MyFitnessTrainerMobile-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		6B994738DADB075C24C7DA8B /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -243,28 +265,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-MyFitnessTrainerMobile/expo-configure-project.sh\"\n";
-		};
-		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-MyFitnessTrainerMobile-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -298,7 +298,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyFitnessTrainerMobile/Pods-MyFitnessTrainerMobile-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		961D86F93001E7A66EEF8472 /* [CP] Embed Pods Frameworks */ = {
+		E0E0B2828A57DCDA98047973 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -328,7 +328,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				D4CEF3613E48556868CC6124 /* ExpoModulesProvider.swift in Sources */,
+				C5E79CD98344F4E4C2F7C4BF /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -337,7 +337,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E562A026A22AF0467819BC71 /* Pods-MyFitnessTrainerMobile.debug.xcconfig */;
+			baseConfigurationReference = 7E430414ED9CE932A6507F94 /* Pods-MyFitnessTrainerMobile.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -373,7 +373,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5FBC212D4B11CD9802157552 /* Pods-MyFitnessTrainerMobile.release.xcconfig */;
+			baseConfigurationReference = 6C6ADAC87119CB30AA11C533 /* Pods-MyFitnessTrainerMobile.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

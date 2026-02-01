@@ -19,14 +19,7 @@ import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { FontFamily } from '../../constants/Typography';
 
-// React Native-compatible UUID generator
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
+import { generateUUID } from '../../lib/utils';
 import { useSettingsStrings } from '../../localization/useSettingsStrings';
 import { AddGymNameDialog } from './AddGymNameDialog';
 import { SetupGymOptionsDialog } from './SetupGymOptionsDialog';

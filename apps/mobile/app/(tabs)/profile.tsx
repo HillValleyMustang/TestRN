@@ -58,6 +58,8 @@ import { PhotoSourceSelectionModal } from '../../components/profile/PhotoSourceS
 import { GoalPhysiqueUploadModal } from '../../components/profile/GoalPhysiqueUploadModal';
 import { PhysiqueAnalysisModal } from '../../components/profile/PhysiqueAnalysisModal';
 import { GoalPhysiqueGallery } from '../../components/profile/GoalPhysiqueGallery';
+import { AICoachModal } from '../../components/dashboard/AICoachModal';
+import { useAICoachUsage } from '../../hooks/data/useAICoachUsage';
 import { RegenerationErrorModal } from '../../components/profile/RegenerationErrorModal';
 import { RegenerationSuccessModal } from '../../components/profile/RegenerationSuccessModal';
 import { AIWorkoutService, OnboardingPayload } from '../../lib/ai-workout-service';
@@ -120,6 +122,7 @@ export default function ProfileScreen() {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [achievementModalVisible, setAchievementModalVisible] = useState(false);
+  const [aiCoachModalVisible, setAiCoachModalVisible] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loadingAchievements, setLoadingAchievements] = useState(false);
@@ -137,6 +140,9 @@ export default function ProfileScreen() {
   const [selectedGymId, setSelectedGymId] = useState<string>('');
   const [selectedGymName, setSelectedGymName] = useState<string>('');
   const [streakModalVisible, setStreakModalVisible] = useState(false);
+
+  // AI Coach Usage Hook
+  const { data: aiCoachUsageCount = 0 } = useAICoachUsage();
 
   // Animation values for tab icons
   const tabScales = useRef<Record<Tab, Animated.Value>>(
@@ -1779,12 +1785,9 @@ export default function ProfileScreen() {
 
       {/* AI Coach Usage */}
       <AICoachUsageCard
-        dailyUses={0}
+        dailyUses={aiCoachUsageCount}
         maxDailyUses={2}
-        onOpenCoach={() => {
-          // TODO: Implement AI coach dialog
-          Alert.alert('AI Coach', 'AI Coach feature coming soon!');
-        }}
+        onOpenCoach={() => setAiCoachModalVisible(true)}
       />
 
       {/* Data Export */}
@@ -2134,6 +2137,11 @@ export default function ProfileScreen() {
           setIsGoalPhysiqueGalleryOpen(false);
           setIsGoalPhysiqueModalOpen(true);
         }}
+      />
+
+      <AICoachModal
+        visible={aiCoachModalVisible}
+        onClose={() => setAiCoachModalVisible(false)}
       />
 
       {/* Level Explanation Modal */}

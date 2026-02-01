@@ -9,6 +9,7 @@ export { useWeeklySummary } from './useWeeklySummary';
 export { useUserProfile } from './useUserProfile';
 export { useGyms } from './useGyms';
 export { useTPaths } from './useTPaths';
+export { useTPathCompletionStats } from './useTPathCompletionStats';
 export { useVolumeHistory } from './useVolumeHistory';
 export { useNextWorkout } from './useNextWorkout';
 export { useFilteredWorkoutHistory } from './useFilteredWorkoutHistory';

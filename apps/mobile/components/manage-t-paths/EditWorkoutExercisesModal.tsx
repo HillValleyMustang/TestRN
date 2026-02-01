@@ -1,13 +1,27 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Alert,
+  TextInput,
+  FlatList,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
+import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Theme';
+import { FontFamily, TextStyles } from '../../constants/Typography';
+import { getWorkoutColor } from '../../lib/workout-colors';
 import { useAuth } from '../../app/_contexts/auth-context';
 import { useData } from '../../app/_contexts/data-context';
-import type { TPathExercise, ExerciseDefinition, FetchedExerciseDefinition, Gym } from '@data/storage/models';
+import { database } from '../../app/_lib/database';
+import { generateUUID } from '../../lib/utils';
+import type { TPathExercise, ExerciseDefinition } from '@data/storage/models';
 
-// Dummy WorkoutExerciseWithDetails type for now
 interface WorkoutExerciseWithDetails extends TPathExercise {
   exercise_definition: ExerciseDefinition;
 }
@@ -21,63 +35,53 @@ interface EditWorkoutExercisesModalProps {
   setTempStatusMessage: (message: { message: string; type: 'added' | 'removed' | 'success' | 'error' } | null) => void;
 }
 
-// --- Placeholder/Simplified Components & Hooks --- //
-
-// Simplified useEditWorkoutExercises hook
+// ─── Hook ────────────────────────────────────────────────────────────────────
 const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open, setTempStatusMessage }: any) => {
   const { userId } = useAuth();
-  const { getTPath, getTPathExercises, addTPathExercise, deleteTPathExercise, updateTPath, supabase } = useData();
+  const { getTPath, getTPathExercises, addTPathExercise, deleteTPathExercise, supabase, triggerExerciseRefresh } = useData();
   const [exercises, setExercises] = useState<WorkoutExerciseWithDetails[]>([]);
   const [allExerciseDefinitions, setAllExerciseDefinitions] = useState<ExerciseDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const hasBonusChangesRef = React.useRef(false);
+
+  // Trigger exercise refresh when modal closes if bonus status was toggled
+  useEffect(() => {
+    if (!open && hasBonusChangesRef.current) {
+      triggerExerciseRefresh();
+      hasBonusChangesRef.current = false;
+    }
+  }, [open, triggerExerciseRefresh]);
   const [addExerciseFilter, setAddExerciseFilter] = useState('');
   const [selectedMuscleFilter, setSelectedMuscleFilter] = useState('');
-  const [selectedGymFilter, setSelectedGymFilter] = useState('');
-  const [showConfirmRemoveDialog, setShowConfirmRemoveDialog] = useState(false);
-  const [exerciseToRemove, setExerciseToRemove] = useState<WorkoutExerciseWithDetails | null>(null);
-  const [showAddAsBonusDialog, setShowAddAsBonusDialog] = useState(false);
-  const [exerciseToAddDetails, setExerciseToAddDetails] = useState<ExerciseDefinition | null>(null);
-  const [showConfirmResetDialog, setShowConfirmResetDialog] = useState(false);
 
-  // Fetch all available exercise definitions (for the Add Exercise section)
   useEffect(() => {
     const fetchAllExerciseDefinitions = async () => {
       if (!open || !userId) return;
       try {
-        let query = supabase
+        const { data, error } = await supabase
           .from('exercise_definitions')
           .select('*')
-          .or(`created_by.eq.${userId},is_public.eq.true`); // Fetch user's own or public exercises
+          .eq('user_id', userId)
+          .order('name', { ascending: true });
 
-        if (selectedMuscleFilter) {
-          query = query.contains('muscle_groups', [selectedMuscleFilter]);
-        }
-        // TODO: Implement gym equipment filtering if Gym context provides equipment list
-
-        const { data, error } = await query;
         if (error) throw error;
         setAllExerciseDefinitions(data || []);
       } catch (error) {
-        console.error('Error fetching all exercise definitions:', error);
-        Toast.show({ type: 'error', text1: 'Failed to load exercise definitions.' });
+        console.error('Error fetching exercise definitions:', error);
       }
     };
     fetchAllExerciseDefinitions();
-  }, [open, userId, supabase, selectedMuscleFilter]);
+  }, [open, userId, supabase]);
 
   const fetchExercises = useCallback(async () => {
     if (!userId || !workoutId || !open) return;
     setLoading(true);
     try {
       const tpath = await getTPath(workoutId);
-      if (!tpath) {
-        setExercises([]);
-        return;
-      }
+      if (!tpath) { setExercises([]); return; }
       const tpathExercises = await getTPathExercises(workoutId);
 
-      // Fetch corresponding exercise definitions
       const exerciseIds = tpathExercises.map(te => te.exercise_id).filter((id): id is string => id !== null);
       const { data: definitions, error: defError } = await supabase
         .from('exercise_definitions')
@@ -87,59 +91,50 @@ const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open, setTempStatus
       if (defError) throw defError;
 
       const definitionMap = new Map<string, ExerciseDefinition>();
-      if (definitions) {
-        definitions.forEach(def => definitionMap.set(def.id, def));
-      }
+      if (definitions) definitions.forEach(def => definitionMap.set(def.id, def));
 
       const exercisesWithDetails: WorkoutExerciseWithDetails[] = tpathExercises.map(te => ({
         ...te,
-        exercise_definition: definitionMap.get(te.exercise_id || '') || { // Fallback if definition not found
+        exercise_definition: definitionMap.get(te.exercise_id || '') || {
           id: te.exercise_id || '',
           name: 'Unknown Exercise',
-          muscle_groups: [],
-          equipment: [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          created_by: userId,
+          user_id: userId,
+          library_id: null,
           description: null,
-          image_url: null,
-          video_url: null,
+          instructions: null,
+          difficulty: null,
+          muscle_group: null,
+          equipment: null,
+          created_at: new Date().toISOString(),
         },
       }));
 
       setExercises(exercisesWithDetails.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
     } catch (error) {
       console.error('Error fetching workout exercises:', error);
-      Toast.show({ type: 'error', text1: 'Failed to load exercises.' });
       setExercises([]);
     } finally {
       setLoading(false);
     }
   }, [userId, workoutId, open, getTPath, getTPathExercises, supabase]);
 
-  useEffect(() => {
-    if (open) {
-      fetchExercises();
-    }
-  }, [open, fetchExercises]);
+  useEffect(() => { if (open) fetchExercises(); }, [open, fetchExercises]);
 
   const handleAddExerciseWithBonusStatus = useCallback(async (exercise: ExerciseDefinition, isBonus: boolean) => {
     if (!userId || !workoutId) return;
     setIsSaving(true);
     try {
-      const newTPathExercise: TPathExercise = {
-        id: `tpathex-${workoutId}-${exercise.id}-${Date.now()}`,
+      const newTPathExercise = {
+        id: generateUUID(),
         t_path_id: workoutId,
         exercise_id: exercise.id,
-        user_id: userId,
-        order_index: exercises.length, // Add to end
-        is_bonus: isBonus,
+        order_index: exercises.length,
+        is_bonus_exercise: isBonus,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      } as TPathExercise;
       await addTPathExercise(newTPathExercise);
-      setTempStatusMessage({ message: `Added ${exercise.name} to workout!`, type: 'success' });
-      fetchExercises(); // Re-fetch to update the list
+      setTempStatusMessage({ message: `Added ${exercise.name}`, type: 'success' });
+      fetchExercises();
     } catch (error) {
       console.error('Error adding exercise:', error);
       Toast.show({ type: 'error', text1: 'Failed to add exercise.' });
@@ -148,18 +143,13 @@ const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open, setTempStatus
     }
   }, [userId, workoutId, exercises.length, addTPathExercise, fetchExercises, setTempStatusMessage]);
 
-  const handleRemoveExerciseClick = useCallback((exercise: WorkoutExerciseWithDetails) => {
-    setExerciseToRemove(exercise);
-    setShowConfirmRemoveDialog(true);
-  }, []);
-
   const confirmRemoveExercise = useCallback(async (tpathExerciseId: string) => {
     if (!userId || !workoutId) return;
     setIsSaving(true);
     try {
       await deleteTPathExercise(tpathExerciseId);
-      setTempStatusMessage({ message: `Removed exercise from workout.`, type: 'removed' });
-      fetchExercises(); // Re-fetch to update the list
+      setTempStatusMessage({ message: 'Removed exercise', type: 'removed' });
+      fetchExercises();
     } catch (error) {
       console.error('Error removing exercise:', error);
       Toast.show({ type: 'error', text1: 'Failed to remove exercise.' });
@@ -172,346 +162,98 @@ const useEditWorkoutExercises = ({ workoutId, onSaveSuccess, open, setTempStatus
     if (!userId || !workoutId) return;
     setIsSaving(true);
     try {
-      // Update the order_index for all exercises in a transaction
       const updates = exercises.map((exercise, index) => ({
         id: exercise.id,
         order_index: index,
       }));
 
-      // Perform a batch update for order_index (Supabase equivalent of `upsert` or multiple `update` calls)
-      const { error } = await supabase.from('t_path_exercises').upsert(updates, { onConflict: 'id' });
+      // Update local SQLite first (atomic transaction, offline-first)
+      await database.batchUpdateTPathExerciseOrder(updates);
 
+      // Update Supabase via batch RPC (single transaction)
+      const { error } = await supabase.rpc('update_exercise_order', { updates });
       if (error) throw error;
 
-      setTempStatusMessage({ message: 'Workout order saved! ', type: 'success' });
-      onSaveSuccess(); // Trigger parent refresh
+      triggerExerciseRefresh();
+      setTempStatusMessage({ message: 'Order saved!', type: 'success' });
+      onSaveSuccess();
     } catch (error) {
-      console.error('Error saving exercise order:', error);
+      console.error('Error saving order:', error);
       Toast.show({ type: 'error', text1: 'Failed to save order.' });
     } finally {
       setIsSaving(false);
     }
-  }, [userId, workoutId, exercises, onSaveSuccess, supabase, setTempStatusMessage]);
-
-  const handleResetToDefaults = useCallback(async () => {
-    if (!userId || !workoutId) return;
-    setIsSaving(true);
-    try {
-      // This is a complex operation: delete existing TPathExercises and re-create defaults.
-      // For now, let's simulate this and re-fetch.
-      Alert.alert(
-        'Reset Workout',
-        'Simulating reset to default exercises. This would typically delete all current exercises and add defaults.',
-        [
-          { text: 'OK', onPress: () => fetchExercises() }, // Re-fetch to simulate reset
-        ]
-      );
-      setTempStatusMessage({ message: 'Simulated reset to defaults.', type: 'info' });
-    } catch (error) {
-      console.error('Error resetting to defaults:', error);
-      Toast.show({ type: 'error', text1: 'Failed to reset to defaults.' });
-    } finally {
-      setIsSaving(false);
-    }
-  }, [userId, workoutId, fetchExercises, setTempStatusMessage]);
+  }, [userId, workoutId, exercises, onSaveSuccess, supabase, triggerExerciseRefresh, setTempStatusMessage]);
 
   const handleToggleBonusStatus = useCallback(async (tpathExerciseId: string, currentStatus: boolean) => {
     if (!userId || !workoutId) return;
     setIsSaving(true);
     try {
+      const newStatus = !currentStatus;
+
+      // Update local SQLite first (offline-first)
+      await database.updateTPathExerciseBonusStatus(tpathExerciseId, newStatus);
+
+      // Update Supabase
       const { error } = await supabase
         .from('t_path_exercises')
-        .update({ is_bonus: !currentStatus })
+        .update({ is_bonus_exercise: newStatus })
         .eq('id', tpathExerciseId);
-
       if (error) throw error;
 
-      setTempStatusMessage({ message: `Exercise marked as ${!currentStatus ? 'bonus' : 'regular'}.`, type: 'info' });
-      fetchExercises();
+      setTempStatusMessage({ message: `Marked as ${newStatus ? 'bonus' : 'regular'}`, type: 'success' });
+
+      // Update local state directly to avoid refetch reordering
+      setExercises(prev => prev.map(ex =>
+        ex.id === tpathExerciseId ? { ...ex, is_bonus_exercise: newStatus } : ex
+      ));
+
+      // Defer exercise refresh until modal closes to avoid clunky UI reload
+      hasBonusChangesRef.current = true;
     } catch (error) {
-      console.error('Error toggling bonus status:', error);
-      Toast.show({ type: 'error', text1: 'Failed to toggle bonus status.' });
+      console.error('Error toggling bonus:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [userId, workoutId, supabase, fetchExercises, setTempStatusMessage]);
+  }, [userId, workoutId, supabase, setTempStatusMessage]);
 
-  const handleSelectAndPromptBonus = useCallback((exercise: ExerciseDefinition) => {
-    setExerciseToAddDetails(exercise);
-    setShowAddAsBonusDialog(true);
-  }, []);
+  const handleMoveUp = useCallback((index: number) => {
+    if (index === 0) return;
+    const arr = [...exercises];
+    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+    setExercises(arr);
+  }, [exercises]);
+
+  const handleMoveDown = useCallback((index: number) => {
+    if (index === exercises.length - 1) return;
+    const arr = [...exercises];
+    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+    setExercises(arr);
+  }, [exercises]);
 
   const mainMuscleGroups = useMemo(() => {
-    const allGroups = new Set<string>();
-    allExerciseDefinitions.forEach(ex => ex.muscle_groups.forEach(group => allGroups.add(group)));
-    return Array.from(allGroups).sort();
+    const groups = new Set<string>();
+    allExerciseDefinitions.forEach(ex => { if ((ex as any).main_muscle) groups.add((ex as any).main_muscle); });
+    return Array.from(groups).sort();
   }, [allExerciseDefinitions]);
 
   const filteredExercisesForDropdown = useMemo(() => {
-    return allExerciseDefinitions.filter(ex => 
+    return allExerciseDefinitions.filter(ex =>
       ex.name.toLowerCase().includes(addExerciseFilter.toLowerCase()) &&
-      (selectedMuscleFilter ? ex.muscle_groups.includes(selectedMuscleFilter) : true)
-      // TODO: Add gym equipment filtering here if needed
+      (selectedMuscleFilter ? (ex as any).main_muscle === selectedMuscleFilter : true)
     );
   }, [allExerciseDefinitions, addExerciseFilter, selectedMuscleFilter]);
 
   return {
-    exercises,
-    filteredExercisesForDropdown,
-    loading,
-    isSaving,
-    addExerciseFilter,
-    setAddExerciseFilter,
-    mainMuscleGroups,
-    selectedMuscleFilter,
-    setSelectedMuscleFilter,
-    userGyms: [], // Will come from GymContext
-    selectedGymFilter,
-    setSelectedGymFilter,
-    showConfirmRemoveDialog,
-    setShowConfirmRemoveDialog,
-    exerciseToRemove,
-    showAddAsBonusDialog,
-    setShowAddAsBonusDialog,
-    exerciseToAddDetails,
-    showConfirmResetDialog,
-    setShowConfirmResetDialog,
-    handleDragEnd: (newOrder: any) => {
-      setExercises(newOrder);
-      setTempStatusMessage({ message: 'Order changed (not yet saved). ', type: 'info' });
-    },
-    handleAddExerciseWithBonusStatus,
-    handleSelectAndPromptBonus,
-    handleRemoveExerciseClick,
-    confirmRemoveExercise,
-    handleToggleBonusStatus,
-    handleResetToDefaults,
-    handleSaveOrder,
+    exercises, setExercises, filteredExercisesForDropdown, loading, isSaving,
+    addExerciseFilter, setAddExerciseFilter, mainMuscleGroups,
+    selectedMuscleFilter, setSelectedMuscleFilter,
+    handleAddExerciseWithBonusStatus, confirmRemoveExercise,
+    handleToggleBonusStatus, handleSaveOrder, handleMoveUp, handleMoveDown,
   };
 };
 
-// Placeholder ExerciseInfoDialog
-const ExerciseInfoDialog = ({ open, onOpenChange, exercise, setTempStatusMessage }: any) => {
-  if (!open) return null;
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Exercise Info</Text>
-          <Text style={styles.modalText}>{exercise?.name || 'N/A'}</Text>
-          <Text style={styles.modalText}>Muscle Groups: {exercise?.muscle_groups?.join(', ') || 'N/A'}</Text>
-          <TouchableOpacity onPress={() => onOpenChange(false)} style={styles.button}>
-            <Text style={styles.buttonText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// Placeholder for AddExerciseSection
-const AddExerciseSection = ({
-  allAvailableExercises,
-  exercisesInWorkout,
-  addExerciseFilter,
-  setAddExerciseFilter,
-  handleSelectAndPromptBonus,
-  isSaving,
-  mainMuscleGroups,
-  selectedMuscleFilter,
-  setSelectedMuscleFilter,
-}: any) => (
-  <View style={styles.card}>
-    <Text style={styles.cardTitle}>Add Exercise</Text>
-    <TextInput
-      style={styles.textInput}
-      placeholder="Search exercises..." 
-      placeholderTextColor={Colors.textMuted}
-      value={addExerciseFilter}
-      onChangeText={setAddExerciseFilter}
-    />
-
-    {/* Muscle Group Filter */}
-    <View style={styles.pickerContainer}>
-      <Text style={styles.pickerLabel}>Filter by Muscle Group:</Text>
-      <View style={styles.picker}>
-        <TouchableOpacity onPress={() => console.log('Open muscle group picker')}>
-          <Text style={styles.pickerText}>{selectedMuscleFilter || 'All'}</Text>
-        </TouchableOpacity>
-      </View>
-      {/* TODO: Replace with a proper Picker component */}
-    </View>
-
-    <ScrollView style={styles.exerciseListContainer}>
-      {allAvailableExercises.length > 0 ? (
-        allAvailableExercises.map((exercise: ExerciseDefinition) => (
-          <TouchableOpacity
-            key={exercise.id}
-            style={styles.exerciseListItem}
-            onPress={() => handleSelectAndPromptBonus(exercise)}
-            disabled={isSaving || exercisesInWorkout.some((e:any) => e.exercise_id === exercise.id)}
-          >
-            <Text style={styles.exerciseListItemText}>{exercise.name}</Text>
-            {exercisesInWorkout.some((e:any) => e.exercise_id === exercise.id) && (
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-            )}
-          </TouchableOpacity>
-        ))
-      ) : (
-        <Text style={styles.textMuted}>No exercises found matching criteria.</Text>
-      )}
-    </ScrollView>
-  </View>
-);
-
-// Placeholder for SortableExerciseList
-const SortableExerciseList = ({
-  exercises,
-  handleDragEnd,
-  handleRemoveExerciseClick,
-  handleOpenInfoDialog,
-  handleToggleBonusStatus
-}: any) => (
-  <View style={styles.card}>
-    <Text style={styles.cardTitle}>Current Exercises</Text>
-    {exercises.length === 0 ? (
-      <Text style={styles.textMuted}>No exercises in this workout yet.</Text>
-    ) : (
-      // This section would ideally use a draggable list component
-      exercises.map((exercise: WorkoutExerciseWithDetails, index: number) => (
-        <View key={exercise.id} style={styles.workoutItem}>
-          <Ionicons name="reorder-three-outline" size={24} color={Colors.textMuted} style={styles.dragHandle} />
-          <Text style={styles.workoutName}>{exercise.exercise_definition.name}</Text>
-          {exercise.is_bonus && (
-            <View style={styles.bonusTag}>
-              <Text style={styles.bonusTagText}>Bonus</Text>
-            </View>
-          )}
-          <View style={styles.workoutItemActions}>
-            <TouchableOpacity onPress={() => handleOpenInfoDialog(exercise)} style={styles.actionButton}>
-              <Ionicons name="information-circle-outline" size={20} color={Colors.info} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleRemoveExerciseClick(exercise)} style={styles.actionButton}>
-              <Ionicons name="trash-outline" size={20} color={Colors.error} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleToggleBonusStatus(exercise.id, exercise.is_bonus)} style={styles.actionButton}>
-              <Ionicons name={exercise.is_bonus ? "star" : "star-outline"} size={20} color={exercise.is_bonus ? Colors.warning : Colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      ))
-    )}
-    <Text style={styles.textMuted}>Drag and drop reordering will be implemented here (using a library like react-native-draggable-flatlist).</Text>
-  </View>
-);
-
-// Placeholder for WorkoutActionButtons
-const WorkoutActionButtons = ({ handleSaveOrder, handleResetToDefaults, isSaving, setShowConfirmResetDialog }: any) => (
-  <View style={styles.cardContent}>
-    <TouchableOpacity onPress={handleSaveOrder} style={styles.button} disabled={isSaving}>
-      {isSaving ? <ActivityIndicator color={Colors.primaryForeground} /> : <Text style={styles.buttonText}>Save Changes</Text>}
-    </TouchableOpacity>
-    <TouchableOpacity onPress={() => setShowConfirmResetDialog(true)} style={[styles.button, styles.outlineButton]} disabled={isSaving}>
-      <Text style={[styles.buttonText, styles.outlineButtonText]}>Reset to Defaults</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-// Placeholder for ConfirmRemoveExerciseDialog
-const ConfirmRemoveExerciseDialog = ({ open, onOpenChange, exerciseToRemove, onConfirm }: any) => {
-  if (!open) return null;
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Remove Exercise</Text>
-          <Text style={styles.modalText}>Are you sure you want to remove {exerciseToRemove?.exercise_definition?.name || 'this exercise'}?</Text>
-          <TouchableOpacity onPress={() => {
-            onConfirm();
-            onOpenChange(false);
-          }} style={styles.buttonSecondary}>
-            <Text style={styles.buttonSecondaryText}>Remove</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onOpenChange(false)} style={styles.button}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// Placeholder for AddAsBonusDialog
-const AddAsBonusDialog = ({ open, onOpenChange, exerciseToAddDetails, handleAddExerciseWithBonusStatus, isSaving }: any) => {
-  if (!open) return null;
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Add "{exerciseToAddDetails?.name || 'Exercise'}"</Text>
-          <Text style={styles.modalText}>Do you want to add this as a bonus exercise?</Text>
-          <TouchableOpacity onPress={() => {
-            handleAddExerciseWithBonusStatus(exerciseToAddDetails, true);
-            onOpenChange(false);
-          }} style={styles.button}>
-            <Text style={styles.buttonText}>Add as Bonus</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {
-            handleAddExerciseWithBonusStatus(exerciseToAddDetails, false);
-            onOpenChange(false);
-          }} style={styles.buttonSecondary}>
-            <Text style={styles.buttonSecondaryText}>Add as Regular</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// Placeholder for ConfirmResetDialog
-const ConfirmResetDialog = ({ open, onOpenChange, workoutName, onConfirm }: any) => {
-  if (!open) return null;
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Reset "{workoutName}"</Text>
-          <Text style={styles.modalText}>Are you sure you want to reset all exercises in this workout to its default state? This action cannot be undone.</Text>
-          <TouchableOpacity onPress={() => {
-            onConfirm();
-            onOpenChange(false);
-          }} style={styles.buttonSecondary}>
-            <Text style={styles.buttonSecondaryText}>Reset</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onOpenChange(false)} style={styles.button}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
+// ─── Main Component ──────────────────────────────────────────────────────────
 export const EditWorkoutExercisesModal = ({
   open,
   onOpenChange,
@@ -520,335 +262,651 @@ export const EditWorkoutExercisesModal = ({
   onSaveSuccess,
   setTempStatusMessage,
 }: EditWorkoutExercisesModalProps) => {
-  const {
-    exercises,
-    filteredExercisesForDropdown,
-    loading,
-    isSaving,
-    addExerciseFilter,
-    setAddExerciseFilter,
-    mainMuscleGroups,
-    selectedMuscleFilter,
-    setSelectedMuscleFilter,
-    userGyms,
-    selectedGymFilter,
-    setSelectedGymFilter,
-    showConfirmRemoveDialog,
-    setShowConfirmRemoveDialog,
-    exerciseToRemove,
-    showAddAsBonusDialog,
-    setShowAddAsBonusDialog,
-    exerciseToAddDetails,
-    showConfirmResetDialog,
-    setShowConfirmResetDialog,
-    handleDragEnd,
-    handleAddExerciseWithBonusStatus,
-    handleSelectAndPromptBonus,
-    handleRemoveExerciseClick,
-    confirmRemoveExercise,
-    handleToggleBonusStatus,
-    handleResetToDefaults,
-    handleSaveOrder,
-  } = useEditWorkoutExercises({ workoutId, onSaveSuccess, open, setTempStatusMessage });
+  const hook = useEditWorkoutExercises({ workoutId, onSaveSuccess, open, setTempStatusMessage });
+  const [activeView, setActiveView] = useState<'exercises' | 'add'>('exercises');
+  const [showBonusPrompt, setShowBonusPrompt] = useState(false);
+  const [pendingExercise, setPendingExercise] = useState<ExerciseDefinition | null>(null);
 
-  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
-  const [selectedExerciseForInfo, setSelectedExerciseForInfo] = useState<FetchedExerciseDefinition | null>(null);
+  const workoutColor = getWorkoutColor(workoutName);
+  const existingExerciseIds = useMemo(
+    () => new Set(hook.exercises.map(e => e.exercise_id)),
+    [hook.exercises]
+  );
 
-  const handleOpenInfoDialog = (exercise: WorkoutExerciseWithDetails) => {
-    setSelectedExerciseForInfo(exercise.exercise_definition as FetchedExerciseDefinition);
-    setIsInfoDialogOpen(true);
+  // Reset view when modal opens
+  useEffect(() => {
+    if (open) setActiveView('exercises');
+  }, [open]);
+
+  const handleExerciseTap = (exercise: ExerciseDefinition) => {
+    if (existingExerciseIds.has(exercise.id)) return;
+    setPendingExercise(exercise);
+    setShowBonusPrompt(true);
+  };
+
+  const handleConfirmAdd = (isBonus: boolean) => {
+    if (pendingExercise) {
+      hook.handleAddExerciseWithBonusStatus(pendingExercise, isBonus);
+    }
+    setShowBonusPrompt(false);
+    setPendingExercise(null);
+  };
+
+  const handleRemove = (exercise: WorkoutExerciseWithDetails) => {
+    Alert.alert(
+      'Remove Exercise',
+      `Remove "${exercise.exercise_definition.name}" from this workout?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => hook.confirmRemoveExercise(exercise.id) },
+      ]
+    );
   };
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={open}
-      onRequestClose={() => onOpenChange(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.fullScreenModalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Manage Exercises for {workoutName}</Text>
-            <TouchableOpacity onPress={() => onOpenChange(false)} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={Colors.foreground} />
+    <Modal animationType="slide" transparent visible={open} onRequestClose={() => onOpenChange(false)}>
+      <View style={s.overlay}>
+        <View style={s.sheet}>
+          {/* ─── Header ─── */}
+          <View style={s.header}>
+            <View style={s.headerLeft}>
+              <View style={[s.headerDot, { backgroundColor: workoutColor.main }]} />
+              <View style={s.headerText}>
+                <Text style={s.headerTitle} numberOfLines={1}>{workoutName}</Text>
+                <Text style={s.headerSubtitle}>
+                  {hook.exercises.length} exercise{hook.exercises.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => onOpenChange(false)} style={s.closeBtn}>
+              <Ionicons name="close" size={22} color={Colors.foreground} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.textMuted}>Loading exercises...</Text>
+          {/* ─── Tabs ─── */}
+          <View style={s.tabs}>
+            <TouchableOpacity
+              style={[s.tab, activeView === 'exercises' && s.tabActive]}
+              onPress={() => setActiveView('exercises')}
+            >
+              <Ionicons name="list" size={16} color={activeView === 'exercises' ? Colors.background : Colors.mutedForeground} />
+              <Text style={[s.tabText, activeView === 'exercises' && s.tabTextActive]}>Exercises</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.tab, activeView === 'add' && s.tabActive]}
+              onPress={() => setActiveView('add')}
+            >
+              <Ionicons name="add-circle-outline" size={16} color={activeView === 'add' ? Colors.background : Colors.mutedForeground} />
+              <Text style={[s.tabText, activeView === 'add' && s.tabTextActive]}>Add Exercise</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ─── Content ─── */}
+          {hook.loading ? (
+            <View style={s.centered}>
+              <ActivityIndicator size="large" color={Colors.actionPrimary} />
+              <Text style={s.centeredText}>Loading exercises...</Text>
+            </View>
+          ) : activeView === 'exercises' ? (
+            /* ─── Current Exercises List ─── */
+            <View style={s.listContainer}>
+              {hook.exercises.length === 0 ? (
+                <View style={s.centered}>
+                  <Ionicons name="barbell-outline" size={48} color={Colors.mutedForeground} />
+                  <Text style={s.emptyTitle}>No exercises yet</Text>
+                  <Text style={s.emptySubtitle}>Tap "Add Exercise" to get started</Text>
+                </View>
+              ) : (
+                <>
+                  <ScrollView style={s.exerciseScroll} showsVerticalScrollIndicator={false}>
+                    {hook.exercises.map((exercise, index) => (
+                      <View key={exercise.id} style={s.exerciseRow}>
+                        {/* Reorder Arrows */}
+                        <View style={s.arrows}>
+                          <TouchableOpacity
+                            onPress={() => hook.handleMoveUp(index)}
+                            disabled={index === 0}
+                            style={s.arrowBtn}
+                          >
+                            <Ionicons name="chevron-up" size={16} color={index === 0 ? Colors.border : Colors.mutedForeground} />
+                          </TouchableOpacity>
+                          <Text style={s.orderNum}>{index + 1}</Text>
+                          <TouchableOpacity
+                            onPress={() => hook.handleMoveDown(index)}
+                            disabled={index === hook.exercises.length - 1}
+                            style={s.arrowBtn}
+                          >
+                            <Ionicons name="chevron-down" size={16} color={index === hook.exercises.length - 1 ? Colors.border : Colors.mutedForeground} />
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Exercise Info */}
+                        <View style={s.exerciseInfo}>
+                          <Text style={s.exerciseName} numberOfLines={1}>
+                            {exercise.exercise_definition.name}
+                          </Text>
+                          <View style={s.exerciseMeta}>
+                            {(exercise.exercise_definition as any).main_muscle && (
+                              <Text style={s.exerciseMuscle}>{(exercise.exercise_definition as any).main_muscle}</Text>
+                            )}
+                            {exercise.is_bonus_exercise && (
+                              <View style={s.bonusChip}>
+                                <Ionicons name="star" size={10} color="#D97706" />
+                                <Text style={s.bonusChipText}>Bonus</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Actions */}
+                        <View style={s.actions}>
+                          <TouchableOpacity
+                            onPress={() => hook.handleToggleBonusStatus(exercise.id, exercise.is_bonus_exercise)}
+                            style={s.actionBtn}
+                          >
+                            <Ionicons
+                              name={exercise.is_bonus_exercise ? 'star' : 'star-outline'}
+                              size={18}
+                              color={exercise.is_bonus_exercise ? '#D97706' : Colors.mutedForeground}
+                            />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleRemove(exercise)} style={s.actionBtn}>
+                            <Ionicons name="trash-outline" size={18} color={Colors.destructive} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+
+                  {/* Save Footer */}
+                  <View style={s.footer}>
+                    <TouchableOpacity
+                      style={[s.saveBtn, { backgroundColor: workoutColor.main }]}
+                      onPress={hook.handleSaveOrder}
+                      disabled={hook.isSaving}
+                    >
+                      {hook.isSaving ? (
+                        <ActivityIndicator size="small" color={Colors.white} />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle" size={18} color={Colors.white} />
+                          <Text style={s.saveBtnText}>Save Order</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          ) : (
+            /* ─── Add Exercise View ─── */
+            <View style={s.addContainer}>
+              {/* Search */}
+              <View style={s.searchRow}>
+                <Ionicons name="search" size={18} color={Colors.mutedForeground} />
+                <TextInput
+                  style={s.searchInput}
+                  placeholder="Search exercises..."
+                  placeholderTextColor={Colors.mutedForeground}
+                  value={hook.addExerciseFilter}
+                  onChangeText={hook.setAddExerciseFilter}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                />
+                {hook.addExerciseFilter.length > 0 && (
+                  <TouchableOpacity onPress={() => hook.setAddExerciseFilter('')}>
+                    <Ionicons name="close-circle" size={18} color={Colors.mutedForeground} />
+                  </TouchableOpacity>
+                )}
               </View>
-            ) : (
-              <View style={styles.contentContainer}>
-                <AddExerciseSection 
-                  allAvailableExercises={filteredExercisesForDropdown}
-                  exercisesInWorkout={exercises}
-                  handleSelectAndPromptBonus={handleSelectAndPromptBonus}
-                  isSaving={isSaving}
-                  addExerciseFilter={addExerciseFilter}
-                  setAddExerciseFilter={setAddExerciseFilter}
-                  mainMuscleGroups={mainMuscleGroups}
-                  selectedMuscleFilter={selectedMuscleFilter}
-                  setSelectedMuscleFilter={setSelectedMuscleFilter}
-                  userGyms={userGyms}
-                  selectedGymFilter={selectedGymFilter}
-                  setSelectedGymFilter={setSelectedGymFilter}
-                  setTempStatusMessage={setTempStatusMessage}
-                />
-                <SortableExerciseList
-                  exercises={exercises}
-                  handleDragEnd={handleDragEnd}
-                  handleRemoveExerciseClick={handleRemoveExerciseClick}
-                  handleOpenInfoDialog={handleOpenInfoDialog}
-                  handleToggleBonusStatus={handleToggleBonusStatus}
-                />
-                <WorkoutActionButtons
-                  handleSaveOrder={handleSaveOrder}
-                  handleResetToDefaults={handleResetToDefaults}
-                  isSaving={isSaving}
-                  setShowConfirmResetDialog={setShowConfirmResetDialog}
-                />
-              </View>
-            )}
-          </ScrollView>
+
+              {/* Muscle Chips */}
+              {hook.mainMuscleGroups.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={s.chipScroll}
+                  contentContainerStyle={s.chipContent}
+                >
+                  <TouchableOpacity
+                    style={[s.chip, !hook.selectedMuscleFilter && s.chipActive]}
+                    onPress={() => hook.setSelectedMuscleFilter('')}
+                  >
+                    <Text style={[s.chipText, !hook.selectedMuscleFilter && s.chipTextActive]}>All</Text>
+                  </TouchableOpacity>
+                  {hook.mainMuscleGroups.map((muscle: string) => (
+                    <TouchableOpacity
+                      key={muscle}
+                      style={[s.chip, hook.selectedMuscleFilter === muscle && s.chipActive]}
+                      onPress={() => hook.setSelectedMuscleFilter(hook.selectedMuscleFilter === muscle ? '' : muscle)}
+                    >
+                      <Text style={[s.chipText, hook.selectedMuscleFilter === muscle && s.chipTextActive]}>{muscle}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Exercise List */}
+              <FlatList
+                data={hook.filteredExercisesForDropdown}
+                keyExtractor={item => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={s.addListContent}
+                ListEmptyComponent={
+                  <View style={s.centered}>
+                    <Ionicons name="search-outline" size={40} color={Colors.mutedForeground} />
+                    <Text style={s.emptyTitle}>No exercises found</Text>
+                    <Text style={s.emptySubtitle}>Try adjusting your search or filters</Text>
+                  </View>
+                }
+                renderItem={({ item }) => {
+                  const alreadyAdded = existingExerciseIds.has(item.id);
+                  return (
+                    <TouchableOpacity
+                      style={[s.addItem, alreadyAdded && s.addItemAdded]}
+                      onPress={() => handleExerciseTap(item)}
+                      disabled={alreadyAdded || hook.isSaving}
+                      activeOpacity={0.7}
+                    >
+                      <View style={s.addItemInfo}>
+                        <Text style={[s.addItemName, alreadyAdded && s.addItemNameAdded]}>{item.name}</Text>
+                        <Text style={s.addItemMuscle}>
+                          {(item as any).main_muscle || 'General'}
+                        </Text>
+                      </View>
+                      <View style={[s.addBtn, alreadyAdded && s.addBtnAdded]}>
+                        {alreadyAdded ? (
+                          <Ionicons name="checkmark" size={16} color={Colors.primaryForeground} />
+                        ) : (
+                          <Ionicons name="add" size={16} color={Colors.foreground} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          )}
         </View>
       </View>
 
-      {selectedExerciseForInfo && (
-        <ExerciseInfoDialog
-          open={isInfoDialogOpen}
-          onOpenChange={setIsInfoDialogOpen}
-          exercise={selectedExerciseForInfo}
-          setTempStatusMessage={setTempStatusMessage}
-        />
-      )}
-
-      {/* Confirmation Dialogs */}
-      <ConfirmRemoveExerciseDialog
-        open={showConfirmRemoveDialog}
-        onOpenChange={setShowConfirmRemoveDialog}
-        exerciseToRemove={exerciseToRemove}
-        onConfirm={() => {
-          confirmRemoveExercise(exerciseToRemove?.id || '');
-          setShowConfirmRemoveDialog(false);
-        }}
-      />
-
-      <AddAsBonusDialog
-        open={showAddAsBonusDialog}
-        onOpenChange={setShowAddAsBonusDialog}
-        exerciseToAddDetails={exerciseToAddDetails}
-        handleAddExerciseWithBonusStatus={handleAddExerciseWithBonusStatus}
-        isSaving={isSaving}
-      />
-
-      <ConfirmResetDialog
-        open={showConfirmResetDialog}
-        onOpenChange={setShowConfirmResetDialog}
-        workoutName={workoutName}
-        onConfirm={() => {
-          handleResetToDefaults();
-          setShowConfirmResetDialog(false);
-        }}
-      />
+      {/* ─── Bonus Prompt ─── */}
+      <Modal visible={showBonusPrompt} transparent animationType="fade" onRequestClose={() => setShowBonusPrompt(false)}>
+        <View style={s.promptOverlay}>
+          <View style={s.promptCard}>
+            <Text style={s.promptTitle}>Add "{pendingExercise?.name}"</Text>
+            <Text style={s.promptSubtitle}>How would you like to add this exercise?</Text>
+            <TouchableOpacity style={s.promptBtn} onPress={() => handleConfirmAdd(false)}>
+              <Ionicons name="barbell-outline" size={18} color={Colors.foreground} />
+              <Text style={s.promptBtnText}>Add as Regular</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.promptBtn, s.promptBtnBonus]} onPress={() => handleConfirmAdd(true)}>
+              <Ionicons name="star" size={18} color="#D97706" />
+              <Text style={[s.promptBtnText, { color: '#D97706' }]}>Add as Bonus</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.promptCancel} onPress={() => setShowBonusPrompt(false)}>
+              <Text style={s.promptCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  // Layout
+  overlay: {
+    flex: 1,
+    backgroundColor: Colors.modalOverlay,
     justifyContent: 'flex-end',
   },
-  fullScreenModalContent: {
-    flex: 1,
+  sheet: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: BorderRadius.lg,
-    borderTopRightRadius: BorderRadius.lg,
-    overflow: 'hidden',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '92%',
+    maxHeight: '92%',
   },
-  modalHeader: {
+
+  // Header
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md + 4,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm + 4,
+    flex: 1,
+  },
+  headerDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  headerText: { flex: 1 },
+  headerTitle: {
+    ...TextStyles.h5,
     color: Colors.foreground,
   },
-  closeButton: {
+  headerSubtitle: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
+    marginTop: 2,
+  },
+  closeBtn: {
     padding: Spacing.xs,
+    marginLeft: Spacing.sm,
   },
-  modalBody: {
+
+  // Tabs
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  tab: {
     flex: 1,
-    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.muted,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  loadingContainer: {
+  tabActive: {
+    backgroundColor: Colors.foreground,
+    borderColor: Colors.foreground,
+  },
+  tabText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.mutedForeground,
+  },
+  tabTextActive: {
+    color: Colors.background,
+  },
+
+  // Shared
+  centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xl * 2,
   },
-  textMuted: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
+  centeredText: {
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
+  },
+  emptyTitle: {
+    ...TextStyles.bodyMedium,
+    color: Colors.mutedForeground,
     marginTop: Spacing.sm,
   },
-  contentContainer: {
-    gap: Spacing.lg,
+  emptySubtitle: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
   },
-  card: {
+
+  // ─── Exercise List View ───
+  listContainer: { flex: 1 },
+  exerciseScroll: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm + 2,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
+    gap: Spacing.sm,
   },
-  cardTitle: {
-    fontSize: 18,
+  arrows: {
+    alignItems: 'center',
+    gap: 0,
+    width: 28,
+  },
+  arrowBtn: { padding: 2 },
+  orderNum: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 11,
     fontWeight: '600',
-    color: Colors.foreground,
-    marginBottom: Spacing.sm,
+    color: Colors.mutedForeground,
   },
-  textInput: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    color: Colors.foreground,
-    marginBottom: Spacing.sm,
+  exerciseInfo: {
+    flex: 1,
+    gap: 2,
   },
-  exerciseListContainer: {
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-  },
-  exerciseListItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  exerciseListItemText: {
-    color: Colors.foreground,
-    fontSize: 16,
-  },
-  pickerContainer: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  pickerLabel: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-  },
-  picker: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    justifyContent: 'center',
-  },
-  pickerText: {
-    color: Colors.foreground,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    marginTop: Spacing.sm,
-  },
-  buttonText: {
-    color: Colors.primaryForeground,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: Spacing.xs,
-  },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  outlineButtonText: {
-    color: Colors.primary,
-  },
-  buttonSecondary: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-  buttonSecondaryText: {
-    color: Colors.secondaryForeground,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  workoutItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.cardBackground,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    marginBottom: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  workoutName: {
-    fontSize: 16,
+  exerciseName: {
+    fontFamily: FontFamily.medium,
+    fontSize: 15,
     fontWeight: '500',
     color: Colors.foreground,
   },
-  workoutItemActions: {
+  exerciseMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  exerciseMuscle: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
+  },
+  bonusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  bonusChipText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#D97706',
+  },
+  actions: {
     flexDirection: 'row',
     gap: Spacing.xs,
   },
-  actionButton: {
-    padding: Spacing.xs,
+  actionBtn: {
+    padding: Spacing.xs + 2,
   },
-  info: {
-    color: Colors.info,
+
+  // Footer
+  footer: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.card,
   },
-  error: {
-    color: Colors.error,
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
+    borderRadius: BorderRadius.md,
   },
-  warning: {
-    color: Colors.warning,
+  saveBtnText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.white,
   },
-  bonusTag: {
-    backgroundColor: Colors.warning,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: Spacing.xxs,
-    marginLeft: Spacing.xs,
+
+  // ─── Add Exercise View ───
+  addContainer: { flex: 1 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.muted,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    gap: Spacing.sm,
   },
-  bonusTagText: {
-    color: Colors.warningForeground,
-    fontSize: 10,
-    fontWeight: 'bold',
+  searchInput: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    fontFamily: FontFamily.regular,
+    fontSize: 15,
+    color: Colors.foreground,
   },
-  dragHandle: {
-    marginRight: Spacing.xs,
+  chipScroll: {
+    maxHeight: 44,
+    marginTop: Spacing.md,
+  },
+  chipContent: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.muted,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  chipActive: {
+    backgroundColor: Colors.foreground,
+    borderColor: Colors.foreground,
+  },
+  chipText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.mutedForeground,
+  },
+  chipTextActive: {
+    color: Colors.background,
+  },
+  addListContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+  },
+  addItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm + 4,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  addItemAdded: {
+    backgroundColor: Colors.foreground + '08',
+    borderColor: Colors.foreground + '30',
+  },
+  addItemInfo: { flex: 1, gap: 2 },
+  addItemName: {
+    fontFamily: FontFamily.medium,
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.foreground,
+  },
+  addItemNameAdded: {
+    color: Colors.mutedForeground,
+  },
+  addItemMuscle: {
+    ...TextStyles.small,
+    color: Colors.mutedForeground,
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.muted,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.sm,
+  },
+  addBtnAdded: {
+    backgroundColor: Colors.foreground,
+    borderColor: Colors.foreground,
+  },
+
+  // ─── Bonus Prompt Modal ───
+  promptOverlay: {
+    flex: 1,
+    backgroundColor: Colors.modalOverlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  promptCard: {
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    width: '100%',
+    maxWidth: 340,
+    ...Shadows.lg,
+  },
+  promptTitle: {
+    ...TextStyles.h5,
+    color: Colors.foreground,
+    marginBottom: Spacing.xs,
+  },
+  promptSubtitle: {
+    ...TextStyles.bodySmall,
+    color: Colors.mutedForeground,
+    marginBottom: Spacing.lg,
+  },
+  promptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.muted,
+    marginBottom: Spacing.sm,
+  },
+  promptBtnBonus: {
+    backgroundColor: '#FEF3C7',
+  },
+  promptBtnText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.foreground,
+  },
+  promptCancel: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  promptCancelText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.mutedForeground,
   },
 });

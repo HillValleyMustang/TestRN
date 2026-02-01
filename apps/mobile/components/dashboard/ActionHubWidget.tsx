@@ -5,12 +5,13 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../ui/Card';
 import { Colors, Spacing, BorderRadius } from '../../constants/Theme';
 import { WorkoutPerformanceModal } from './WorkoutPerformanceModal';
+import { useAICoachEligibility } from '../../hooks/data/useAICoachEligibility';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -32,6 +33,10 @@ export function ActionHubWidget({
   const [moreButtonLayout, setMoreButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [workoutPerformanceVisible, setWorkoutPerformanceVisible] = useState(false);
   const moreButtonRef = useRef<View>(null);
+  const { data: eligibility } = useAICoachEligibility();
+
+  const isEligible = eligibility?.isEligible ?? true;
+  const showPulse = eligibility?.showPulse ?? false;
 
   const handleLogActivity = () => {
     if (onLogActivity) {
@@ -118,6 +123,11 @@ export function ActionHubWidget({
           >
             <Ionicons name="sparkles" size={22} color="#FBBF24" />
             <Text style={styles.buttonText}>AI Coach</Text>
+            {!isEligible && (
+              <View style={[styles.lockBadge, showPulse && styles.lockBadgePulse]}>
+                <Ionicons name="lock-closed" size={14} color="#FFF" />
+              </View>
+            )}
           </Pressable>
 
           {/* Col 3: Workout Log */}
@@ -347,5 +357,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     fontSize: 14,
     color: Colors.foreground,
+  },
+  lockBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FBBF24',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockBadgePulse: {
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
